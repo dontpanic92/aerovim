@@ -19,14 +19,11 @@ jobs:
         dotnet-version: '10.0.x'
         dotnet-quality: 'preview'
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
     - name: Restore NuGet packages
       run: dotnet restore dotnvim.sln
 
     - name: Build
-      run: msbuild dotnvim.sln /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
+      run: dotnet build dotnvim.sln --configuration Release --no-restore
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4

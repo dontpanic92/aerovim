@@ -4,8 +4,6 @@ VisualStudioVersion = 18.4.11620.152 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeovimClient", "NeovimClient\NeovimClient.csproj", "{33C21588-0053-4981-AA4F-D0EED36D6392}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Dotnvim.NativeInterop", "Dotnvim.NativeInterop\Dotnvim.NativeInterop.vcxproj", "{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotnvim", "Dotnvim\Dotnvim.csproj", "{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}"
 EndProject
 Global
@@ -30,18 +28,6 @@ Global
 		{33C21588-0053-4981-AA4F-D0EED36D6392}.Release|x64.Build.0 = Release|x64
 		{33C21588-0053-4981-AA4F-D0EED36D6392}.Release|x86.ActiveCfg = Release|x86
 		{33C21588-0053-4981-AA4F-D0EED36D6392}.Release|x86.Build.0 = Release|x86
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Debug|Any CPU.Build.0 = Debug|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Debug|x64.ActiveCfg = Debug|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Debug|x64.Build.0 = Debug|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Debug|x86.ActiveCfg = Debug|Win32
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Debug|x86.Build.0 = Debug|Win32
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Release|Any CPU.ActiveCfg = Release|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Release|Any CPU.Build.0 = Release|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Release|x64.ActiveCfg = Release|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Release|x64.Build.0 = Release|x64
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Release|x86.ActiveCfg = Release|Win32
-		{0D6BA789-BD97-448D-9234-0F09F1D8FD3E}.Release|x86.Build.0 = Release|Win32
 		{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}.Debug|Any CPU.ActiveCfg = Debug|x64
 		{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}.Debug|Any CPU.Build.0 = Debug|x64
 		{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}.Debug|x64.ActiveCfg = Debug|x64

@@ -42,7 +42,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Dotnvim.NativeInterop\Dotnvim.NativeInterop.vcxproj" />
     <ProjectReference Include="..\NeovimClient\NeovimClient.csproj" />
   </ItemGroup>
 

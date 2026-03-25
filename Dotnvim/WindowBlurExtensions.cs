@@ -155,12 +155,12 @@ namespace Dotnvim
 
         private static void BlurBehindWindows11(Form window, BlurType blurType)
         {
-            var margins = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
-            DwmExtendFrameIntoClientArea(window.Handle, ref margins);
+            var margins = new NativeMethods.MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+            NativeMethods.DwmExtendFrameIntoClientArea(window.Handle, ref margins);
 
             // Suppress the native DWM caption bar so it doesn't show through the backdrop
             int captionColor = DWMWA_COLOR_NONE;
-            DwmSetWindowAttribute(window.Handle, DWMWA_CAPTION_COLOR, ref captionColor, Marshal.SizeOf(typeof(int)));
+            NativeMethods.DwmSetWindowAttribute(window.Handle, DWMWA_CAPTION_COLOR, ref captionColor, Marshal.SizeOf(typeof(int)));
 
             int backdropType;
             switch (blurType)
@@ -176,17 +176,11 @@ namespace Dotnvim
                     break;
             }
 
-            DwmSetWindowAttribute(window.Handle, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, Marshal.SizeOf(typeof(int)));
+            NativeMethods.DwmSetWindowAttribute(window.Handle, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, Marshal.SizeOf(typeof(int)));
         }
 
         [DllImport("user32.dll")]
         private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct AccentPolicy
@@ -203,15 +197,6 @@ namespace Dotnvim
             public WindowCompositionAttribute Attribute;
             public IntPtr Data;
             public int SizeOfData;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct MARGINS
-        {
-            public int Left;
-            public int Right;
-            public int Top;
-            public int Bottom;
         }
     }
 }

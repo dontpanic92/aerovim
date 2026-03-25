@@ -109,6 +109,10 @@ namespace Dotnvim
             {
                 var param = base.CreateParams;
                 param.ExStyle |= 0x00200000;
+
+                // Remove WS_SYSMENU so DWM doesn't render native caption buttons
+                // behind the backdrop. The app draws its own custom titlebar buttons.
+                param.Style &= ~0x00080000;
                 return param;
             }
         }

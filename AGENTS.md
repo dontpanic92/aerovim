@@ -8,13 +8,12 @@ dotnvim is a Neovim GUI for Windows featuring Blur/Acrylic effects and font liga
 
 - **Dotnvim/** — Main WinExe application (C#, .NET 10, x64)
 - **NeovimClient/** — Neovim RPC client library (C#, .NET 10) using MsgPack.Cli
-- **Dotnvim.NativeInterop/** — C++/CLI DLL for Windows native API interop (DWM blur, GDI, etc.)
 
-Dependency graph: `Dotnvim → NeovimClient → Dotnvim.NativeInterop`
+Dependency graph: `Dotnvim → NeovimClient`
 
 ## Build Instructions
 
-This project requires Visual Studio 2022 with the .NET 10 SDK and C++/CLI workload.
+This project requires Visual Studio 2022 with the .NET 10 SDK.
 
 ### Restore packages
 
@@ -25,19 +24,18 @@ dotnet restore dotnvim.sln
 ### Build the solution
 
 ```powershell
-msbuild dotnvim.sln /p:Configuration=Debug /p:Platform=x64 /m /nologo /v:minimal
+dotnet build dotnvim.sln --configuration Debug
 ```
 
 For a release build:
 
 ```powershell
-msbuild dotnvim.sln /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
+dotnet build dotnvim.sln --configuration Release
 ```
 
 Build output locations:
 - `Dotnvim\bin\x64\{Configuration}\net10.0-windows\dotnvim.exe`
 - `NeovimClient\bin\x64\{Configuration}\net10.0-windows\Dotnvim.NeovimClient.dll`
-- `Dotnvim.NativeInterop\x64\{Configuration}\Dotnvim.NativeInterop.dll`
 
 ## Tests
 
