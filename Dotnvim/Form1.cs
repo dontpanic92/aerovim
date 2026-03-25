@@ -40,6 +40,10 @@ namespace Dotnvim
         private ButtonControl closeButton;
 
         private Size formerSize;
+        private List<IElement> renderElements;
+        private Size2 cachedTitleBarSize;
+        private Size2 cachedBorderSize;
+        private Size2F cachedDpi;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Form1"/> class.
@@ -207,7 +211,7 @@ namespace Dotnvim
                 backgroundColor.A = (float)Properties.Settings.Default.BackgroundOpacity;
             }
 
-            this.renderer.Draw(new List<IElement>() { this.layout }, backgroundColor, DwmBorderSize);
+            this.renderer.Draw(this.renderElements, backgroundColor, DwmBorderSize);
         }
 
         /// <inheritdoc />
@@ -222,19 +226,17 @@ namespace Dotnvim
                     m.Result = (IntPtr)0xF0;
                     return;
                 case 0x84: // WM_NCHITTEST
-                    var titleBarSize = Helpers.GetPixelSize(new Size2F(1, TitleBarHeight), this.renderer.Factory.DesktopDpi);
-                    var borderSize = Helpers.GetPixelSize(new Size2F(BorderWidth, BorderWidth), this.renderer.Factory.DesktopDpi);
                     m.Result = NativeInterop.Methods.NCHitTest(
                         this.Handle,
                         m.LParam,
-                        borderSize.Width,
-                        borderSize.Height,
-                        this.WindowState == FormWindowState.Maximized ? titleBarSize.Height : titleBarSize.Height - borderSize.Height,
+                        this.cachedBorderSize.Width,
+                        this.cachedBorderSize.Height,
+                        this.WindowState == FormWindowState.Maximized ? this.cachedTitleBarSize.Height : this.cachedTitleBarSize.Height - this.cachedBorderSize.Height,
                         (int x, int y) =>
                         {
                             if (this.renderer != null)
                             {
-                                var point = Helpers.GetDipPoint(x, y, this.renderer.Factory.DesktopDpi);
+                                var point = Helpers.GetDipPoint(x, y, this.cachedDpi);
                                 return this.settingsButton.HitTest(point)
                                     || this.minimizeButton.HitTest(point)
                                     || this.maximizeButton.HitTest(point)
@@ -245,6 +247,9 @@ namespace Dotnvim
                         });
 
                     return;
+                case 0x02E0: // WM_DPICHANGED
+                    this.UpdateCachedDpiValues();
+                    break;
                 case 0x0286: // WM_IME_CHAR
                     char ch = (char)m.WParam.ToInt64();
                     this.neovimControl.Input(ch.ToString());
@@ -491,6 +496,16 @@ namespace Dotnvim
             this.layout.AddControl(titleBar);
             this.layout.AddControl(this.neovimControl, true);
             this.layout.Layout();
+
+            this.renderElements = new List<IElement> { this.layout };
+            this.UpdateCachedDpiValues();
+        }
+
+        private void UpdateCachedDpiValues()
+        {
+            this.cachedDpi = this.renderer.Factory.DesktopDpi;
+            this.cachedTitleBarSize = Helpers.GetPixelSize(new Size2F(1, TitleBarHeight), this.cachedDpi);
+            this.cachedBorderSize = Helpers.GetPixelSize(new Size2F(BorderWidth, BorderWidth), this.cachedDpi);
         }
     }
 }

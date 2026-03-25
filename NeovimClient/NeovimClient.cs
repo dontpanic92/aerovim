@@ -36,6 +36,8 @@ namespace Dotnvim.NeovimClient
         private string title;
         private string iconTitle;
         private Cell[,] cells;
+        private bool[] dirtyRows;
+        private bool allDirty;
         private (int Row, int Col) cursorPosition = (0, 0);
 
         /// <summary>
@@ -198,7 +200,7 @@ namespace Dotnvim.NeovimClient
                 {
                     this.screen.Cells = (Cell[,])this.cells.Clone();
                 }
-                else
+                else if (this.allDirty)
                 {
                     for (int i = 0; i < this.cells.GetLength(0); i++)
                     {
@@ -207,6 +209,26 @@ namespace Dotnvim.NeovimClient
                             this.screen.Cells[i, j] = this.cells[i, j];
                         }
                     }
+                }
+                else if (this.dirtyRows != null)
+                {
+                    int cols = this.cells.GetLength(1);
+                    for (int i = 0; i < this.dirtyRows.Length; i++)
+                    {
+                        if (this.dirtyRows[i])
+                        {
+                            for (int j = 0; j < cols; j++)
+                            {
+                                this.screen.Cells[i, j] = this.cells[i, j];
+                            }
+                        }
+                    }
+                }
+
+                this.allDirty = false;
+                if (this.dirtyRows != null)
+                {
+                    Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
                 }
 
                 this.screen.CursorPosition = this.cursorPosition;
@@ -304,6 +326,7 @@ namespace Dotnvim.NeovimClient
         private void Resize(int width, int height)
         {
             this.cells = new Cell[height, width];
+            this.dirtyRows = new bool[height];
             this.Clear();
 
             this.scrollRegion = (0, 0, width - 1, height - 1);
@@ -319,6 +342,7 @@ namespace Dotnvim.NeovimClient
                 }
             }
 
+            this.allDirty = true;
             this.cursorPosition = (0, 0);
         }
 
@@ -329,10 +353,20 @@ namespace Dotnvim.NeovimClient
             {
                 this.ClearCell(ref this.cells[row, j]);
             }
+
+            if (this.dirtyRows != null)
+            {
+                this.dirtyRows[row] = true;
+            }
         }
 
         private void Put(IList<int?> text, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
         {
+            if (this.dirtyRows != null)
+            {
+                this.dirtyRows[this.cursorPosition.Row] = true;
+            }
+
             foreach (var ch in text)
             {
                 this.cells[this.cursorPosition.Row, this.cursorPosition.Col].Set(ch, foreground, background, special, reverse, italic, bold, underline, undercurl);
@@ -372,6 +406,14 @@ namespace Dotnvim.NeovimClient
                 {
                     int deltaRow = -i * Math.Sign(count);
                     this.ClearCell(ref this.cells[clearBegin + deltaRow, j]);
+                }
+            }
+
+            if (this.dirtyRows != null)
+            {
+                for (int row = this.scrollRegion.Top; row <= this.scrollRegion.Bottom; row++)
+                {
+                    this.dirtyRows[row] = true;
                 }
             }
         }

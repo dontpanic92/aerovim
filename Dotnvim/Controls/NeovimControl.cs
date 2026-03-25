@@ -45,6 +45,22 @@ namespace Dotnvim.Controls
 
         private TextLayoutParameters textParam;
 
+        // Reusable buffers to reduce GC pressure in Draw()
+        private short[] bufClusterMap;
+        private DWrite.ShapingTextProperties[] bufTextProperties;
+        private short[] bufIndices;
+        private DWrite.ShapingGlyphProperties[] bufShapingProperties;
+        private int[] bufFallbackCodePoint = new int[1];
+        private DWrite.FontFeature[][] cachedNoLigatureFeatures = new DWrite.FontFeature[][]
+        {
+            new DWrite.FontFeature[]
+            {
+                new DWrite.FontFeature(DWrite.FontFeatureTag.StandardLigatures, 0),
+            },
+        };
+
+        private int[] bufFeatureLength = new int[1];
+
         /// <summary>
         /// Initializes a new instance of the <see cref="NeovimControl"/> class.
         /// </summary>
@@ -280,8 +296,8 @@ namespace Dotnvim.Controls
                         foreach (var (codePointStart, codePointLength, scriptAnalysis) in scriptAnalyses)
                         {
                             var glyphBufferLength = (codePointLength * 3 / 2) + 16;
-                            var clusterMap = new short[codePointLength];
-                            var textProperties = new DWrite.ShapingTextProperties[codePointLength];
+                            var clusterMap = EnsureBuffer(ref this.bufClusterMap, codePointLength);
+                            var textProperties = EnsureBuffer(ref this.bufTextProperties, codePointLength);
                             short[] indices;
                             DWrite.ShapingGlyphProperties[] shapingProperties;
                             var fontFace = this.fontCache.GetPrimaryFontFace(fontWeight, fontStyle);
@@ -292,8 +308,8 @@ namespace Dotnvim.Controls
                             // the actual glyph count.
                             while (true)
                             {
-                                indices = new short[glyphBufferLength];
-                                shapingProperties = new DWrite.ShapingGlyphProperties[glyphBufferLength];
+                                indices = EnsureBuffer(ref this.bufIndices, glyphBufferLength);
+                                shapingProperties = EnsureBuffer(ref this.bufShapingProperties, glyphBufferLength);
                                 try
                                 {
                                     var str = textSource.GetSubString(codePointStart, codePointLength);
@@ -303,18 +319,9 @@ namespace Dotnvim.Controls
 
                                     if (!this.EnableLigature)
                                     {
-                                        fontFeatures = new DWrite.FontFeature[][]
-                                        {
-                                            new DWrite.FontFeature[]
-                                            {
-                                                new DWrite.FontFeature(DWrite.FontFeatureTag.StandardLigatures, 0),
-                                            },
-                                        };
-
-                                        featureLength = new int[]
-                                        {
-                                            str.Length,
-                                        };
+                                        fontFeatures = this.cachedNoLigatureFeatures;
+                                        this.bufFeatureLength[0] = str.Length;
+                                        featureLength = this.bufFeatureLength;
                                     }
 
                                     this.textAnalyzer.GetGlyphs(
@@ -365,7 +372,8 @@ namespace Dotnvim.Controls
                                     // Ligatures for fallback fonts are not supported yet.
                                     int codePoint = args.Cells[i, cellIndex].Character.Value;
                                     fontFace2 = this.fontCache.GetFontFace(codePoint, fontWeight, fontStyle);
-                                    indices2 = fontFace2.GetGlyphIndices(new int[] { codePoint });
+                                    this.bufFallbackCodePoint[0] = codePoint;
+                                    indices2 = fontFace2.GetGlyphIndices(this.bufFallbackCodePoint);
                                     glyphCount = indices2.Length;
 
                                     // NativeInterop.Methods.wcwidth(textSource.GetCodePoint(codePointStart + codePointIndex));
@@ -453,6 +461,16 @@ namespace Dotnvim.Controls
             this.cursorEffects.Dispose();
             this.brushCache.Dispose();
             this.fontCache.Dispose();
+        }
+
+        private static T[] EnsureBuffer<T>(ref T[] buffer, int minSize)
+        {
+            if (buffer == null || buffer.Length < minSize)
+            {
+                buffer = new T[minSize];
+            }
+
+            return buffer;
         }
 
         private int GetCharWidth(Cell[,] screen, int row, int col)

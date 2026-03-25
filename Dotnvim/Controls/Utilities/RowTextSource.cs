@@ -22,6 +22,8 @@ namespace Dotnvim.Controls.Utilities
         private readonly List<int> codePoints = new List<int>();
         private readonly int row;
         private readonly int columnCount;
+        private readonly string fullText;
+        private readonly int[] charOffsets;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RowTextSource"/> class.
@@ -44,6 +46,16 @@ namespace Dotnvim.Controls.Utilities
                     this.codePoints.Add(codePoint);
                 }
             }
+
+            this.charOffsets = new int[this.text.Count];
+            int charOffset = 0;
+            for (int k = 0; k < this.text.Count; k++)
+            {
+                this.charOffsets[k] = charOffset;
+                charOffset += this.text[k].Length;
+            }
+
+            this.fullText = string.Join(string.Empty, this.text);
 
             this.row = row;
             this.columnCount = rangeEnd - rangeStart;
@@ -78,7 +90,11 @@ namespace Dotnvim.Controls.Utilities
         /// <returns>The substring.</returns>
         public string GetSubString(int codePointStart, int codePointLength)
         {
-            return string.Join(string.Empty, this.text.Skip(codePointStart).Take(codePointLength));
+            int startOffset = this.charOffsets[codePointStart];
+            int endOffset = codePointStart + codePointLength < this.charOffsets.Length
+                ? this.charOffsets[codePointStart + codePointLength]
+                : this.fullText.Length;
+            return this.fullText.Substring(startOffset, endOffset - startOffset);
         }
 
         /// <inheritdoc />
@@ -110,13 +126,27 @@ namespace Dotnvim.Controls.Utilities
         /// <inheritdoc />
         public string GetTextAtPosition(int textPosition)
         {
-            return string.Join(string.Empty, this.text.Skip(textPosition));
+            if (textPosition >= this.charOffsets.Length)
+            {
+                return string.Empty;
+            }
+
+            return this.fullText.Substring(this.charOffsets[textPosition]);
         }
 
         /// <inheritdoc />
         public string GetTextBeforePosition(int textPosition)
         {
-            return string.Join(string.Empty, this.text.Take(textPosition - 1));
+            int count = textPosition - 1;
+            if (count <= 0)
+            {
+                return string.Empty;
+            }
+
+            int endOffset = count < this.charOffsets.Length
+                ? this.charOffsets[count]
+                : this.fullText.Length;
+            return this.fullText.Substring(0, endOffset);
         }
 
         /// <inheritdoc />

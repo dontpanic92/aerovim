@@ -168,7 +168,7 @@ namespace Dotnvim.NeovimClient
 
         private void OnResponse(uint requestId, MsgPack.MessagePackObject error, MsgPack.MessagePackObject result)
         {
-            if (!this.responseSignals.TryGetValue(requestId, out var signal))
+            if (!this.responseSignals.TryRemove(requestId, out var signal))
             {
                 return;
             }
