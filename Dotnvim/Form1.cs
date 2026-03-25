@@ -163,12 +163,12 @@ namespace Dotnvim
         }
 
         /// <inheritdoc />
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
             // Save window state
             Properties.WindowState.Default.Save();
 
-            base.OnClosing(e);
+            base.OnFormClosing(e);
             this.neovimClient.NeovimExited -= this.OnNeovimExited;
             this.neovimClient.Dispose();
             this.layout?.Dispose();

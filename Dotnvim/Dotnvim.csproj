@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>WinExe</OutputType>
     <RootNamespace>Dotnvim</RootNamespace>
     <AssemblyName>dotnvim</AssemblyName>
@@ -22,12 +22,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Vortice.Direct2D1" Version="3.6.2" />
-    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
-    <PackageReference Include="Vortice.DirectComposition" Version="3.6.2" />
-    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
+    <PackageReference Include="Vortice.Direct2D1" Version="3.8.1" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.1" />
+    <PackageReference Include="Vortice.DirectComposition" Version="3.8.1" />
+    <PackageReference Include="Vortice.DXGI" Version="3.8.1" />
     <PackageReference Include="Vortice.Mathematics" Version="2.1.0" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
