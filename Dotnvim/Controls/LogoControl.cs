@@ -61,7 +61,7 @@ namespace Dotnvim.Controls
         /// <inheritdoc />
         protected override void Draw()
         {
-            var dest = Rect.FromLTRB(
+            var dest = new Vortice.RawRectF(
                 HorinzontalPadding,
                 VerticalPadding,
                 this.Size.Width - HorinzontalPadding,

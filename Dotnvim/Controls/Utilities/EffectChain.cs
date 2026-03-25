@@ -79,9 +79,10 @@ namespace Dotnvim.Controls.Utilities
         /// </summary>
         /// <param name="mode">The composition mode.</param>
         /// <returns>EffectChain.</returns>
-        public EffectChain SetCompositionMode(D2D.CompositeMode mode)
+        public unsafe EffectChain SetCompositionMode(D2D.CompositeMode mode)
         {
-            this.CompositeEffect.SetValue((uint)D2D.CompositeProperties.Mode, mode);
+            uint value = (uint)mode;
+            this.CompositeEffect.SetValue((uint)D2D.CompositeProperties.Mode, D2D.PropertyType.Enum, &value, sizeof(uint));
             return this;
         }
 

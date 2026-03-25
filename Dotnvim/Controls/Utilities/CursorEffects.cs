@@ -26,7 +26,7 @@ namespace Dotnvim.Controls.Utilities
             var colorMatrix = new Matrix5x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1);
 
             this.PushEffect(D2D.EffectGuids.Crop)
-                    .SetupLast((e) => e.SetValue((uint)D2D.CropProperties.Rectangle, new System.Drawing.RectangleF(0, 0, 0, 0)))
+                    .SetupLast((e) => e.SetValue((uint)D2D.CropProperties.Rectangle, new System.Numerics.Vector4(0, 0, 0, 0)))
                 .PushEffect(D2D.EffectGuids.Invert)
                 .PushEffect(D2D.EffectGuids.ColorMatrix)
                     .SetupLast((e) => e.SetValue((uint)D2D.ColorMatrixProperties.ColorMatrix, colorMatrix))
@@ -37,9 +37,9 @@ namespace Dotnvim.Controls.Utilities
         /// Set the cursor boundary.
         /// </summary>
         /// <param name="cursorRect">The cursor rect.</param>
-        public void SetCursorRect(Rect cursorRect)
+        public void SetCursorRect(Vortice.RawRectF cursorRect)
         {
-            this.Effects[0].SetValue((uint)D2D.CropProperties.Rectangle, new System.Drawing.RectangleF(cursorRect.Left, cursorRect.Top, cursorRect.Right - cursorRect.Left, cursorRect.Bottom - cursorRect.Top));
+            this.Effects[0].SetValue((uint)D2D.CropProperties.Rectangle, new System.Numerics.Vector4(cursorRect.Left, cursorRect.Top, cursorRect.Right, cursorRect.Bottom));
         }
     }
 }

@@ -12,7 +12,6 @@ namespace Dotnvim.Controls
     using System.Threading.Tasks;
     using Dotnvim.Controls;
     using Dotnvim.Events;
-    using Vortice.Mathematics;
     using D2D = Vortice.Direct2D1;
 
     /// <summary>
@@ -62,7 +61,7 @@ namespace Dotnvim.Controls
         {
             foreach (var (control, _) in this.Controls)
             {
-                var boundary = Rect.FromLTRB(
+                var boundary = new Vortice.RawRectF(
                     control.Position.X,
                     control.Position.Y,
                     control.Position.X + control.Size.Width,

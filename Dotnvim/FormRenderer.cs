@@ -174,13 +174,13 @@ namespace Dotnvim
             var borderColor = new Color4(backgroundColor.R, backgroundColor.G, backgroundColor.B, 1);
             this.deviceContext2D.Clear(borderColor);
 
-            var rect = Rect.FromLTRB(dwmBorderSize, dwmBorderSize, this.deviceContext2D.Size.Width - dwmBorderSize, this.deviceContext2D.Size.Height - dwmBorderSize);
+            var rect = new Vortice.RawRectF(dwmBorderSize, dwmBorderSize, this.deviceContext2D.Size.Width - dwmBorderSize, this.deviceContext2D.Size.Height - dwmBorderSize);
             this.deviceContext2D.PushAxisAlignedClip(rect, D2D.AntialiasMode.Aliased);
             this.deviceContext2D.Clear(backgroundColor);
 
             foreach (var control in controls)
             {
-                var boundary = Rect.FromLTRB(
+                var boundary = new Vortice.RawRectF(
                     control.Position.X,
                     control.Position.Y,
                     control.Position.X + control.Size.Width,

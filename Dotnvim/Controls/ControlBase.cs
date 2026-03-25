@@ -14,7 +14,6 @@ namespace Dotnvim.Controls
     using System.Threading.Tasks;
     using Dotnvim.Controls.Utilities;
     using Dotnvim.Utilities;
-    using Vortice.Mathematics;
     using D2D = Vortice.Direct2D1;
     using D3D = Vortice.Direct3D;
     using D3D11 = Vortice.Direct3D11;
@@ -68,7 +67,7 @@ namespace Dotnvim.Controls
 
             this.Draw();
 
-            var boundary = Rect.FromLTRB(
+            var boundary = new Vortice.RawRectF(
                 this.Position.X,
                 this.Position.Y,
                 this.Position.X + this.Size.Width,

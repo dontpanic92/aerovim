@@ -84,7 +84,7 @@ namespace Dotnvim.Utilities
         /// <param name="rect">rRct in DIP.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>Rect in Pixel.</returns>
-        public static Rectangle GetRawRectangle(Rect rect, SizeF dpi)
+        public static Rectangle GetRawRectangle(Vortice.RawRectF rect, SizeF dpi)
         {
             int top = (int)Math.Round(dpi.Height * rect.Top / 96);
             int bottom = (int)Math.Round(dpi.Height * rect.Bottom / 96);
@@ -130,7 +130,7 @@ namespace Dotnvim.Utilities
         /// <param name="rect">The area to be copied.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>The new copied bitmap.</returns>
-        public static D2D.ID2D1Bitmap CopyBitmap(D2D.ID2D1RenderTarget renderTarget, D2D.ID2D1Bitmap bitmap, Rect rect, SizeF dpi)
+        public static D2D.ID2D1Bitmap CopyBitmap(D2D.ID2D1RenderTarget renderTarget, D2D.ID2D1Bitmap bitmap, Vortice.RawRectF rect, SizeF dpi)
         {
             var bitmapProperties = new D2D.BitmapProperties(
                 bitmap.PixelFormat,

@@ -19,7 +19,6 @@ namespace Dotnvim.Controls
     using Dotnvim.Controls.Utilities;
     using Dotnvim.NeovimClient.Utilities;
     using Dotnvim.Utilities;
-    using Vortice.Mathematics;
     using static Dotnvim.NeovimClient.NeovimClient;
     using D2D = Vortice.Direct2D1;
     using DWrite = Vortice.DirectWrite;
@@ -219,7 +218,7 @@ namespace Dotnvim.Controls
                         var x = j * this.textParam.CharWidth;
                         var y = i * this.textParam.LineHeight;
 
-                        var rect = Rect.FromLTRB(x, y, x + this.textParam.CharWidth, y + this.textParam.LineHeight);
+                        var rect = new Vortice.RawRectF(x, y, x + this.textParam.CharWidth, y + this.textParam.LineHeight);
                         int color = args.Cells[i, j].Reverse ? args.Cells[i, j].ForegroundColor : args.Cells[i, j].BackgroundColor;
                         var brush = this.brushCache.GetBrush(this.DeviceContext, color);
                         this.DeviceContext.FillRectangle(rect, brush);
@@ -474,12 +473,12 @@ namespace Dotnvim.Controls
             var cursorPercentage = this.neovimClient.ModeInfo?.CellPercentage ?? 100;
             var cursorShape = this.neovimClient.ModeInfo?.CursorShape ?? CursorShape.Block;
             var cellWidth = this.GetCharWidth(args.Cells, args.CursorPosition.Row, args.CursorPosition.Col);
-            Rect cursorRect;
+            Vortice.RawRectF cursorRect;
 
             switch (cursorShape)
             {
                 case CursorShape.Vertical:
-                    cursorRect = Rect.FromLTRB(
+                    cursorRect = new Vortice.RawRectF(
                         args.CursorPosition.Col * this.textParam.CharWidth,
                         args.CursorPosition.Row * this.textParam.LineHeight,
                         (args.CursorPosition.Col + (cursorPercentage / 100f)) * this.textParam.CharWidth,
@@ -487,14 +486,14 @@ namespace Dotnvim.Controls
                     break;
                 case CursorShape.Horizontal:
                     float topMargin = this.textParam.LineHeight * (100 - cursorPercentage) / 100f;
-                    cursorRect = Rect.FromLTRB(
+                    cursorRect = new Vortice.RawRectF(
                         args.CursorPosition.Col * this.textParam.CharWidth,
                         (args.CursorPosition.Row * this.textParam.LineHeight) + topMargin,
                         (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
                         (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
                     break;
                 default:
-                    cursorRect = Rect.FromLTRB(
+                    cursorRect = new Vortice.RawRectF(
                         args.CursorPosition.Col * this.textParam.CharWidth,
                         args.CursorPosition.Row * this.textParam.LineHeight,
                         (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
