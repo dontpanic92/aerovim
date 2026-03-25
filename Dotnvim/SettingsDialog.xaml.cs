@@ -111,6 +111,28 @@ namespace Dotnvim.Dialogs
         }
 
         /// <summary>
+        /// Gets a value indicating whether the Gaussian blur feature available.
+        /// </summary>
+        public bool GaussianBlurAvailable
+        {
+            get
+            {
+                return Helpers.GaussianBlurAvailable();
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the Mica effect is available.
+        /// </summary>
+        public bool MicaAvailable
+        {
+            get
+            {
+                return Helpers.MicaAvailable();
+            }
+        }
+
+        /// <summary>
         /// Gets the reason of closing the window.
         /// </summary>
         public Result CloseReason { get; private set; } = Result.NotClosed;

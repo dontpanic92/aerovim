@@ -22,6 +22,8 @@ namespace Dotnvim
     /// </summary>
     [SuppressMessage("StyleCop", "SA1600", Justification = "Undocumented APIs")]
     [SuppressMessage("StyleCop", "SA1602", Justification = "Undocumented APIs")]
+    [SuppressMessage("StyleCop", "SA1310", Justification = "Windows API constant names")]
+    [SuppressMessage("StyleCop", "SA1201", Justification = "Grouping Windows API constants with related code")]
     public static class WindowBlurExtensions
     {
         /// <summary>
@@ -43,7 +45,19 @@ namespace Dotnvim
             /// AcrylicBlur
             /// </summary>
             AcrylicBlur = 1,
+
+            /// <summary>
+            /// Mica (Windows 11 22H2+)
+            /// </summary>
+            Mica = 2,
         }
+
+        private const int DWMWA_CAPTION_COLOR = 35;
+        private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+        private const int DWMSBT_NONE = 1;
+        private const int DWMSBT_MAINWINDOW = 2;
+        private const int DWMSBT_TRANSIENTWINDOW = 3;
+        private const int DWMWA_COLOR_NONE = unchecked((int)0xFFFFFFFE);
 
         internal enum AccentState
         {
@@ -86,6 +100,12 @@ namespace Dotnvim
 
         private static void BlurBehindInternal(Form window, Color backgroundColor, double blurOpacity, BlurType intBlurType)
         {
+            if (Helpers.Windows11BackdropAvailable())
+            {
+                BlurBehindWindows11(window, intBlurType);
+                return;
+            }
+
             var blurType = (BlurType)intBlurType;
 
             if (blurType == BlurType.AcrylicBlur && !Helpers.AcrylicBlurAvailable())
@@ -107,8 +127,8 @@ namespace Dotnvim
                     break;
             }
 
-            uint backgroundColorValue = 0xFFFFFF; // ((uint)backgroundColor.B << 16) + ((uint)backgroundColor.G << 8) + ((uint)backgroundColor.R);
-            uint blurOpacityValue = 0; // (uint)(blurOpacity * 255);
+            uint backgroundColorValue = ((uint)backgroundColor.B << 16) + ((uint)backgroundColor.G << 8) + ((uint)backgroundColor.R);
+            uint blurOpacityValue = (uint)(blurOpacity * 255);
 
             var accent = new AccentPolicy()
             {
@@ -133,8 +153,40 @@ namespace Dotnvim
             Marshal.FreeHGlobal(accentPtr);
         }
 
+        private static void BlurBehindWindows11(Form window, BlurType blurType)
+        {
+            var margins = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+            DwmExtendFrameIntoClientArea(window.Handle, ref margins);
+
+            // Suppress the native DWM caption bar so it doesn't show through the backdrop
+            int captionColor = DWMWA_COLOR_NONE;
+            DwmSetWindowAttribute(window.Handle, DWMWA_CAPTION_COLOR, ref captionColor, Marshal.SizeOf(typeof(int)));
+
+            int backdropType;
+            switch (blurType)
+            {
+                case BlurType.AcrylicBlur:
+                    backdropType = DWMSBT_TRANSIENTWINDOW;
+                    break;
+                case BlurType.Mica:
+                    backdropType = DWMSBT_MAINWINDOW;
+                    break;
+                default:
+                    backdropType = DWMSBT_NONE;
+                    break;
+            }
+
+            DwmSetWindowAttribute(window.Handle, DWMWA_SYSTEMBACKDROP_TYPE, ref backdropType, Marshal.SizeOf(typeof(int)));
+        }
+
         [DllImport("user32.dll")]
         private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct AccentPolicy
@@ -151,6 +203,15 @@ namespace Dotnvim
             public WindowCompositionAttribute Attribute;
             public IntPtr Data;
             public int SizeOfData;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MARGINS
+        {
+            public int Left;
+            public int Right;
+            public int Top;
+            public int Bottom;
         }
     }
 }

@@ -31,7 +31,7 @@ namespace Dotnvim
         private const float DwmBorderSize = 1;
 
         private FormRenderer renderer;
-        private int backgroundColor = -1;
+        private int backgroundColor = 0;
         private NeovimClient.NeovimClient neovimClient;
         private VerticalLayout layout;
         private NeovimControl neovimControl;
@@ -74,10 +74,15 @@ namespace Dotnvim
             }
 
             this.InitializeControls();
-            this.BlurBehind(Color.FromArgb(255, 255, 255, 255), Properties.Settings.Default.BackgroundOpacity, Properties.Settings.Default.BlurType);
 
             var dwmBorderSize = Helpers.GetPixelSize(new SizeF(DwmBorderSize, DwmBorderSize), this.renderer.Dpi);
             NativeInterop.Methods.ExtendFrame(this.Handle, dwmBorderSize.Width, dwmBorderSize.Height);
+
+            var initialColor = Helpers.GetColor(this.backgroundColor);
+            this.BlurBehind(
+                Color.FromArgb((int)(initialColor.A * 255), (int)(initialColor.R * 255), (int)(initialColor.G * 255), (int)(initialColor.B * 255)),
+                Properties.Settings.Default.BackgroundOpacity,
+                Properties.Settings.Default.BlurType);
 
             Properties.Settings.Default.PropertyChanged += this.Default_PropertyChanged;
         }
