@@ -12,9 +12,8 @@ namespace Dotnvim.Controls
     using System.Threading.Tasks;
     using Dotnvim.Controls;
     using Dotnvim.Events;
-    using SharpDX;
-    using SharpDX.Direct2D1;
-    using SharpDX.Mathematics.Interop;
+    using Vortice.Mathematics;
+    using D2D = Vortice.Direct2D1;
 
     /// <summary>
     /// Box Layout.
@@ -59,19 +58,17 @@ namespace Dotnvim.Controls
         /// Draw onto the context.
         /// </summary>
         /// <param name="deviceContext">the device context.</param>
-        public override void Draw(DeviceContext deviceContext)
+        public override void Draw(D2D.ID2D1DeviceContext deviceContext)
         {
             foreach (var (control, _) in this.Controls)
             {
-                var boundary = new RawRectangleF()
-                {
-                    Top = control.Position.Y,
-                    Left = control.Position.X,
-                    Bottom = control.Position.Y + control.Size.Height,
-                    Right = control.Position.X + control.Size.Width,
-                };
+                var boundary = Rect.FromLTRB(
+                    control.Position.X,
+                    control.Position.Y,
+                    control.Position.X + control.Size.Width,
+                    control.Position.Y + control.Size.Height);
 
-                deviceContext.PushAxisAlignedClip(boundary, AntialiasMode.Aliased);
+                deviceContext.PushAxisAlignedClip(boundary, D2D.AntialiasMode.Aliased);
                 control.Draw(deviceContext);
                 deviceContext.PopAxisAlignedClip();
             }

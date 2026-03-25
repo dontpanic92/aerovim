@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Restore NuGet packages
+      run: dotnet restore dotnvim.sln
+
+    - name: Build
+      run: msbuild dotnvim.sln /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: dotnvim_x64
+        path: |
+          Dotnvim/bin/x64/Release/net8.0-windows/*.exe
+          Dotnvim/bin/x64/Release/net8.0-windows/*.dll

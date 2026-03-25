@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Drawing;
 using Dotnvim.Winforms.Controls.Rendering;
-using SharpDX.Direct2D1;
-using SharpDX.Mathematics.Interop;
+using Vortice.Mathematics;
 using static Dotnvim.NeovimClient.NeovimClient;
+using D2D = Vortice.Direct2D1;
 
 namespace Dotnvim.Winforms.Controls
 {
@@ -15,7 +16,7 @@ namespace Dotnvim.Winforms.Controls
         private readonly NeovimRenderer neovimRenderer;
         private readonly NeovimClient.NeovimClient neovimClient;
 
-        private RawRectangleF boundary;
+        private Rect boundary;
         private volatile RedrawArgs args = null;
 
         public NeovimClientControl(IControl parent, string neovimPath)
@@ -28,7 +29,7 @@ namespace Dotnvim.Winforms.Controls
             this.neovimClient.NeovimExited += this.NeovimExited;
         }
 
-        public override RawRectangleF Boundary
+        public override Rect Boundary
         {
             get
             {
@@ -38,7 +39,7 @@ namespace Dotnvim.Winforms.Controls
             set
             {
                 this.boundary = value;
-                this.neovimRenderer.Resize(new SharpDX.Size2F(value.Right - value.Left, value.Bottom - value.Top));
+                this.neovimRenderer.Resize(new SizeF(value.Right - value.Left, value.Bottom - value.Top));
                 this.neovimClient.TryResize(this.neovimRenderer.DesiredColCount, this.neovimRenderer.DesiredRowCount);
             }
         }
@@ -53,9 +54,9 @@ namespace Dotnvim.Winforms.Controls
             this.Invalidate();
         }
 
-        public override void Draw(DeviceContext deviceContext)
+        public override void Draw(D2D.ID2D1DeviceContext deviceContext)
         {
-            this.neovimRenderer.Draw(deviceContext,, this.Boundary);
+            this.neovimRenderer.Draw(deviceContext, this.Boundary);
         }
 
         protected override void Dispose(bool disposing)

@@ -7,14 +7,15 @@ namespace Dotnvim.Controls
 {
     using System;
     using System.Collections.Generic;
+    using System.Drawing;
     using System.Linq;
+    using System.Numerics;
     using System.Text;
     using System.Threading.Tasks;
     using Dotnvim.Events;
-    using SharpDX;
-    using SharpDX.Direct2D1;
-    using SharpDX.Mathematics.Interop;
-    using D3D11 = SharpDX.Direct3D11;
+    using Vortice.Mathematics;
+    using D2D = Vortice.Direct2D1;
+    using D3D11 = Vortice.Direct3D11;
 
     /// <summary>
     /// The base class for elements.
@@ -41,19 +42,19 @@ namespace Dotnvim.Controls
         }
 
         /// <inheritdoc />
-        public virtual Size2F Size { get; set; }
+        public virtual SizeF Size { get; set; }
 
         /// <inheritdoc />
-        public virtual RawVector2 Position { get; set; }
+        public virtual Vector2 Position { get; set; }
 
         /// <inheritdoc />
-        public Factory1 Factory => this.Parent.Factory;
+        public D2D.ID2D1Factory1 Factory => this.Parent.Factory;
 
         /// <inheritdoc />
-        public Device Device2D => this.Parent.Device2D;
+        public D2D.ID2D1Device Device2D => this.Parent.Device2D;
 
         /// <inheritdoc />
-        public D3D11.Device Device => this.Parent.Device;
+        public D3D11.ID3D11Device Device => this.Parent.Device;
 
         /// <summary>
         /// Gets the parent.
@@ -70,7 +71,7 @@ namespace Dotnvim.Controls
         }
 
         /// <inheritdoc />
-        public abstract void Draw(DeviceContext deviceContext);
+        public abstract void Draw(D2D.ID2D1DeviceContext deviceContext);
 
         /// <inheritdoc />
         public abstract void Layout();
@@ -102,7 +103,7 @@ namespace Dotnvim.Controls
         }
 
         /// <inheritdoc />
-        public bool HitTest(RawVector2 point)
+        public bool HitTest(Vector2 point)
         {
             return point.X >= this.Position.X
                 && point.Y >= this.Position.Y

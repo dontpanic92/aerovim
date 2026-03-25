@@ -8,7 +8,7 @@ namespace Dotnvim.Controls.Utilities
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using D2D = SharpDX.Direct2D1;
+    using D2D = Vortice.Direct2D1;
 
     /// <summary>
     /// Effect chain.
@@ -19,31 +19,31 @@ namespace Dotnvim.Controls.Utilities
         /// Initializes a new instance of the <see cref="EffectChain"/> class.
         /// </summary>
         /// <param name="deviceContext">The device context.</param>
-        public EffectChain(D2D.DeviceContext deviceContext)
+        public EffectChain(D2D.ID2D1DeviceContext deviceContext)
         {
             this.DeviceContext = deviceContext;
-            this.CompositeEffect = new D2D.Effect(deviceContext, D2D.Effect.Composite);
+            this.CompositeEffect = new D2D.ID2D1Effect(deviceContext.CreateEffect(D2D.EffectGuids.Composite));
         }
 
         /// <summary>
         /// Gets the output.
         /// </summary>
-        public virtual D2D.Image Output => this.CompositeEffect.Output;
+        public virtual D2D.ID2D1Image Output => this.CompositeEffect.Output;
 
         /// <summary>
         /// Gets the effects.
         /// </summary>
-        protected List<D2D.Effect> Effects { get; } = new List<D2D.Effect>();
+        protected List<D2D.ID2D1Effect> Effects { get; } = new List<D2D.ID2D1Effect>();
 
         /// <summary>
         /// Gets the composite effect.
         /// </summary>
-        protected D2D.Effect CompositeEffect { get; }
+        protected D2D.ID2D1Effect CompositeEffect { get; }
 
         /// <summary>
         /// Gets the device context.
         /// </summary>
-        protected D2D.DeviceContext DeviceContext { get; }
+        protected D2D.ID2D1DeviceContext DeviceContext { get; }
 
         /// <summary>
         /// Push a new effect.
@@ -52,7 +52,7 @@ namespace Dotnvim.Controls.Utilities
         /// <returns>EffectChain.</returns>
         public EffectChain PushEffect(Guid guid)
         {
-            var effect = new D2D.Effect(this.DeviceContext, guid);
+            var effect = new D2D.ID2D1Effect(this.DeviceContext.CreateEffect(guid));
             if (this.Effects.Count != 0)
             {
                 effect.SetInputEffect(0, this.Effects.Last(), false);
@@ -68,7 +68,7 @@ namespace Dotnvim.Controls.Utilities
         /// </summary>
         /// <param name="action">The config action callback.</param>
         /// <returns>EffectChain.</returns>
-        public EffectChain SetupLast(Action<D2D.Effect> action)
+        public EffectChain SetupLast(Action<D2D.ID2D1Effect> action)
         {
             action?.Invoke(this.Effects.LastOrDefault());
             return this;
@@ -81,7 +81,7 @@ namespace Dotnvim.Controls.Utilities
         /// <returns>EffectChain.</returns>
         public EffectChain SetCompositionMode(D2D.CompositeMode mode)
         {
-            this.CompositeEffect.SetEnumValue((int)D2D.CompositeProperties.Mode, mode);
+            this.CompositeEffect.SetValue((uint)D2D.CompositeProperties.Mode, mode);
             return this;
         }
 
@@ -98,7 +98,7 @@ namespace Dotnvim.Controls.Utilities
         /// Set the input.
         /// </summary>
         /// <param name="input">The input image.</param>
-        public virtual void SetInput(D2D.Image input)
+        public virtual void SetInput(D2D.ID2D1Image input)
         {
             this.Effects.FirstOrDefault()?.SetInput(0, input, false);
             this.CompositeEffect.SetInput(1, input, false);

@@ -8,7 +8,7 @@ namespace Dotnvim.Controls.Cache
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using DWrite = SharpDX.DirectWrite;
+    using DWrite = Vortice.DirectWrite;
 
     /// <summary>
     /// ScriptAnalyses cache.

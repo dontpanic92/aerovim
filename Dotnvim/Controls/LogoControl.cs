@@ -7,9 +7,12 @@ namespace Dotnvim.Controls
 {
     using System.Drawing;
     using System.Drawing.Imaging;
-    using SharpDX;
-    using SharpDX.Mathematics.Interop;
-    using D2D = SharpDX.Direct2D1;
+    using Dotnvim.Utilities;
+    using Vortice.Mathematics;
+    using D2D = Vortice.Direct2D1;
+    using DXGI = Vortice.DXGI;
+    using Size = System.Drawing.Size;
+    using SizeF = System.Drawing.SizeF;
 
     /// <summary>
     /// The Logo control.
@@ -18,7 +21,7 @@ namespace Dotnvim.Controls
     {
         private const float VerticalPadding = 3;
         private const float HorinzontalPadding = 8;
-        private readonly D2D.Bitmap bitmap;
+        private readonly D2D.ID2D1Bitmap bitmap;
         private readonly float ratio;
 
         /// <summary>
@@ -30,19 +33,17 @@ namespace Dotnvim.Controls
         {
             var image = Properties.Resources.neovim_logo_flat;
             var size = new Rectangle(0, 0, image.Width, image.Height);
-            var bitmapProperties = new D2D.BitmapProperties()
-            {
-                DpiX = this.Factory.DesktopDpi.Width,
-                DpiY = this.Factory.DesktopDpi.Height,
-                PixelFormat = new D2D.PixelFormat(SharpDX.DXGI.Format.B8G8R8A8_UNorm, D2D.AlphaMode.Premultiplied),
-            };
+            var bitmapProperties = new D2D.BitmapProperties1(
+                new Vortice.DCommon.PixelFormat(DXGI.Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied),
+                this.Factory.GetDesktopDpi().Width,
+                this.Factory.GetDesktopDpi().Height,
+                D2D.BitmapOptions.None);
 
             var bitmapData = image.LockBits(size, ImageLockMode.ReadOnly, PixelFormat.Format32bppPArgb);
-            this.bitmap = new D2D.Bitmap(
-                this.DeviceContext,
-                new Size2(image.Width, image.Height),
-                new DataPointer(bitmapData.Scan0, bitmapData.Stride * bitmapData.Height),
-                bitmapData.Stride,
+            this.bitmap = this.DeviceContext.CreateBitmap(
+                new SizeI(image.Width, image.Height),
+                bitmapData.Scan0,
+                (uint)bitmapData.Stride,
                 bitmapProperties);
             image.UnlockBits(bitmapData);
 
@@ -54,25 +55,25 @@ namespace Dotnvim.Controls
         {
             base.Layout();
 
-            this.Size = new Size2F(((this.Size.Height - (2 * VerticalPadding)) * this.ratio) + (2 * HorinzontalPadding), this.Size.Height);
+            this.Size = new SizeF(((this.Size.Height - (2 * VerticalPadding)) * this.ratio) + (2 * HorinzontalPadding), this.Size.Height);
         }
 
         /// <inheritdoc />
         protected override void Draw()
         {
-            var dest = new RawRectangleF(
+            var dest = Rect.FromLTRB(
                 HorinzontalPadding,
                 VerticalPadding,
                 this.Size.Width - HorinzontalPadding,
                 this.Size.Height - VerticalPadding);
 
             this.DeviceContext.BeginDraw();
-            this.DeviceContext.Clear(new RawColor4(0, 0, 0, 0));
+            this.DeviceContext.Clear(new Color4(0, 0, 0, 0));
             this.DeviceContext.DrawBitmap(
                 this.bitmap,
                 dest,
-                1,
-                SharpDX.Direct2D1.InterpolationMode.HighQualityCubic,
+                1.0f,
+                D2D.InterpolationMode.HighQualityCubic,
                 null,
                 null);
             this.DeviceContext.EndDraw();

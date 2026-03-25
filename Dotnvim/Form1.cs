@@ -9,14 +9,17 @@ namespace Dotnvim
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.Drawing;
+    using System.Numerics;
     using System.Windows.Forms;
     using Dotnvim.Controls;
     using Dotnvim.Events;
     using Dotnvim.Utilities;
-    using SharpDX;
-    using SharpDX.Direct2D1;
-    using SharpDX.Mathematics.Interop;
-    using D3D11 = SharpDX.Direct3D11;
+    using Vortice.Mathematics;
+    using Color = System.Drawing.Color;
+    using D2D = Vortice.Direct2D1;
+    using D3D11 = Vortice.Direct3D11;
+    using Size = System.Drawing.Size;
+    using SizeF = System.Drawing.SizeF;
 
     /// <summary>
     /// The Mainform.
@@ -41,9 +44,9 @@ namespace Dotnvim
 
         private Size formerSize;
         private List<IElement> renderElements;
-        private Size2 cachedTitleBarSize;
-        private Size2 cachedBorderSize;
-        private Size2F cachedDpi;
+        private Size cachedTitleBarSize;
+        private Size cachedBorderSize;
+        private SizeF cachedDpi;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Form1"/> class.
@@ -73,26 +76,26 @@ namespace Dotnvim
             this.InitializeControls();
             this.BlurBehind(Color.FromArgb(255, 255, 255, 255), Properties.Settings.Default.BackgroundOpacity, Properties.Settings.Default.BlurType);
 
-            var dwmBorderSize = Helpers.GetPixelSize(new Size2F(DwmBorderSize, DwmBorderSize), this.renderer.Dpi);
+            var dwmBorderSize = Helpers.GetPixelSize(new SizeF(DwmBorderSize, DwmBorderSize), this.renderer.Dpi);
             NativeInterop.Methods.ExtendFrame(this.Handle, dwmBorderSize.Width, dwmBorderSize.Height);
 
             Properties.Settings.Default.PropertyChanged += this.Default_PropertyChanged;
         }
 
         /// <inheritdoc />
-        public Factory1 Factory => this.renderer.Factory;
+        public D2D.ID2D1Factory1 Factory => this.renderer.Factory;
 
         /// <inheritdoc />
-        public Device Device2D => this.renderer.Device2D;
+        public D2D.ID2D1Device Device2D => this.renderer.Device2D;
 
         /// <inheritdoc />
-        public D3D11.Device Device => this.renderer.Device;
+        public D3D11.ID3D11Device Device => this.renderer.Device;
 
         /// <inheritdoc />
-        Size2F IElement.Size { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        SizeF IElement.Size { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         /// <inheritdoc />
-        RawVector2 IElement.Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        Vector2 IElement.Position { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         /// <inheritdoc />
         protected override CreateParams CreateParams
@@ -118,7 +121,7 @@ namespace Dotnvim
         }
 
         /// <inheritdoc />
-        void IElement.Draw(DeviceContext deviceContext)
+        void IElement.Draw(D2D.ID2D1DeviceContext deviceContext)
         {
             throw new NotImplementedException();
         }
@@ -130,7 +133,7 @@ namespace Dotnvim
         }
 
         /// <inheritdoc />
-        bool IElement.HitTest(RawVector2 point)
+        bool IElement.HitTest(Vector2 point)
         {
             throw new NotImplementedException();
         }
@@ -208,7 +211,7 @@ namespace Dotnvim
             var backgroundColor = Helpers.GetColor(this.backgroundColor);
             if (Helpers.BlurBehindEnabled())
             {
-                backgroundColor.A = (float)Properties.Settings.Default.BackgroundOpacity;
+                backgroundColor = new Color4(backgroundColor.R, backgroundColor.G, backgroundColor.B, (float)Properties.Settings.Default.BackgroundOpacity);
             }
 
             this.renderer.Draw(this.renderElements, backgroundColor, DwmBorderSize);
@@ -296,7 +299,7 @@ namespace Dotnvim
                     break;
             }
 
-            var point = Helpers.GetDipPoint(e.X, e.Y, this.renderer.Factory.DesktopDpi);
+            var point = Helpers.GetDipPoint(e.X, e.Y, this.renderer.Factory.GetDesktopDpi());
             var mouseEvent = new MouseEvent(MouseEvent.Type.MouseMove, point, button);
             this.layout.OnMouseMove(mouseEvent);
         }
@@ -306,7 +309,7 @@ namespace Dotnvim
         {
             base.OnMouseLeave(e);
 
-            var point = Helpers.GetDipPoint(-1, -1, this.renderer.Factory.DesktopDpi);
+            var point = Helpers.GetDipPoint(-1, -1, this.renderer.Factory.GetDesktopDpi());
             var mouseEvent = new MouseEvent(MouseEvent.Type.MouseMove, point, MouseEvent.Buttons.None);
             this.layout.OnMouseLeave(mouseEvent);
         }
@@ -318,7 +321,7 @@ namespace Dotnvim
 
             if (e.Button == MouseButtons.Left)
             {
-                var point = Helpers.GetDipPoint(e.X, e.Y, this.renderer.Factory.DesktopDpi);
+                var point = Helpers.GetDipPoint(e.X, e.Y, this.renderer.Factory.GetDesktopDpi());
                 var mouseEvent = new MouseEvent(MouseEvent.Type.MouseClick, point, MouseEvent.Buttons.Left);
                 this.layout.OnMouseClick(mouseEvent);
             }
@@ -364,7 +367,7 @@ namespace Dotnvim
                     this.layout.Padding = DwmBorderSize;
                 }
 
-                this.layout.Size = Helpers.GetDipSize(new Size2(this.Width, this.Height), this.renderer.Factory.DesktopDpi);
+                this.layout.Size = Helpers.GetDipSize(new Size(this.Width, this.Height), this.renderer.Factory.GetDesktopDpi());
                 this.layout.Layout();
                 this.Invalidate();
             }
@@ -398,7 +401,7 @@ namespace Dotnvim
             this.renderer = new FormRenderer(this);
             this.layout = new VerticalLayout(this)
             {
-                Size = Helpers.GetDipSize(new Size2(this.Width, this.Height), this.renderer.Factory.DesktopDpi),
+                Size = Helpers.GetDipSize(new Size(this.Width, this.Height), this.renderer.Factory.GetDesktopDpi()),
             };
 
             this.neovimClient.NeovimExited += this.OnNeovimExited;
@@ -420,12 +423,12 @@ namespace Dotnvim
             };
 
             var buttonSize = Helpers.GetDipSize(
-                new Size2(SystemInformation.CaptionButtonSize.Width, SystemInformation.CaptionButtonSize.Height),
-                this.renderer.Factory.DesktopDpi);
+                new Size(SystemInformation.CaptionButtonSize.Width, SystemInformation.CaptionButtonSize.Height),
+                this.renderer.Factory.GetDesktopDpi());
 
             var titleBar = new HorizontalLayout(this.layout)
             {
-                Size = new Size2F(1, TitleBarHeight),
+                Size = new SizeF(1, TitleBarHeight),
             };
             this.logoControl = new LogoControl(titleBar);
             this.titleControl = new TitleControl(titleBar);
@@ -503,9 +506,9 @@ namespace Dotnvim
 
         private void UpdateCachedDpiValues()
         {
-            this.cachedDpi = this.renderer.Factory.DesktopDpi;
-            this.cachedTitleBarSize = Helpers.GetPixelSize(new Size2F(1, TitleBarHeight), this.cachedDpi);
-            this.cachedBorderSize = Helpers.GetPixelSize(new Size2F(BorderWidth, BorderWidth), this.cachedDpi);
+            this.cachedDpi = this.renderer.Factory.GetDesktopDpi();
+            this.cachedTitleBarSize = Helpers.GetPixelSize(new SizeF(1, TitleBarHeight), this.cachedDpi);
+            this.cachedBorderSize = Helpers.GetPixelSize(new SizeF(BorderWidth, BorderWidth), this.cachedDpi);
         }
     }
 }

@@ -10,6 +10,8 @@ namespace Dotnvim.Controls
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Numerics;
+    using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
@@ -17,15 +19,11 @@ namespace Dotnvim.Controls
     using Dotnvim.Controls.Utilities;
     using Dotnvim.NeovimClient.Utilities;
     using Dotnvim.Utilities;
-    using SharpDX;
-    using SharpDX.Direct2D1;
-    using SharpDX.Mathematics.Interop;
+    using Vortice.Mathematics;
     using static Dotnvim.NeovimClient.NeovimClient;
-    using D2D = SharpDX.Direct2D1;
-    using D3D = SharpDX.Direct3D;
-    using D3D11 = SharpDX.Direct3D11;
-    using DWrite = SharpDX.DirectWrite;
-    using DXGI = SharpDX.DXGI;
+    using D2D = Vortice.Direct2D1;
+    using DWrite = Vortice.DirectWrite;
+    using SizeF = System.Drawing.SizeF;
 
     /// <summary>
     /// The neovim control.
@@ -33,8 +31,8 @@ namespace Dotnvim.Controls
     public class NeovimControl : ControlBase
     {
         private readonly NeovimClient.NeovimClient neovimClient;
-        private readonly DWrite.TextAnalyzer textAnalyzer;
-        private readonly DWrite.Factory factoryDWrite = new DWrite.Factory();
+        private readonly DWrite.IDWriteTextAnalyzer textAnalyzer;
+        private readonly DWrite.IDWriteFactory factoryDWrite = DWrite.DWrite.DWriteCreateFactory<DWrite.IDWriteFactory>();
 
         private readonly CursorEffects cursorEffects;
         private readonly BrushCache brushCache;
@@ -46,20 +44,14 @@ namespace Dotnvim.Controls
         private TextLayoutParameters textParam;
 
         // Reusable buffers to reduce GC pressure in Draw()
-        private short[] bufClusterMap;
+        private ushort[] bufClusterMap;
         private DWrite.ShapingTextProperties[] bufTextProperties;
-        private short[] bufIndices;
+        private ushort[] bufIndices;
         private DWrite.ShapingGlyphProperties[] bufShapingProperties;
-        private int[] bufFallbackCodePoint = new int[1];
-        private DWrite.FontFeature[][] cachedNoLigatureFeatures = new DWrite.FontFeature[][]
-        {
-            new DWrite.FontFeature[]
-            {
-                new DWrite.FontFeature(DWrite.FontFeatureTag.StandardLigatures, 0),
-            },
-        };
+        private uint[] bufFallbackCodePoint = new uint[1];
 
-        private int[] bufFeatureLength = new int[1];
+        // TODO: Ligature suppression not yet supported with Vortice GetGlyphs API (nint? features parameter).
+        // Restore ligature feature arrays when API support is available.
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NeovimControl"/> class.
@@ -73,7 +65,7 @@ namespace Dotnvim.Controls
             this.neovimClient.Redraw += this.Invalidate;
             this.neovimClient.FontChanged += this.OnFontChanged;
 
-            this.textAnalyzer = new DWrite.TextAnalyzer(this.factoryDWrite);
+            this.textAnalyzer = this.factoryDWrite.CreateTextAnalyzer();
             this.cursorEffects = new CursorEffects(this.DeviceContext);
             this.brushCache = new BrushCache();
             this.scriptAnalysesCache = new ScriptAnalysesCache();
@@ -87,11 +79,11 @@ namespace Dotnvim.Controls
                 false,
                 false,
                 false,
-                this.Factory.DesktopDpi);
+                this.Factory.GetDesktopDpi());
         }
 
         /// <inheritdoc />
-        public override Size2F Size
+        public override SizeF Size
         {
             get
             {
@@ -187,7 +179,7 @@ namespace Dotnvim.Controls
                         font.Italic,
                         font.Underline,
                         font.StrikeOut,
-                        this.Factory.DesktopDpi);
+                        this.Factory.GetDesktopDpi());
                     this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
                 }
                 else
@@ -227,7 +219,7 @@ namespace Dotnvim.Controls
                         var x = j * this.textParam.CharWidth;
                         var y = i * this.textParam.LineHeight;
 
-                        var rect = new RawRectangleF(x, y, x + this.textParam.CharWidth, y + this.textParam.LineHeight);
+                        var rect = Rect.FromLTRB(x, y, x + this.textParam.CharWidth, y + this.textParam.LineHeight);
                         int color = args.Cells[i, j].Reverse ? args.Cells[i, j].ForegroundColor : args.Cells[i, j].BackgroundColor;
                         var brush = this.brushCache.GetBrush(this.DeviceContext, color);
                         this.DeviceContext.FillRectangle(rect, brush);
@@ -281,12 +273,12 @@ namespace Dotnvim.Controls
                     using (var textSource = new RowTextSource(this.factoryDWrite, args.Cells, i, cellRangeStart, cellRangeEnd))
                     {
                         var scriptAnalyses = this.scriptAnalysesCache.GetOrAddAnalysisResult(
-                            textSource.GetTextAtPosition(0),
+                            textSource.FullText,
                             (_) =>
                             {
                                 using (var textSink = new TextAnalysisSink())
                                 {
-                                    this.textAnalyzer.AnalyzeScript(textSource, 0, textSource.Length, textSink);
+                                    this.textAnalyzer.AnalyzeScript(textSource, 0, (uint)textSource.Length, textSink);
                                     return textSink.ScriptAnalyses;
                                 }
                             });
@@ -298,10 +290,10 @@ namespace Dotnvim.Controls
                             var glyphBufferLength = (codePointLength * 3 / 2) + 16;
                             var clusterMap = EnsureBuffer(ref this.bufClusterMap, codePointLength);
                             var textProperties = EnsureBuffer(ref this.bufTextProperties, codePointLength);
-                            short[] indices;
+                            ushort[] indices;
                             DWrite.ShapingGlyphProperties[] shapingProperties;
                             var fontFace = this.fontCache.GetPrimaryFontFace(fontWeight, fontStyle);
-                            int actualGlyphCount;
+                            uint actualGlyphCount;
 
                             // We don't know how many glyphs the text have. TextLength * 3 / 2 + 16
                             // is an empirical estimation suggested by MSDN. So using a loop to detect
@@ -314,28 +306,19 @@ namespace Dotnvim.Controls
                                 {
                                     var str = textSource.GetSubString(codePointStart, codePointLength);
 
-                                    DWrite.FontFeature[][] fontFeatures = null;
-                                    int[] featureLength = null;
-
-                                    if (!this.EnableLigature)
-                                    {
-                                        fontFeatures = this.cachedNoLigatureFeatures;
-                                        this.bufFeatureLength[0] = str.Length;
-                                        featureLength = this.bufFeatureLength;
-                                    }
-
                                     this.textAnalyzer.GetGlyphs(
                                         str,
-                                        str.Length,
+                                        (uint)str.Length,
                                         fontFace,
                                         false,
                                         false,
                                         scriptAnalysis,
                                         null,
                                         null,
-                                        fontFeatures,
-                                        featureLength,
-                                        glyphBufferLength,
+                                        null,
+                                        null,
+                                        0u,
+                                        (uint)glyphBufferLength,
                                         clusterMap,
                                         textProperties,
                                         indices,
@@ -343,10 +326,10 @@ namespace Dotnvim.Controls
                                         out actualGlyphCount);
                                     break;
                                 }
-                                catch (SharpDX.SharpDXException e)
+                                catch (COMException e)
                                 {
-                                    const int ERROR_INSUFFICIENT_BUFFER = 122;
-                                    if (e.ResultCode == SharpDX.Result.GetResultFromWin32Error(ERROR_INSUFFICIENT_BUFFER))
+                                    const int ERROR_INSUFFICIENT_BUFFER = unchecked((int)0x8007007A);
+                                    if (e.HResult == ERROR_INSUFFICIENT_BUFFER)
                                     {
                                         glyphBufferLength *= 2;
                                     }
@@ -360,7 +343,7 @@ namespace Dotnvim.Controls
                                 var foregroundColor = args.Cells[i, cellIndex].Reverse ? args.Cells[i, cellIndex].BackgroundColor : args.Cells[i, cellIndex].ForegroundColor;
                                 var foregroundBrush = this.brushCache.GetBrush(this.DeviceContext, foregroundColor);
                                 var fontFace2 = fontFace;
-                                short[] indices2;
+                                ushort[] indices2;
 
                                 int cellWidth = 0;
                                 int codePointCount = 0;
@@ -372,7 +355,7 @@ namespace Dotnvim.Controls
                                     // Ligatures for fallback fonts are not supported yet.
                                     int codePoint = args.Cells[i, cellIndex].Character.Value;
                                     fontFace2 = this.fontCache.GetFontFace(codePoint, fontWeight, fontStyle);
-                                    this.bufFallbackCodePoint[0] = codePoint;
+                                    this.bufFallbackCodePoint[0] = (uint)codePoint;
                                     indices2 = fontFace2.GetGlyphIndices(this.bufFallbackCodePoint);
                                     glyphCount = indices2.Length;
 
@@ -417,28 +400,26 @@ namespace Dotnvim.Controls
                                     }
 
                                     glyphCount = nextCluster - cluster;
-                                    indices2 = new short[glyphCount];
+                                    indices2 = new ushort[glyphCount];
                                     for (int c = 0; c < glyphCount; c++)
                                     {
                                         indices2[c] = indices[glyphIndex];
                                     }
                                 }
 
-                                using (var glyphrun = new DWrite.GlyphRun
+                                var glyphrun = new DWrite.GlyphRun
                                 {
                                     FontFace = fontFace2,
                                     Advances = null,
                                     BidiLevel = 0,
-                                    FontSize = this.textParam.DipSize,
+                                    FontEmSize = this.textParam.DipSize,
                                     Indices = indices2,
                                     IsSideways = false,
                                     Offsets = null,
-                                })
-                                {
-                                    var origin = new RawVector2(this.textParam.CharWidth * cellIndex, this.textParam.LineHeight * (i + 0.8f));
-                                    this.DeviceContext.DrawGlyphRun(origin, glyphrun, foregroundBrush, D2D.MeasuringMode.GdiNatural);
-                                    glyphrun.FontFace = null;
-                                }
+                                };
+
+                                var origin = new Vector2(this.textParam.CharWidth * cellIndex, this.textParam.LineHeight * (i + 0.8f));
+                                this.DeviceContext.DrawGlyphRun(origin, glyphrun, foregroundBrush, Vortice.DCommon.MeasuringMode.GdiNatural);
 
                                 cellIndex += cellWidth;
                                 codePointIndex += codePointCount;
@@ -493,37 +474,31 @@ namespace Dotnvim.Controls
             var cursorPercentage = this.neovimClient.ModeInfo?.CellPercentage ?? 100;
             var cursorShape = this.neovimClient.ModeInfo?.CursorShape ?? CursorShape.Block;
             var cellWidth = this.GetCharWidth(args.Cells, args.CursorPosition.Row, args.CursorPosition.Col);
-            RawRectangleF cursorRect;
+            Rect cursorRect;
 
             switch (cursorShape)
             {
                 case CursorShape.Vertical:
-                    cursorRect = new RawRectangleF()
-                    {
-                        Left = args.CursorPosition.Col * this.textParam.CharWidth,
-                        Top = args.CursorPosition.Row * this.textParam.LineHeight,
-                        Right = (args.CursorPosition.Col + (cursorPercentage / 100f)) * this.textParam.CharWidth,
-                        Bottom = (args.CursorPosition.Row + 1) * this.textParam.LineHeight,
-                    };
+                    cursorRect = Rect.FromLTRB(
+                        args.CursorPosition.Col * this.textParam.CharWidth,
+                        args.CursorPosition.Row * this.textParam.LineHeight,
+                        (args.CursorPosition.Col + (cursorPercentage / 100f)) * this.textParam.CharWidth,
+                        (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
                     break;
                 case CursorShape.Horizontal:
                     float topMargin = this.textParam.LineHeight * (100 - cursorPercentage) / 100f;
-                    cursorRect = new RawRectangleF()
-                    {
-                        Left = args.CursorPosition.Col * this.textParam.CharWidth,
-                        Top = (args.CursorPosition.Row * this.textParam.LineHeight) + topMargin,
-                        Right = (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
-                        Bottom = (args.CursorPosition.Row + 1) * this.textParam.LineHeight,
-                    };
+                    cursorRect = Rect.FromLTRB(
+                        args.CursorPosition.Col * this.textParam.CharWidth,
+                        (args.CursorPosition.Row * this.textParam.LineHeight) + topMargin,
+                        (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
+                        (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
                     break;
                 default:
-                    cursorRect = new RawRectangleF()
-                    {
-                        Left = args.CursorPosition.Col * this.textParam.CharWidth,
-                        Top = args.CursorPosition.Row * this.textParam.LineHeight,
-                        Right = (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
-                        Bottom = (args.CursorPosition.Row + 1) * this.textParam.LineHeight,
-                    };
+                    cursorRect = Rect.FromLTRB(
+                        args.CursorPosition.Col * this.textParam.CharWidth,
+                        args.CursorPosition.Row * this.textParam.LineHeight,
+                        (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
+                        (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
                     break;
             }
 
@@ -533,14 +508,14 @@ namespace Dotnvim.Controls
         private sealed class TextLayoutParameters
         {
             public TextLayoutParameters(
-                DWrite.Factory factory,
+                DWrite.IDWriteFactory factory,
                 string name,
                 float pointSize,
                 bool bold,
                 bool italic,
                 bool underline,
                 bool strikeout,
-                Size2F dpi)
+                SizeF dpi)
             {
                 this.FontName = name;
                 this.PointSize = pointSize;
@@ -550,11 +525,13 @@ namespace Dotnvim.Controls
                 this.Underline = underline;
                 this.StrikeOut = strikeout;
 
-                using (var textFormat = new DWrite.TextFormat(factory, this.FontName, this.Weight, this.Style, this.DipSize))
-                using (var textLayout = new DWrite.TextLayout(factory, "A", textFormat, 1000, 1000))
+                using (var textFormat = factory.CreateTextFormat(this.FontName, this.Weight, this.Style, DWrite.FontStretch.Normal, this.DipSize))
+                using (var textLayout = factory.CreateTextLayout("A", textFormat, 1000, 1000))
                 {
-                    this.LineHeight = Helpers.AlignToPixel(textLayout.Metrics.Height, dpi.Height);
-                    this.CharWidth = Helpers.AlignToPixel(textLayout.OverhangMetrics.Left + (1000 + textLayout.OverhangMetrics.Right), dpi.Width);
+                    var metrics = textLayout.Metrics;
+                    var overhangMetrics = textLayout.OverhangMetrics;
+                    this.LineHeight = Helpers.AlignToPixel(metrics.Height, dpi.Height);
+                    this.CharWidth = Helpers.AlignToPixel(overhangMetrics.Left + (1000 + overhangMetrics.Right), dpi.Width);
                 }
             }
 

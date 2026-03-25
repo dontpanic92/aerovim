@@ -7,9 +7,8 @@ namespace Dotnvim.Controls.Utilities
 {
     using System;
     using System.Linq;
-    using SharpDX;
-    using SharpDX.Mathematics.Interop;
-    using D2D = SharpDX.Direct2D1;
+    using Vortice.Mathematics;
+    using D2D = Vortice.Direct2D1;
 
     /// <summary>
     /// Text Cursor renderer.
@@ -20,23 +19,17 @@ namespace Dotnvim.Controls.Utilities
         /// Initializes a new instance of the <see cref="CursorEffects"/> class.
         /// </summary>
         /// <param name="deviceContext">The D2D device context.</param>
-        public CursorEffects(D2D.DeviceContext deviceContext)
+        public CursorEffects(D2D.ID2D1DeviceContext deviceContext)
             : base(deviceContext)
         {
             // Set alpha = 1
-            var colorMatrix = new RawMatrix5x4()
-            {
-                M11 = 1,
-                M22 = 1,
-                M33 = 1,
-                M54 = 1,
-            };
+            var colorMatrix = new Matrix5x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1);
 
-            this.PushEffect(D2D.Effect.Crop)
-                    .SetupLast((e) => e.SetValue((int)D2D.CropProperties.Rectangle, new RawRectangleF(0, 0, 0, 0)))
-                .PushEffect(D2D.Effect.Invert)
-                .PushEffect(D2D.Effect.ColorMatrix)
-                    .SetupLast((e) => e.SetValue((int)D2D.ColorMatrixProperties.ColorMatrix, colorMatrix))
+            this.PushEffect(D2D.EffectGuids.Crop)
+                    .SetupLast((e) => e.SetValue((uint)D2D.CropProperties.Rectangle, new System.Drawing.RectangleF(0, 0, 0, 0)))
+                .PushEffect(D2D.EffectGuids.Invert)
+                .PushEffect(D2D.EffectGuids.ColorMatrix)
+                    .SetupLast((e) => e.SetValue((uint)D2D.ColorMatrixProperties.ColorMatrix, colorMatrix))
                 .SetCompositionMode(D2D.CompositeMode.DestinationOver);
         }
 
@@ -44,9 +37,9 @@ namespace Dotnvim.Controls.Utilities
         /// Set the cursor boundary.
         /// </summary>
         /// <param name="cursorRect">The cursor rect.</param>
-        public void SetCursorRect(RawRectangleF cursorRect)
+        public void SetCursorRect(Rect cursorRect)
         {
-            this.Effects[0].SetValue((int)D2D.CropProperties.Rectangle, cursorRect);
+            this.Effects[0].SetValue((uint)D2D.CropProperties.Rectangle, new System.Drawing.RectangleF(cursorRect.Left, cursorRect.Top, cursorRect.Right - cursorRect.Left, cursorRect.Bottom - cursorRect.Top));
         }
     }
 }

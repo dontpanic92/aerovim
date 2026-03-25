@@ -1,4 +1,4 @@
-﻿// <copyright file="RowTextSource.cs">
+// <copyright file="RowTextSource.cs">
 // Copyright (c) dotnvim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
@@ -8,22 +8,27 @@ namespace Dotnvim.Controls.Utilities
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using SharpDX;
+    using System.Runtime.InteropServices;
     using static Dotnvim.NeovimClient.NeovimClient;
-    using DWrite = SharpDX.DirectWrite;
+    using DWrite = Vortice.DirectWrite;
 
     /// <summary>
     /// The text source stored a row.
     /// </summary>
-    public class RowTextSource : DWrite.TextAnalysisSource
+    public class RowTextSource : SharpGen.Runtime.CallbackBase, DWrite.IDWriteTextAnalysisSource
     {
-        private readonly DWrite.Factory factory;
+        private readonly DWrite.IDWriteFactory factory;
         private readonly List<string> text = new List<string>();
         private readonly List<int> codePoints = new List<int>();
         private readonly int row;
         private readonly int columnCount;
         private readonly string fullText;
         private readonly int[] charOffsets;
+        private readonly string localeName;
+        private GCHandle textHandle;
+        private nint textPtr;
+        private GCHandle localeHandle;
+        private nint localePtr;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RowTextSource"/> class.
@@ -33,7 +38,7 @@ namespace Dotnvim.Controls.Utilities
         /// <param name="row">Row index.</param>
         /// <param name="rangeStart">The start index of the range.</param>
         /// <param name="rangeEnd">the end index of the range.</param>
-        public RowTextSource(DWrite.Factory factory, Cell[,] screen, int row, int rangeStart, int rangeEnd)
+        public RowTextSource(DWrite.IDWriteFactory factory, Cell[,] screen, int row, int rangeStart, int rangeEnd)
         {
             this.factory = factory;
 
@@ -59,6 +64,12 @@ namespace Dotnvim.Controls.Utilities
 
             this.row = row;
             this.columnCount = rangeEnd - rangeStart;
+
+            this.localeName = System.Threading.Thread.CurrentThread.CurrentCulture.Name;
+            this.textHandle = GCHandle.Alloc(this.fullText, GCHandleType.Pinned);
+            this.textPtr = this.textHandle.AddrOfPinnedObject();
+            this.localeHandle = GCHandle.Alloc(this.localeName, GCHandleType.Pinned);
+            this.localePtr = this.localeHandle.AddrOfPinnedObject();
         }
 
         /// <summary>
@@ -66,11 +77,10 @@ namespace Dotnvim.Controls.Utilities
         /// </summary>
         public int Length { get => this.text.Count; }
 
-        /// <inheritdoc />
-        public DWrite.ReadingDirection ReadingDirection => DWrite.ReadingDirection.LeftToRight;
-
-        /// <inheritdoc />
-        public IDisposable Shadow { get; set; }
+        /// <summary>
+        /// Gets the full text string.
+        /// </summary>
+        public string FullText => this.fullText;
 
         /// <summary>
         /// Gets the code point in the specific index.
@@ -98,68 +108,68 @@ namespace Dotnvim.Controls.Utilities
         }
 
         /// <inheritdoc />
-        public int AddReference()
+        public DWrite.ReadingDirection GetParagraphReadingDirection()
         {
-            throw new NotImplementedException();
+            return DWrite.ReadingDirection.LeftToRight;
         }
 
         /// <inheritdoc />
-        public void Dispose()
-        {
-            this.Shadow?.Dispose();
-        }
-
-        /// <inheritdoc />
-        public string GetLocaleName(int textPosition, out int textLength)
-        {
-            textLength = this.text.Count;
-            return System.Threading.Thread.CurrentThread.CurrentCulture.Name;
-        }
-
-        /// <inheritdoc />
-        public DWrite.NumberSubstitution GetNumberSubstitution(int textPosition, out int textLength)
-        {
-            textLength = this.text.Count;
-            return new DWrite.NumberSubstitution(this.factory, DWrite.NumberSubstitutionMethod.None, null, true);
-        }
-
-        /// <inheritdoc />
-        public string GetTextAtPosition(int textPosition)
+        public unsafe uint GetTextAtPosition(uint textPosition, nint textString)
         {
             if (textPosition >= this.charOffsets.Length)
             {
-                return string.Empty;
+                *(nint*)textString = IntPtr.Zero;
+                return 0;
             }
 
-            return this.fullText.Substring(this.charOffsets[textPosition]);
+            int charOff = this.charOffsets[(int)textPosition];
+            *(nint*)textString = this.textPtr + (charOff * sizeof(char));
+            return (uint)(this.fullText.Length - charOff);
         }
 
         /// <inheritdoc />
-        public string GetTextBeforePosition(int textPosition)
+        public unsafe uint GetTextBeforePosition(uint textPosition, nint textString)
         {
-            int count = textPosition - 1;
+            int count = (int)textPosition - 1;
             if (count <= 0)
             {
-                return string.Empty;
+                *(nint*)textString = IntPtr.Zero;
+                return 0;
             }
 
             int endOffset = count < this.charOffsets.Length
                 ? this.charOffsets[count]
                 : this.fullText.Length;
-            return this.fullText.Substring(0, endOffset);
+            *(nint*)textString = this.textPtr;
+            return (uint)endOffset;
         }
 
         /// <inheritdoc />
-        public Result QueryInterface(ref Guid guid, out IntPtr comObject)
+        public unsafe uint GetLocaleName(uint textPosition, nint localeName)
         {
-            comObject = IntPtr.Zero;
-            return Result.False;
+            *(nint*)localeName = this.localePtr;
+            return (uint)this.text.Count;
         }
 
         /// <inheritdoc />
-        public int Release()
+        public void GetNumberSubstitution(uint textPosition, out uint textLength, out DWrite.IDWriteNumberSubstitution numberSubstitution)
         {
-            throw new NotImplementedException();
+            textLength = (uint)this.text.Count;
+            numberSubstitution = this.factory.CreateNumberSubstitution(DWrite.NumberSubstitutionMethod.None, null, true);
+        }
+
+        /// <inheritdoc />
+        protected override void DisposeCore(bool disposing)
+        {
+            if (this.textHandle.IsAllocated)
+            {
+                this.textHandle.Free();
+            }
+
+            if (this.localeHandle.IsAllocated)
+            {
+                this.localeHandle.Free();
+            }
         }
     }
 }

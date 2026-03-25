@@ -5,28 +5,29 @@
 
 namespace Dotnvim.Controls
 {
+    using System.Drawing;
+    using System.Numerics;
     using Dotnvim.Events;
     using Dotnvim.Utilities;
-    using SharpDX;
-    using SharpDX.Mathematics.Interop;
-    using D2D = SharpDX.Direct2D1;
-    using DWrite = SharpDX.DirectWrite;
+    using Vortice.Mathematics;
+    using D2D = Vortice.Direct2D1;
+    using DWrite = Vortice.DirectWrite;
 
     /// <summary>
     /// The button control.
     /// </summary>
     public class ButtonControl : ControlBase
     {
-        private readonly RawVector2 origin = new RawVector2(0, 0);
+        private readonly Vector2 origin = new Vector2(0, 0);
 
-        private DWrite.Factory dwriteFactory = new DWrite.Factory();
-        private DWrite.TextFormat textFormat;
-        private DWrite.TextLayout textLayout;
-        private D2D.Brush foregroundBrush;
-        private D2D.Brush backgroundBrush;
+        private DWrite.IDWriteFactory dwriteFactory = DWrite.DWrite.DWriteCreateFactory<DWrite.IDWriteFactory>();
+        private DWrite.IDWriteTextFormat textFormat;
+        private DWrite.IDWriteTextLayout textLayout;
+        private D2D.ID2D1Brush foregroundBrush;
+        private D2D.ID2D1Brush backgroundBrush;
         private string text = string.Empty;
-        private RawColor4 backgroundColor;
-        private RawColor4 foregroundColor;
+        private Color4 backgroundColor;
+        private Color4 foregroundColor;
 
         private bool isMouseOver = false;
 
@@ -36,10 +37,10 @@ namespace Dotnvim.Controls
         /// <param name="parent">The parent control.</param>
         /// <param name="text">The text on the button.</param>
         /// <param name="size">Button size.</param>
-        public ButtonControl(IElement parent, string text = "", Size2F? size = null)
+        public ButtonControl(IElement parent, string text = "", SizeF? size = null)
             : base(parent)
         {
-            this.textFormat = new DWrite.TextFormat(this.dwriteFactory, "Segoe UI", Helpers.GetFontSize(10));
+            this.textFormat = this.dwriteFactory.CreateTextFormat("Segoe UI", Helpers.GetFontSize(10));
             this.textFormat.ParagraphAlignment = DWrite.ParagraphAlignment.Center;
             this.textFormat.TextAlignment = DWrite.TextAlignment.Center;
             this.textFormat.WordWrapping = DWrite.WordWrapping.NoWrap;
@@ -52,8 +53,8 @@ namespace Dotnvim.Controls
                 this.Layout();
             }
 
-            this.BackgroundColor = new RawColor4(1, 1, 1, 1);
-            this.ForegroundColor = new RawColor4(0, 0, 0, 1);
+            this.BackgroundColor = new Color4(1, 1, 1, 1);
+            this.ForegroundColor = new Color4(0, 0, 0, 1);
         }
 
         /// <summary>
@@ -83,7 +84,7 @@ namespace Dotnvim.Controls
         /// <summary>
         /// Gets or sets the foreground color.
         /// </summary>
-        public RawColor4 ForegroundColor
+        public Color4 ForegroundColor
         {
             get
             {
@@ -95,7 +96,7 @@ namespace Dotnvim.Controls
                 this.foregroundColor = value;
 
                 this.foregroundBrush?.Dispose();
-                this.foregroundBrush = new D2D.SolidColorBrush(this.DeviceContext, this.foregroundColor);
+                this.foregroundBrush = this.DeviceContext.CreateSolidColorBrush(this.foregroundColor);
 
                 this.Invalidate();
             }
@@ -104,7 +105,7 @@ namespace Dotnvim.Controls
         /// <summary>
         /// Gets or sets the background color.
         /// </summary>
-        public RawColor4 BackgroundColor
+        public Color4 BackgroundColor
         {
             get
             {
@@ -116,7 +117,7 @@ namespace Dotnvim.Controls
                 this.backgroundColor = value;
 
                 this.backgroundBrush?.Dispose();
-                this.backgroundBrush = new D2D.SolidColorBrush(this.DeviceContext, this.backgroundColor);
+                this.backgroundBrush = this.DeviceContext.CreateSolidColorBrush(this.backgroundColor);
 
                 this.Invalidate();
             }
@@ -133,7 +134,7 @@ namespace Dotnvim.Controls
             base.Layout();
 
             this.textLayout?.Dispose();
-            this.textLayout = new DWrite.TextLayout(this.dwriteFactory, this.text, this.textFormat, this.Size.Width, this.Size.Height);
+            this.textLayout = this.dwriteFactory.CreateTextLayout(this.text, this.textFormat, this.Size.Width, this.Size.Height);
         }
 
         /// <inheritdoc />
@@ -176,8 +177,7 @@ namespace Dotnvim.Controls
             this.DeviceContext.BeginDraw();
             if (!this.isMouseOver)
             {
-                var transparentBackgroundColor = this.backgroundColor;
-                transparentBackgroundColor.A = 0;
+                var transparentBackgroundColor = new Color4(this.backgroundColor.R, this.backgroundColor.G, this.backgroundColor.B, 0);
                 this.DeviceContext.Clear(transparentBackgroundColor);
                 this.DeviceContext.DrawTextLayout(this.origin, this.textLayout, this.foregroundBrush);
             }

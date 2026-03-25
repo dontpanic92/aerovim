@@ -1,4 +1,4 @@
-﻿// <copyright file="SingleCharTextSource.cs">
+// <copyright file="SingleCharTextSource.cs">
 // Copyright (c) dotnvim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
@@ -6,97 +6,98 @@
 namespace Dotnvim.Controls.Utilities
 {
     using System;
-    using SharpDX;
-    using DWrite = SharpDX.DirectWrite;
+    using System.Runtime.InteropServices;
+    using DWrite = Vortice.DirectWrite;
 
     /// <summary>
     /// The text source that holds a single char.
     /// </summary>
-    public class SingleCharTextSource : DWrite.TextAnalysisSource
+    public class SingleCharTextSource : SharpGen.Runtime.CallbackBase, DWrite.IDWriteTextAnalysisSource
     {
-        private readonly DWrite.Factory factory;
+        private readonly DWrite.IDWriteFactory factory;
         private readonly int codePoint;
+        private readonly string charString;
+        private readonly string localeName;
+        private GCHandle textHandle;
+        private nint textPtr;
+        private GCHandle localeHandle;
+        private nint localePtr;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SingleCharTextSource"/> class.
         /// </summary>
         /// <param name="factory">The directwrite factory.</param>
         /// <param name="codePoint">The codepoint.</param>
-        public SingleCharTextSource(DWrite.Factory factory, int codePoint)
+        public SingleCharTextSource(DWrite.IDWriteFactory factory, int codePoint)
         {
             this.factory = factory;
             this.codePoint = codePoint;
+            this.charString = char.ConvertFromUtf32(codePoint);
+            this.localeName = System.Threading.Thread.CurrentThread.CurrentCulture.Name;
+            this.textHandle = GCHandle.Alloc(this.charString, GCHandleType.Pinned);
+            this.textPtr = this.textHandle.AddrOfPinnedObject();
+            this.localeHandle = GCHandle.Alloc(this.localeName, GCHandleType.Pinned);
+            this.localePtr = this.localeHandle.AddrOfPinnedObject();
         }
 
         /// <inheritdoc />
-        public DWrite.ReadingDirection ReadingDirection => DWrite.ReadingDirection.LeftToRight;
-
-        /// <inheritdoc />
-        public IDisposable Shadow { get; set; }
-
-        /// <inheritdoc />
-        public int AddReference()
+        public DWrite.ReadingDirection GetParagraphReadingDirection()
         {
-            throw new NotImplementedException();
+            return DWrite.ReadingDirection.LeftToRight;
         }
 
         /// <inheritdoc />
-        public void Dispose()
+        public unsafe uint GetTextAtPosition(uint textPosition, nint textString)
         {
-            this.Shadow?.Dispose();
-        }
-
-        /// <inheritdoc />
-        public string GetLocaleName(int textPosition, out int textLength)
-        {
-            textLength = 1;
-            return System.Threading.Thread.CurrentThread.CurrentCulture.Name;
-        }
-
-        /// <inheritdoc />
-        public DWrite.NumberSubstitution GetNumberSubstitution(int textPosition, out int textLength)
-        {
-            textLength = 1;
-            return new DWrite.NumberSubstitution(this.factory, DWrite.NumberSubstitutionMethod.None, null, true);
-        }
-
-        /// <inheritdoc />
-        public string GetTextAtPosition(int textPosition)
-        {
-            // if (this.screen[this.row, textPosition].Character == null)
             if (textPosition != 0)
             {
-                return string.Empty;
+                *(nint*)textString = IntPtr.Zero;
+                return 0;
             }
 
-            // return char.ConvertFromUtf32(this.screen[this.row, textPosition].Character.Value);
-            return char.ConvertFromUtf32(this.codePoint);
+            *(nint*)textString = this.textPtr;
+            return (uint)this.charString.Length;
         }
 
         /// <inheritdoc />
-        public string GetTextBeforePosition(int textPosition)
+        public unsafe uint GetTextBeforePosition(uint textPosition, nint textString)
         {
-            // if (this.screen[this.row, textPosition - 1].Character == null)
             if (textPosition != 0)
             {
-                return string.Empty;
+                *(nint*)textString = IntPtr.Zero;
+                return 0;
             }
 
-            // return char.ConvertFromUtf32(this.screen[this.row, textPosition - 1].Character.Value);
-            return char.ConvertFromUtf32(this.codePoint);
+            *(nint*)textString = this.textPtr;
+            return (uint)this.charString.Length;
         }
 
         /// <inheritdoc />
-        public Result QueryInterface(ref Guid guid, out IntPtr comObject)
+        public unsafe uint GetLocaleName(uint textPosition, nint localeName)
         {
-            comObject = IntPtr.Zero;
-            return Result.False;
+            *(nint*)localeName = this.localePtr;
+            return 1;
         }
 
         /// <inheritdoc />
-        public int Release()
+        public void GetNumberSubstitution(uint textPosition, out uint textLength, out DWrite.IDWriteNumberSubstitution numberSubstitution)
         {
-            throw new NotImplementedException();
+            textLength = 1;
+            numberSubstitution = this.factory.CreateNumberSubstitution(DWrite.NumberSubstitutionMethod.None, null, true);
+        }
+
+        /// <inheritdoc />
+        protected override void DisposeCore(bool disposing)
+        {
+            if (this.textHandle.IsAllocated)
+            {
+                this.textHandle.Free();
+            }
+
+            if (this.localeHandle.IsAllocated)
+            {
+                this.localeHandle.Free();
+            }
         }
     }
 }

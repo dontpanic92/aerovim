@@ -8,9 +8,9 @@ namespace Dotnvim.Events
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Numerics;
     using System.Text;
     using System.Threading.Tasks;
-    using SharpDX.Mathematics.Interop;
 
     /// <summary>
     /// Represents the mouse event.
@@ -23,7 +23,7 @@ namespace Dotnvim.Events
         /// <param name="type">Event type.</param>
         /// <param name="point">Mouse position.</param>
         /// <param name="button">button clicked.</param>
-        public MouseEvent(Type type, RawVector2 point, Buttons button)
+        public MouseEvent(Type type, Vector2 point, Buttons button)
         {
             this.EventType = type;
             this.Point = point;
@@ -85,7 +85,7 @@ namespace Dotnvim.Events
         /// <summary>
         /// Gets the mouse position.
         /// </summary>
-        public RawVector2 Point { get; }
+        public Vector2 Point { get; }
 
         /// <summary>
         /// Gets the button clicked.

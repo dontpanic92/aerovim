@@ -38,6 +38,7 @@ namespace Dotnvim.NeovimClient
             this.reader = reader;
             this.NotificationHandlers += handler;
             this.readTask = new Thread(() => this.ReadTask());
+            this.readTask.IsBackground = true;
             this.readTask.Start();
         }
 
@@ -106,7 +107,6 @@ namespace Dotnvim.NeovimClient
         {
             this.reader.Close();
             this.writer.Close();
-            this.readTask.Abort();
         }
 
         private void ReadTask()

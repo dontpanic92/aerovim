@@ -6,10 +6,11 @@
 namespace Dotnvim.Controls
 {
     using System;
+    using System.Drawing;
+    using System.Numerics;
     using Dotnvim.Events;
-    using SharpDX.Mathematics.Interop;
-    using D2D = SharpDX.Direct2D1;
-    using D3D11 = SharpDX.Direct3D11;
+    using D2D = Vortice.Direct2D1;
+    using D3D11 = Vortice.Direct3D11;
 
     /// <summary>
     /// The base interface for all visual element.
@@ -19,33 +20,33 @@ namespace Dotnvim.Controls
         /// <summary>
         /// Gets or sets the size of this element.
         /// </summary>
-        SharpDX.Size2F Size { get; set; }
+        SizeF Size { get; set; }
 
         /// <summary>
         /// Gets or sets the position of this element.
         /// </summary>
-        RawVector2 Position { get; set; }
+        Vector2 Position { get; set; }
 
         /// <summary>
         /// Gets the Direct2D factory.
         /// </summary>
-        D2D.Factory1 Factory { get; }
+        D2D.ID2D1Factory1 Factory { get; }
 
         /// <summary>
         /// Gets the Direct2D device.
         /// </summary>
-        D2D.Device Device2D { get; }
+        D2D.ID2D1Device Device2D { get; }
 
         /// <summary>
         /// Gets the Direct2D device.
         /// </summary>
-        D3D11.Device Device { get; }
+        D3D11.ID3D11Device Device { get; }
 
         /// <summary>
         /// Draw the element.
         /// </summary>
         /// <param name="deviceContext">The context.</param>
-        void Draw(D2D.DeviceContext deviceContext);
+        void Draw(D2D.ID2D1DeviceContext deviceContext);
 
         /// <summary>
         /// Request to redraw the control.
@@ -63,7 +64,7 @@ namespace Dotnvim.Controls
         /// </summary>
         /// <param name="point">The coord.</param>
         /// <returns>true if the point is inside the element, otherwise false.</returns>
-        bool HitTest(RawVector2 point);
+        bool HitTest(Vector2 point);
 
         /// <summary>
         /// Mouse is moving.

@@ -5,8 +5,8 @@
 
 namespace Dotnvim.Controls
 {
-    using SharpDX;
-    using SharpDX.Mathematics.Interop;
+    using System.Drawing;
+    using System.Numerics;
 
     /// <summary>
     /// Vertical Layout.
@@ -35,7 +35,7 @@ namespace Dotnvim.Controls
                 }
                 else
                 {
-                    control.Size = new Size2F(this.Size.Width - (this.Padding * 2), control.Size.Height);
+                    control.Size = new SizeF(this.Size.Width - (this.Padding * 2), control.Size.Height);
                     nonStrenchLength += control.Size.Height;
                 }
             }
@@ -48,13 +48,13 @@ namespace Dotnvim.Controls
                     height = 0;
                 }
 
-                strenchControl.Size = new Size2F(this.Size.Width - (this.Padding * 2), height);
+                strenchControl.Size = new SizeF(this.Size.Width - (this.Padding * 2), height);
             }
 
             float position = this.Padding;
             foreach (var (control, _) in this.Controls)
             {
-                control.Position = new RawVector2(this.Position.X + this.Padding, this.Position.Y + position);
+                control.Position = new Vector2(this.Position.X + this.Padding, this.Position.Y + position);
                 position += control.Size.Height;
 
                 control.Layout();

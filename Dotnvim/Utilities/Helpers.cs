@@ -6,9 +6,12 @@
 namespace Dotnvim.Utilities
 {
     using System;
-    using SharpDX;
-    using SharpDX.Mathematics.Interop;
-    using D2D = SharpDX.Direct2D1;
+    using System.Drawing;
+    using System.Numerics;
+    using Vortice.Mathematics;
+    using D2D = Vortice.Direct2D1;
+    using Size = System.Drawing.Size;
+    using SizeF = System.Drawing.SizeF;
 
     /// <summary>
     /// Utility functions.
@@ -31,9 +34,9 @@ namespace Dotnvim.Utilities
         /// <param name="size">Size in Dip.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>Size in Pixel.</returns>
-        public static Size2 GetPixelSize(Size2F size, Size2F dpi)
+        public static Size GetPixelSize(SizeF size, SizeF dpi)
         {
-            return new Size2(
+            return new Size(
                 (int)Math.Round(dpi.Width * size.Width / 96),
                 (int)Math.Round(dpi.Height * size.Height / 96));
         }
@@ -44,10 +47,10 @@ namespace Dotnvim.Utilities
         /// <param name="size">Size in pixel.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>Size in DIP.</returns>
-        public static Size2F GetDipSize(Size2 size, Size2F dpi)
+        public static SizeF GetDipSize(Size size, SizeF dpi)
         {
             (var fx, var fy) = GetDipSize(size.Width, size.Height, dpi);
-            return new Size2F(fx, fy);
+            return new SizeF(fx, fy);
         }
 
         /// <summary>
@@ -57,10 +60,10 @@ namespace Dotnvim.Utilities
         /// <param name="y">y in pixel.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>Vector in Dip.</returns>
-        public static RawVector2 GetDipPoint(int x, int y, Size2F dpi)
+        public static Vector2 GetDipPoint(int x, int y, SizeF dpi)
         {
             (var fx, var fy) = GetDipSize(x, y, dpi);
-            return new RawVector2(fx, fy);
+            return new Vector2(fx, fy);
         }
 
         /// <summary>
@@ -70,7 +73,7 @@ namespace Dotnvim.Utilities
         /// <param name="y">y in pixel.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>Size in DIP.</returns>
-        public static (float x, float y) GetDipSize(int x, int y, Size2F dpi)
+        public static (float x, float y) GetDipSize(int x, int y, SizeF dpi)
         {
             return (x * 96 / dpi.Width, y * 96 / dpi.Height);
         }
@@ -81,15 +84,13 @@ namespace Dotnvim.Utilities
         /// <param name="rect">rRct in DIP.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>Rect in Pixel.</returns>
-        public static RawRectangle GetRawRectangle(RawRectangleF rect, Size2F dpi)
+        public static Rectangle GetRawRectangle(Rect rect, SizeF dpi)
         {
-            return new RawRectangle()
-            {
-                Top = (int)Math.Round(dpi.Height * rect.Top / 96),
-                Bottom = (int)Math.Round(dpi.Height * rect.Bottom / 96),
-                Left = (int)Math.Round(dpi.Width * rect.Left / 96),
-                Right = (int)Math.Round(dpi.Width * rect.Right / 96),
-            };
+            int top = (int)Math.Round(dpi.Height * rect.Top / 96);
+            int bottom = (int)Math.Round(dpi.Height * rect.Bottom / 96);
+            int left = (int)Math.Round(dpi.Width * rect.Left / 96);
+            int right = (int)Math.Round(dpi.Width * rect.Right / 96);
+            return new Rectangle(left, top, right - left, bottom - top);
         }
 
         /// <summary>
@@ -110,7 +111,7 @@ namespace Dotnvim.Utilities
         /// <param name="color">Color in int.</param>
         /// <param name="alpha">Alpha.</param>
         /// <returns>ShartDX RawColor.</returns>
-        public static RawColor4 GetColor(int color, float alpha = 1)
+        public static Color4 GetColor(int color, float alpha = 1)
         {
             float b = color % 256;
             color /= 256;
@@ -118,7 +119,7 @@ namespace Dotnvim.Utilities
             color /= 256;
             float r = color % 256;
 
-            return new RawColor4(r / 256, g / 256, b / 256, alpha);
+            return new Color4(r / 256, g / 256, b / 256, alpha);
         }
 
         /// <summary>
@@ -129,7 +130,7 @@ namespace Dotnvim.Utilities
         /// <param name="rect">The area to be copied.</param>
         /// <param name="dpi">Dpi.</param>
         /// <returns>The new copied bitmap.</returns>
-        public static D2D.Bitmap CopyBitmap(D2D.RenderTarget renderTarget, D2D.Bitmap bitmap, RawRectangleF rect, Size2F dpi)
+        public static D2D.ID2D1Bitmap CopyBitmap(D2D.ID2D1RenderTarget renderTarget, D2D.ID2D1Bitmap bitmap, Rect rect, SizeF dpi)
         {
             var bitmapProperties = new D2D.BitmapProperties(
                 bitmap.PixelFormat,
@@ -137,9 +138,9 @@ namespace Dotnvim.Utilities
                 dpi.Height);
 
             var pixelRect = GetRawRectangle(rect, dpi);
-            var pixelSize = new Size2(pixelRect.Right - pixelRect.Left, pixelRect.Bottom - pixelRect.Top);
-            var newBitmap = new D2D.Bitmap(renderTarget, pixelSize, bitmapProperties);
-            newBitmap.CopyFromBitmap(bitmap, new RawPoint(0, 0), pixelRect);
+            var pixelSize = new SizeI(pixelRect.Width, pixelRect.Height);
+            var newBitmap = renderTarget.CreateBitmap(pixelSize, IntPtr.Zero, 0, bitmapProperties);
+            newBitmap.CopyFromBitmap(new Point(0, 0), bitmap, pixelRect);
             return newBitmap;
         }
 
@@ -159,6 +160,17 @@ namespace Dotnvim.Utilities
         public static bool BlurBehindEnabled()
         {
             return Properties.Settings.Default.EnableBlurBehind && BlurBehindAvailable();
+        }
+
+        /// <summary>
+        /// Gets the desktop DPI as SizeF for backward compatibility.
+        /// </summary>
+        /// <param name="factory">The D2D factory.</param>
+        /// <returns>DPI as SizeF.</returns>
+        public static SizeF GetDesktopDpi(this D2D.ID2D1Factory factory)
+        {
+            var dpi = factory.DesktopDpi;
+            return new SizeF(dpi.X, dpi.Y);
         }
 
         /// <summary>
