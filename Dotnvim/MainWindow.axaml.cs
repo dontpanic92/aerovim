@@ -6,6 +6,7 @@
 namespace Dotnvim
 {
     using System;
+    using System.Threading.Tasks;
     using Avalonia;
     using Avalonia.Controls;
     using Avalonia.Input;
@@ -33,6 +34,81 @@ namespace Dotnvim
 
             this.SetupBlurBehind();
 
+            this.Width = this.settings.WindowWidth;
+            this.Height = this.settings.WindowHeight;
+            if (this.settings.IsMaximized)
+            {
+                this.WindowState = WindowState.Maximized;
+            }
+
+            this.Opened += this.OnWindowOpened;
+        }
+
+        /// <inheritdoc />
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (this.neovimClient != null && KeyMapping.TryMap(e, out var text))
+            {
+                this.neovimClient.Input(text);
+                e.Handled = true;
+            }
+        }
+
+        /// <inheritdoc />
+        protected override void OnTextInput(TextInputEventArgs e)
+        {
+            base.OnTextInput(e);
+            if (this.neovimClient != null && !string.IsNullOrEmpty(e.Text))
+            {
+                // Only forward printable characters that were not already handled by OnKeyDown
+                foreach (var ch in e.Text)
+                {
+                    if (!char.IsControl(ch))
+                    {
+                        this.neovimClient.Input(ch.ToString());
+                    }
+                }
+
+                e.Handled = true;
+            }
+        }
+
+        /// <inheritdoc />
+        protected override void OnClosing(WindowClosingEventArgs e)
+        {
+            base.OnClosing(e);
+
+            if (this.WindowState == WindowState.Maximized)
+            {
+                this.settings.IsMaximized = true;
+            }
+            else
+            {
+                this.settings.IsMaximized = false;
+                this.settings.WindowWidth = (int)this.Width;
+                this.settings.WindowHeight = (int)this.Height;
+            }
+
+            this.settings.Save();
+
+            if (this.neovimClient != null)
+            {
+                this.neovimClient.NeovimExited -= this.OnNeovimExited;
+            }
+
+            this.neovimControl?.Dispose();
+            this.neovimClient?.Dispose();
+        }
+
+        private async void OnWindowOpened(object sender, EventArgs e)
+        {
+            this.Opened -= this.OnWindowOpened;
+            await this.InitializeNeovimAsync();
+        }
+
+        private async Task InitializeNeovimAsync()
+        {
             while (true)
             {
                 try
@@ -43,10 +119,11 @@ namespace Dotnvim
                 catch (Exception)
                 {
                     var dialog = new Dialogs.SettingsWindow("Please specify the path to Neovim");
-                    dialog.ShowDialog(this).GetAwaiter().GetResult();
+                    await dialog.ShowDialog(this);
                     if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Cancel)
                     {
-                        Environment.Exit(0);
+                        this.Close();
+                        return;
                     }
                 }
             }
@@ -97,9 +174,9 @@ namespace Dotnvim
                 });
              };
 
-            this.settings.PropertyChanged += (sender, e) =>
+            this.settings.PropertyChanged += (sender, propChangedArgs) =>
             {
-                switch (e.PropertyName)
+                switch (propChangedArgs.PropertyName)
                 {
                     case nameof(AppSettings.EnableBlurBehind):
                     case nameof(AppSettings.BlurType):
@@ -111,66 +188,6 @@ namespace Dotnvim
                         break;
                 }
              };
-
-            this.Width = this.settings.WindowWidth;
-            this.Height = this.settings.WindowHeight;
-            if (this.settings.IsMaximized)
-            {
-                this.WindowState = WindowState.Maximized;
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-            if (KeyMapping.TryMap(e, out var text))
-            {
-                this.neovimClient.Input(text);
-                e.Handled = true;
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnTextInput(TextInputEventArgs e)
-        {
-            base.OnTextInput(e);
-            if (!string.IsNullOrEmpty(e.Text))
-            {
-                // Only forward printable characters that were not already handled by OnKeyDown
-                foreach (var ch in e.Text)
-                {
-                    if (!char.IsControl(ch))
-                    {
-                        this.neovimClient.Input(ch.ToString());
-                    }
-                }
-
-                e.Handled = true;
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnClosing(WindowClosingEventArgs e)
-        {
-            base.OnClosing(e);
-
-            if (this.WindowState == WindowState.Maximized)
-            {
-                this.settings.IsMaximized = true;
-            }
-            else
-            {
-                this.settings.IsMaximized = false;
-                this.settings.WindowWidth = (int)this.Width;
-                this.settings.WindowHeight = (int)this.Height;
-            }
-
-            this.settings.Save();
-
-            this.neovimClient.NeovimExited -= this.OnNeovimExited;
-            this.neovimControl?.Dispose();
-            this.neovimClient?.Dispose();
         }
 
         private void SetupBlurBehind()
