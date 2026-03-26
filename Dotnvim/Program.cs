@@ -1,4 +1,4 @@
-﻿// <copyright file="Program.cs">
+// <copyright file="Program.cs">
 // Copyright (c) dotnvim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
@@ -6,10 +6,7 @@
 namespace Dotnvim
 {
     using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading.Tasks;
-    using System.Windows.Forms;
+    using Avalonia;
 
     /// <summary>
     /// The Main program.
@@ -19,12 +16,22 @@ namespace Dotnvim
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
+        /// <param name="args">Command-line arguments.</param>
         [STAThread]
-        public static void Main()
+        public static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+
+        /// <summary>
+        /// Builds the Avalonia application configuration.
+        /// </summary>
+        /// <returns>The configured AppBuilder.</returns>
+        public static AppBuilder BuildAvaloniaApp()
+        {
+            return AppBuilder.Configure<App>()
+                .UsePlatformDetect()
+                .LogToTrace();
         }
     }
 }

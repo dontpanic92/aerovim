@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Dotnvim.MainWindow"
+        Title="dotnvim"
+        Width="{Binding WindowWidth}"
+        Height="{Binding WindowHeight}"
+        TransparencyLevelHint="AcrylicBlur,Mica,Transparent"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="28"
+        SystemDecorations="Full"
+        Icon="avares://dotnvim/Assets/neovim_mark_flat.ico">
+
+    <DockPanel LastChildFill="True">
+        <!-- Custom Title Bar -->
+        <Grid DockPanel.Dock="Top" Height="28" Name="TitleBar" IsHitTestVisible="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Logo -->
+            <Image Grid.Column="0" Source="avares://dotnvim/Assets/neovim-logo-flat.png"
+                   Margin="8,3,8,3" Stretch="Uniform" />
+
+            <!-- Title -->
+            <TextBlock Grid.Column="1" Name="TitleText" Text="dotnvim"
+                       VerticalAlignment="Center" HorizontalAlignment="Right"
+                       Margin="8,0" TextTrimming="CharacterEllipsis"
+                       Foreground="White" FontSize="12" />
+
+            <!-- Settings Button -->
+            <Button Grid.Column="2" Name="SettingsButton" Content="⚙"
+                    Width="46" Height="28" FontSize="14"
+                    Background="Transparent" Foreground="White"
+                    BorderThickness="0" CornerRadius="0"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Click="SettingsButton_Click" />
+
+            <!-- Minimize Button -->
+            <Button Grid.Column="3" Name="MinimizeButton" Content="🗕"
+                    Width="46" Height="28" FontSize="14"
+                    Background="Transparent" Foreground="White"
+                    BorderThickness="0" CornerRadius="0"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Click="MinimizeButton_Click" />
+
+            <!-- Maximize Button -->
+            <Button Grid.Column="4" Name="MaximizeButton" Content="🗖"
+                    Width="46" Height="28" FontSize="14"
+                    Background="Transparent" Foreground="White"
+                    BorderThickness="0" CornerRadius="0"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Click="MaximizeButton_Click" />
+
+            <!-- Close Button -->
+            <Button Grid.Column="5" Name="CloseButton" Content="✕"
+                    Width="46" Height="28" FontSize="14"
+                    Background="Transparent" Foreground="White"
+                    BorderThickness="0" CornerRadius="0"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Click="CloseButton_Click" />
+        </Grid>
+
+        <!-- Neovim Control -->
+        <Border Name="NeovimBorder" Background="Transparent">
+        </Border>
+    </DockPanel>
+</Window>

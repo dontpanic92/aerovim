@@ -5,8 +5,6 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>Dotnvim</RootNamespace>
     <AssemblyName>dotnvim</AssemblyName>
-    <UseWindowsForms>true</UseWindowsForms>
-    <UseWPF>true</UseWPF>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -18,23 +16,17 @@
     <Copyright>Copyright © 2018</Copyright>
     <Platforms>x64;x86</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Vortice.Direct2D1" Version="3.8.1" />
-    <PackageReference Include="Vortice.Direct3D11" Version="3.8.1" />
-    <PackageReference Include="Vortice.DirectComposition" Version="3.8.1" />
-    <PackageReference Include="Vortice.DXGI" Version="3.8.1" />
-    <PackageReference Include="Vortice.Mathematics" Version="2.1.0" />
+    <PackageReference Include="Avalonia" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
+    <PackageReference Include="HarfBuzzSharp" Version="8.3.1.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Controls\NeovimClientControl.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,37 +38,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\neovim-logo-flat.png" />
+    <AvaloniaResource Include="Assets\neovim-logo-flat.png" />
     <Content Include="Assets\neovim_mark_flat.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <None Update="Properties\WindowState.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>WindowState.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <DependentUpon>Settings.settings</DependentUpon>
-    </Compile>
-    <Compile Update="Properties\WindowState.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <DependentUpon>WindowState.settings</DependentUpon>
-    </Compile>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
   </ItemGroup>
 
 </Project>

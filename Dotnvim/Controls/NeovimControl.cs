@@ -1,4 +1,4 @@
-﻿// <copyright file="NeovimControl.cs">
+// <copyright file="NeovimControl.cs">
 // Copyright (c) dotnvim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
@@ -7,107 +7,53 @@ namespace Dotnvim.Controls
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.Linq;
-    using System.Numerics;
-    using System.Runtime.InteropServices;
-    using System.Text;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using Dotnvim.Controls.Cache;
-    using Dotnvim.Controls.Utilities;
-    using Dotnvim.NeovimClient.Utilities;
+    using Avalonia;
+    using Avalonia.Controls;
+    using Avalonia.Media;
+    using Avalonia.Platform;
+    using Avalonia.Rendering.SceneGraph;
+    using Avalonia.Skia;
+    using Avalonia.Threading;
     using Dotnvim.Utilities;
-    using static Dotnvim.NeovimClient.NeovimClient;
-    using D2D = Vortice.Direct2D1;
-    using DWrite = Vortice.DirectWrite;
-    using SizeF = System.Drawing.SizeF;
+    using SkiaSharp;
+    using Cell = Dotnvim.NeovimClient.NeovimClient.Cell;
+    using CursorShape = Dotnvim.NeovimClient.Utilities.CursorShape;
+    using FontSettings = Dotnvim.NeovimClient.Utilities.FontSettings;
+    using NeovimScreen = Dotnvim.NeovimClient.NeovimClient.Screen;
 
     /// <summary>
-    /// The neovim control.
+    /// The Neovim control using Avalonia custom rendering with SkiaSharp.
     /// </summary>
-    public class NeovimControl : ControlBase
+    public class NeovimControl : Control, IDisposable
     {
         private readonly NeovimClient.NeovimClient neovimClient;
-        private readonly DWrite.IDWriteTextAnalyzer textAnalyzer;
-        private readonly DWrite.IDWriteFactory factoryDWrite = DWrite.DWrite.DWriteCreateFactory<DWrite.IDWriteFactory>();
-
-        private readonly CursorEffects cursorEffects;
-        private readonly BrushCache brushCache;
-        private readonly FontCache fontCache;
-        private readonly ScriptAnalysesCache scriptAnalysesCache;
-
         private readonly ConcurrentQueue<Action> pendingActions = new ConcurrentQueue<Action>();
 
         private TextLayoutParameters textParam;
-
-        // Reusable buffers to reduce GC pressure in Draw()
-        private ushort[] bufClusterMap;
-        private DWrite.ShapingTextProperties[] bufTextProperties;
-        private ushort[] bufIndices;
-        private DWrite.ShapingGlyphProperties[] bufShapingProperties;
-        private uint[] bufFallbackCodePoint = new uint[1];
-
-        // TODO: Ligature suppression not yet supported with Vortice GetGlyphs API (nint? features parameter).
-        // Restore ligature feature arrays when API support is available.
+        private SKTypeface primaryTypeface;
+        private bool isDisposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NeovimControl"/> class.
         /// </summary>
-        /// <param name="parent">The parent control.</param>
-        /// <param name="neovimClient">the neovim client.</param>
-        public NeovimControl(IElement parent, NeovimClient.NeovimClient neovimClient)
-            : base(parent)
+        /// <param name="neovimClient">The neovim client.</param>
+        public NeovimControl(NeovimClient.NeovimClient neovimClient)
         {
             this.neovimClient = neovimClient;
-            this.neovimClient.Redraw += this.Invalidate;
+            this.neovimClient.Redraw += this.OnRedraw;
             this.neovimClient.FontChanged += this.OnFontChanged;
 
-            this.textAnalyzer = this.factoryDWrite.CreateTextAnalyzer();
-            this.cursorEffects = new CursorEffects(this.DeviceContext);
-            this.brushCache = new BrushCache();
-            this.scriptAnalysesCache = new ScriptAnalysesCache();
-            this.fontCache = new FontCache(this.factoryDWrite);
+            this.ClipToBounds = true;
+            this.Focusable = true;
 
-            this.textParam = new TextLayoutParameters(
-                this.factoryDWrite,
-                "Consolas",
-                11,
-                false,
-                false,
-                false,
-                false,
-                this.Factory.GetDesktopDpi());
+            this.primaryTypeface = SKTypeface.FromFamilyName("Consolas");
+            this.textParam = new TextLayoutParameters("Consolas", 11);
         }
 
-        /// <inheritdoc />
-        public override SizeF Size
-        {
-            get
-            {
-                return base.Size;
-            }
-
-            set
-            {
-                if (value.Width == 0)
-                {
-                    value.Width = 1;
-                }
-
-                if (value.Height == 0)
-                {
-                    value.Height = 1;
-                }
-
-                if (base.Size != value)
-                {
-                    base.Size = value;
-                    this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
-                }
-            }
-        }
+        /// <summary>
+        /// Gets or sets a value indicating whether font ligature is enabled.
+        /// </summary>
+        public bool EnableLigature { get; set; }
 
         /// <summary>
         /// Gets the desired row count.
@@ -116,69 +62,103 @@ namespace Dotnvim.Controls
         {
             get
             {
-                var c = (uint)(this.Size.Height / this.textParam.LineHeight);
-                if (c == 0)
-                {
-                    c = 1;
-                }
-
-                return c;
+                var c = (uint)(this.Bounds.Height / this.textParam.LineHeight);
+                return c == 0 ? 1 : c;
             }
         }
 
         /// <summary>
-        /// Gets the desired col count.
+        /// Gets the desired column count.
         /// </summary>
         public uint DesiredColCount
         {
             get
             {
-                var c = (uint)(this.Size.Width / this.textParam.CharWidth);
-                if (c == 0)
-                {
-                    c = 1;
-                }
-
-                return c;
+                var c = (uint)(this.Bounds.Width / this.textParam.CharWidth);
+                return c == 0 ? 1 : c;
             }
         }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the font ligature is enabled.
-        /// </summary>
-        public bool EnableLigature { get; set; }
-
-        /// <inheritdoc />
-        protected override EffectChain PostEffects => this.cursorEffects;
-
-        /// <summary>
         /// Input text to neovim.
         /// </summary>
-        /// <param name="text">the input text sequence.</param>
+        /// <param name="text">The input text sequence.</param>
         public void Input(string text)
         {
             this.neovimClient.Input(text);
         }
 
+        /// <inheritdoc />
+        public override void Render(DrawingContext context)
+        {
+            var customOp = new NeovimDrawOperation(this, new Rect(0, 0, this.Bounds.Width, this.Bounds.Height));
+            context.Custom(customOp);
+        }
+
         /// <summary>
-        /// GuiFont changed.
+        /// Dispose the control.
         /// </summary>
-        /// <param name="font">The font settings.</param>
-        public void OnFontChanged(FontSettings font)
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <inheritdoc />
+        protected override Size MeasureOverride(Size availableSize)
+        {
+            return availableSize;
+        }
+
+        /// <inheritdoc />
+        protected override void OnSizeChanged(SizeChangedEventArgs e)
+        {
+            base.OnSizeChanged(e);
+            if (e.NewSize.Width > 0 && e.NewSize.Height > 0)
+            {
+                this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
+            }
+        }
+
+        /// <summary>
+        /// Dispose managed and unmanaged resources.
+        /// </summary>
+        /// <param name="disposing">True if called from Dispose, false from finalizer.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this.isDisposed)
+            {
+                if (disposing)
+                {
+                    this.neovimClient.Redraw -= this.OnRedraw;
+                    this.neovimClient.FontChanged -= this.OnFontChanged;
+                    this.primaryTypeface?.Dispose();
+                }
+
+                this.isDisposed = true;
+            }
+        }
+
+        private void OnRedraw()
+        {
+            Dispatcher.UIThread.Post(() => this.InvalidateVisual());
+        }
+
+        private void OnFontChanged(FontSettings font)
         {
             this.pendingActions.Enqueue(() =>
             {
-                if (this.fontCache.SetPrimaryFontFamily(font.FontName))
+                var newTypeface = SKTypeface.FromFamilyName(
+                    font.FontName,
+                    font.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+                    SKFontStyleWidth.Normal,
+                    font.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+
+                if (newTypeface != null)
                 {
-                    this.textParam = new TextLayoutParameters(
-                        this.factoryDWrite,
-                        font.FontName,
-                        font.FontPointSize,
-                        font.Bold,
-                        font.Italic,
-                        font.Underline,
-                        font.StrikeOut,
-                        this.Factory.GetDesktopDpi());
+                    this.primaryTypeface?.Dispose();
+                    this.primaryTypeface = newTypeface;
+                    this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
                     this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
                 }
                 else
@@ -186,11 +166,11 @@ namespace Dotnvim.Controls
                     this.neovimClient.WriteErrorMessage($"Dotnvim: Unable to use font: {font.FontName}");
                 }
             });
-            this.Invalidate();
+
+            Dispatcher.UIThread.Post(() => this.InvalidateVisual());
         }
 
-        /// <inheritdoc />
-        protected override void Draw()
+        private void RenderWithSkia(SKCanvas canvas)
         {
             while (this.pendingActions.TryDequeue(out var action))
             {
@@ -198,54 +178,56 @@ namespace Dotnvim.Controls
             }
 
             var args = this.neovimClient.GetScreen();
-
             if (args == null)
             {
                 return;
             }
 
-            this.scriptAnalysesCache.StartNewFrame();
-            this.DeviceContext.BeginDraw();
-            this.DeviceContext.Clear(Helpers.GetColor(args.BackgroundColor, 0));
+            canvas.Clear(SKColors.Transparent);
 
-            // Paint the background
-            for (int i = 0; i < args.Cells.GetLength(0); i++)
+            int rows = args.Cells.GetLength(0);
+            int cols = args.Cells.GetLength(1);
+
+            using var bgPaint = new SKPaint();
+            bgPaint.IsAntialias = false;
+            bgPaint.Style = SKPaintStyle.Fill;
+
+            // Paint backgrounds
+            for (int i = 0; i < rows; i++)
             {
-                for (int j = 0; j < args.Cells.GetLength(1); j++)
+                for (int j = 0; j < cols; j++)
                 {
                     if (args.Cells[i, j].BackgroundColor != args.BackgroundColor || args.Cells[i, j].Reverse)
                     {
-                        var x = j * this.textParam.CharWidth;
-                        var y = i * this.textParam.LineHeight;
-
-                        var rect = new Vortice.RawRectF(x, y, x + this.textParam.CharWidth, y + this.textParam.LineHeight);
-                        int color = args.Cells[i, j].Reverse ? args.Cells[i, j].ForegroundColor : args.Cells[i, j].BackgroundColor;
-                        var brush = this.brushCache.GetBrush(this.DeviceContext, color);
-                        this.DeviceContext.FillRectangle(rect, brush);
+                        float x = j * this.textParam.CharWidth;
+                        float y = i * this.textParam.LineHeight;
+                        int color = args.Cells[i, j].Reverse
+                            ? args.Cells[i, j].ForegroundColor
+                            : args.Cells[i, j].BackgroundColor;
+                        bgPaint.Color = Helpers.GetSkColor(color);
+                        canvas.DrawRect(x, y, this.textParam.CharWidth, this.textParam.LineHeight, bgPaint);
                     }
                 }
             }
 
-            // Paint the foreground
-            for (int i = 0; i < args.Cells.GetLength(0); i++)
+            // Paint foreground text
+            using var textPaint = new SKPaint();
+            textPaint.IsAntialias = true;
+            textPaint.TextSize = this.textParam.SkiaFontSize;
+            textPaint.IsLinearText = false;
+            textPaint.SubpixelText = true;
+
+            for (int i = 0; i < rows; i++)
             {
                 int j = 0;
-
-                while (j < args.Cells.GetLength(1))
+                while (j < cols)
                 {
-                    // Cells with the same style should be analyzed together.
-                    // This prevents the inproper ligature in <html>=
-                    // Of course, it relies on enabling the syntax.
+                    // Group cells with the same style for correct ligature rendering
                     int cellRangeStart = j;
                     int cellRangeEnd = j;
                     Cell startCell = args.Cells[i, cellRangeStart];
-                    while (true)
+                    while (cellRangeEnd < cols)
                     {
-                        if (cellRangeEnd == args.Cells.GetLength(1))
-                        {
-                            break;
-                        }
-
                         Cell cell = args.Cells[i, cellRangeEnd];
                         if (cell.Character != null
                             && (cell.ForegroundColor != startCell.ForegroundColor
@@ -265,192 +247,141 @@ namespace Dotnvim.Controls
 
                     j = cellRangeEnd;
 
-                    var fontWeight = args.Cells[i, cellRangeStart].Bold ? DWrite.FontWeight.Bold : this.textParam.Weight;
-                    var fontStyle = args.Cells[i, cellRangeStart].Italic ? DWrite.FontStyle.Italic : this.textParam.Style;
-
-                    int cellIndex = cellRangeStart;
-                    using (var textSource = new RowTextSource(this.factoryDWrite, args.Cells, i, cellRangeStart, cellRangeEnd))
-                    {
-                        var scriptAnalyses = this.scriptAnalysesCache.GetOrAddAnalysisResult(
-                            textSource.FullText,
-                            (_) =>
-                            {
-                                using (var textSink = new TextAnalysisSink())
-                                {
-                                    this.textAnalyzer.AnalyzeScript(textSource, 0, (uint)textSource.Length, textSink);
-                                    return textSink.ScriptAnalyses;
-                                }
-                            });
-
-                        // The result of AalyzeScript may cut the text into several ranges,
-                        // and in each range the text's scripts are different.
-                        foreach (var (codePointStart, codePointLength, scriptAnalysis) in scriptAnalyses)
-                        {
-                            var glyphBufferLength = (codePointLength * 3 / 2) + 16;
-                            var clusterMap = EnsureBuffer(ref this.bufClusterMap, codePointLength);
-                            var textProperties = EnsureBuffer(ref this.bufTextProperties, codePointLength);
-                            ushort[] indices;
-                            DWrite.ShapingGlyphProperties[] shapingProperties;
-                            var fontFace = this.fontCache.GetPrimaryFontFace(fontWeight, fontStyle);
-                            uint actualGlyphCount;
-
-                            // We don't know how many glyphs the text have. TextLength * 3 / 2 + 16
-                            // is an empirical estimation suggested by MSDN. So using a loop to detect
-                            // the actual glyph count.
-                            while (true)
-                            {
-                                indices = EnsureBuffer(ref this.bufIndices, glyphBufferLength);
-                                shapingProperties = EnsureBuffer(ref this.bufShapingProperties, glyphBufferLength);
-                                try
-                                {
-                                    var str = textSource.GetSubString(codePointStart, codePointLength);
-
-                                    this.textAnalyzer.GetGlyphs(
-                                        str,
-                                        (uint)str.Length,
-                                        fontFace,
-                                        false,
-                                        false,
-                                        scriptAnalysis,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        0u,
-                                        (uint)glyphBufferLength,
-                                        clusterMap,
-                                        textProperties,
-                                        indices,
-                                        shapingProperties,
-                                        out actualGlyphCount);
-                                    break;
-                                }
-                                catch (COMException e)
-                                {
-                                    const int ERROR_INSUFFICIENT_BUFFER = unchecked((int)0x8007007A);
-                                    if (e.HResult == ERROR_INSUFFICIENT_BUFFER)
-                                    {
-                                        glyphBufferLength *= 2;
-                                    }
-                                }
-                            }
-
-                            for (int codePointIndex = 0, glyphIndex = 0; codePointIndex < codePointLength;)
-                            {
-                                // var fontWeight = args.Screen[i, cellIndex].Bold ? DWrite.FontWeight.Bold : DWrite.FontWeight.Normal;
-                                // var fontStyle = args.Screen[i, cellIndex].Italic ? DWrite.FontStyle.Italic : DWrite.FontStyle.Normal;
-                                var foregroundColor = args.Cells[i, cellIndex].Reverse ? args.Cells[i, cellIndex].BackgroundColor : args.Cells[i, cellIndex].ForegroundColor;
-                                var foregroundBrush = this.brushCache.GetBrush(this.DeviceContext, foregroundColor);
-                                var fontFace2 = fontFace;
-                                ushort[] indices2;
-
-                                int cellWidth = 0;
-                                int codePointCount = 0;
-                                int glyphCount = 0;
-
-                                if (indices[glyphIndex] == 0)
-                                {
-                                    // If the primary font doesn't have the glyph, get a font from system font fallback.
-                                    // Ligatures for fallback fonts are not supported yet.
-                                    int codePoint = args.Cells[i, cellIndex].Character.Value;
-                                    fontFace2 = this.fontCache.GetFontFace(codePoint, fontWeight, fontStyle);
-                                    this.bufFallbackCodePoint[0] = (uint)codePoint;
-                                    indices2 = fontFace2.GetGlyphIndices(this.bufFallbackCodePoint);
-                                    glyphCount = indices2.Length;
-
-                                    // NativeInterop.Methods.wcwidth(textSource.GetCodePoint(codePointStart + codePointIndex));
-                                    cellWidth = this.GetCharWidth(args.Cells, i, cellIndex);
-                                    codePointCount = 1;
-                                }
-                                else
-                                {
-                                    // The cluster map stores the information about the codepoint-glyph mapping.
-                                    // If several codepoints share the same glyph (e.g. ligature), then they will
-                                    // have the same value in clusterMap.
-                                    // If one code point has several corresponding glyphs, then for the next codepoint,
-                                    // the value in clusterMap will bump higher.
-                                    // Example:  CodePointLength = 5, GlyphCount = 5, clusterMap = [0, 1, 1, 2, 4] means:
-                                    // Codepoint Index    Glyph Index
-                                    //       0   -----------   0
-                                    //       1   -----------   1
-                                    //       2   ----------/
-                                    //       3   -----------   2
-                                    //           \----------   3
-                                    //       4   -----------   4
-                                    var cluster = clusterMap[codePointIndex];
-                                    int nextCluster = cluster;
-                                    while (true)
-                                    {
-                                        if (codePointIndex + codePointCount == clusterMap.Length)
-                                        {
-                                            nextCluster++;
-                                            break;
-                                        }
-
-                                        nextCluster = clusterMap[codePointIndex + codePointCount];
-                                        if (cluster != nextCluster)
-                                        {
-                                            break;
-                                        }
-
-                                        // NativeInterop.Methods.wcwidth(textSource.GetCodePoint(codePointStart + codePointIndex + codePointCount));
-                                        cellWidth += this.GetCharWidth(args.Cells, i, cellIndex + cellWidth);
-                                        codePointCount++;
-                                    }
-
-                                    glyphCount = nextCluster - cluster;
-                                    indices2 = new ushort[glyphCount];
-                                    for (int c = 0; c < glyphCount; c++)
-                                    {
-                                        indices2[c] = indices[glyphIndex];
-                                    }
-                                }
-
-                                var glyphrun = new DWrite.GlyphRun
-                                {
-                                    FontFace = fontFace2,
-                                    Advances = null,
-                                    BidiLevel = 0,
-                                    FontEmSize = this.textParam.DipSize,
-                                    Indices = indices2,
-                                    IsSideways = false,
-                                    Offsets = null,
-                                };
-
-                                var origin = new Vector2(this.textParam.CharWidth * cellIndex, this.textParam.LineHeight * (i + 0.8f));
-                                this.DeviceContext.DrawGlyphRun(origin, glyphrun, foregroundBrush, Vortice.DCommon.MeasuringMode.GdiNatural);
-
-                                cellIndex += cellWidth;
-                                codePointIndex += codePointCount;
-                                glyphIndex += glyphCount;
-                            }
-                        }
-                    }
+                    this.DrawCellRange(canvas, textPaint, args, i, cellRangeStart, cellRangeEnd);
                 }
             }
 
-            this.DeviceContext.EndDraw();
-            this.DrawCursor(args);
+            // Draw cursor
+            this.DrawCursor(canvas, args);
         }
 
-        /// <inheritdoc />
-        protected override void DisposeManaged()
+        private void DrawCellRange(SKCanvas canvas, SKPaint textPaint, NeovimScreen args, int row, int colStart, int colEnd)
         {
-            base.DisposeManaged();
+            bool bold = args.Cells[row, colStart].Bold;
+            bool italic = args.Cells[row, colStart].Italic;
+            bool underline = args.Cells[row, colStart].Underline;
+            bool undercurl = args.Cells[row, colStart].Undercurl;
+            int foregroundColor = args.Cells[row, colStart].Reverse
+                ? args.Cells[row, colStart].BackgroundColor
+                : args.Cells[row, colStart].ForegroundColor;
 
-            this.cursorEffects.Dispose();
-            this.brushCache.Dispose();
-            this.fontCache.Dispose();
-        }
+            textPaint.Color = Helpers.GetSkColor(foregroundColor);
+            textPaint.FakeBoldText = bold;
 
-        private static T[] EnsureBuffer<T>(ref T[] buffer, int minSize)
-        {
-            if (buffer == null || buffer.Length < minSize)
+            var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
+            var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
+            using var styledTypeface = SKTypeface.FromFamilyName(
+                this.textParam.FontName, weight, SKFontStyleWidth.Normal, slant);
+            textPaint.Typeface = styledTypeface ?? this.primaryTypeface;
+
+            float baselineY = (row * this.textParam.LineHeight) + (this.textParam.LineHeight * 0.8f);
+
+            // Draw each cell's character individually at its fixed position
+            // This preserves the terminal grid alignment while still supporting proper glyph rendering
+            int cellIndex = colStart;
+            while (cellIndex < colEnd)
             {
-                buffer = new T[minSize];
+                var cell = args.Cells[row, cellIndex];
+                if (cell.Character == null)
+                {
+                    cellIndex++;
+                    continue;
+                }
+
+                int codePoint = cell.Character.Value;
+                string text = char.ConvertFromUtf32(codePoint);
+                float x = cellIndex * this.textParam.CharWidth;
+
+                // Check if the primary font has the glyph, otherwise use fallback
+                if (textPaint.Typeface != null && !textPaint.ContainsGlyphs(text))
+                {
+                    using var fallback = SKFontManager.Default.MatchCharacter(codePoint);
+                    if (fallback != null)
+                    {
+                        textPaint.Typeface = fallback;
+                    }
+                }
+
+                canvas.DrawText(text, x, baselineY, textPaint);
+
+                // Restore the styled typeface for subsequent characters
+                textPaint.Typeface = styledTypeface ?? this.primaryTypeface;
+
+                int charWidth = this.GetCharWidth(args.Cells, row, cellIndex);
+                cellIndex += charWidth;
             }
 
-            return buffer;
+            // Draw underline
+            if (underline)
+            {
+                using var ulPaint = new SKPaint();
+                ulPaint.Color = Helpers.GetSkColor(foregroundColor);
+                ulPaint.StrokeWidth = 1;
+                ulPaint.IsAntialias = true;
+                float ulY = ((row + 1) * this.textParam.LineHeight) - 1;
+                canvas.DrawLine(colStart * this.textParam.CharWidth, ulY, colEnd * this.textParam.CharWidth, ulY, ulPaint);
+            }
+
+            // Draw undercurl
+            if (undercurl)
+            {
+                int specialColor = args.Cells[row, colStart].SpecialColor;
+                using var curlPaint = new SKPaint();
+                curlPaint.Color = Helpers.GetSkColor(specialColor);
+                curlPaint.StrokeWidth = 1;
+                curlPaint.IsAntialias = true;
+                curlPaint.Style = SKPaintStyle.Stroke;
+                float curlY = ((row + 1) * this.textParam.LineHeight) - 2;
+                using var path = new SKPath();
+                float startX = colStart * this.textParam.CharWidth;
+                float endX = colEnd * this.textParam.CharWidth;
+                path.MoveTo(startX, curlY);
+                for (float cx = startX; cx < endX; cx += 4)
+                {
+                    path.QuadTo(cx + 2, curlY - 2, cx + 4, curlY);
+                }
+
+                canvas.DrawPath(path, curlPaint);
+            }
+        }
+
+        private void DrawCursor(SKCanvas canvas, NeovimScreen args)
+        {
+            var cursorPercentage = this.neovimClient.ModeInfo?.CellPercentage ?? 100;
+            var cursorShape = this.neovimClient.ModeInfo?.CursorShape ?? CursorShape.Block;
+            int cellWidth = this.GetCharWidth(args.Cells, args.CursorPosition.Row, args.CursorPosition.Col);
+
+            float left, top, right, bottom;
+            switch (cursorShape)
+            {
+                case CursorShape.Vertical:
+                    left = args.CursorPosition.Col * this.textParam.CharWidth;
+                    top = args.CursorPosition.Row * this.textParam.LineHeight;
+                    right = (args.CursorPosition.Col + (cursorPercentage / 100f)) * this.textParam.CharWidth;
+                    bottom = (args.CursorPosition.Row + 1) * this.textParam.LineHeight;
+                    break;
+                case CursorShape.Horizontal:
+                    float topMargin = this.textParam.LineHeight * (100 - cursorPercentage) / 100f;
+                    left = args.CursorPosition.Col * this.textParam.CharWidth;
+                    top = (args.CursorPosition.Row * this.textParam.LineHeight) + topMargin;
+                    right = (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth;
+                    bottom = (args.CursorPosition.Row + 1) * this.textParam.LineHeight;
+                    break;
+                default: // Block
+                    left = args.CursorPosition.Col * this.textParam.CharWidth;
+                    top = args.CursorPosition.Row * this.textParam.LineHeight;
+                    right = (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth;
+                    bottom = (args.CursorPosition.Row + 1) * this.textParam.LineHeight;
+                    break;
+            }
+
+            var cursorRect = new SKRect(left, top, right, bottom);
+
+            // Draw cursor as inverted rectangle
+            using var cursorPaint = new SKPaint();
+            cursorPaint.BlendMode = SKBlendMode.Difference;
+            cursorPaint.Color = SKColors.White;
+            canvas.DrawRect(cursorRect, cursorPaint);
         }
 
         private int GetCharWidth(Cell[,] screen, int row, int col)
@@ -468,85 +399,74 @@ namespace Dotnvim.Controls
             return 1;
         }
 
-        private void DrawCursor(Screen args)
+        /// <summary>
+        /// Custom draw operation for rendering the Neovim grid with SkiaSharp.
+        /// </summary>
+        private sealed class NeovimDrawOperation : ICustomDrawOperation
         {
-            var cursorPercentage = this.neovimClient.ModeInfo?.CellPercentage ?? 100;
-            var cursorShape = this.neovimClient.ModeInfo?.CursorShape ?? CursorShape.Block;
-            var cellWidth = this.GetCharWidth(args.Cells, args.CursorPosition.Row, args.CursorPosition.Col);
-            Vortice.RawRectF cursorRect;
+            private readonly NeovimControl control;
 
-            switch (cursorShape)
+            public NeovimDrawOperation(NeovimControl control, Rect bounds)
             {
-                case CursorShape.Vertical:
-                    cursorRect = new Vortice.RawRectF(
-                        args.CursorPosition.Col * this.textParam.CharWidth,
-                        args.CursorPosition.Row * this.textParam.LineHeight,
-                        (args.CursorPosition.Col + (cursorPercentage / 100f)) * this.textParam.CharWidth,
-                        (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
-                    break;
-                case CursorShape.Horizontal:
-                    float topMargin = this.textParam.LineHeight * (100 - cursorPercentage) / 100f;
-                    cursorRect = new Vortice.RawRectF(
-                        args.CursorPosition.Col * this.textParam.CharWidth,
-                        (args.CursorPosition.Row * this.textParam.LineHeight) + topMargin,
-                        (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
-                        (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
-                    break;
-                default:
-                    cursorRect = new Vortice.RawRectF(
-                        args.CursorPosition.Col * this.textParam.CharWidth,
-                        args.CursorPosition.Row * this.textParam.LineHeight,
-                        (args.CursorPosition.Col + cellWidth) * this.textParam.CharWidth,
-                        (args.CursorPosition.Row + 1) * this.textParam.LineHeight);
-                    break;
+                this.control = control;
+                this.Bounds = bounds;
             }
 
-            this.cursorEffects.SetCursorRect(cursorRect);
+            public Rect Bounds { get; }
+
+            public void Dispose()
+            {
+            }
+
+            public bool Equals(ICustomDrawOperation other) => false;
+
+            public bool HitTest(Point p) => this.Bounds.Contains(p);
+
+            public void Render(ImmediateDrawingContext context)
+            {
+                var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
+                if (leaseFeature == null)
+                {
+                    return;
+                }
+
+                using var lease = leaseFeature.Lease();
+                var canvas = lease.SkCanvas;
+                this.control.RenderWithSkia(canvas);
+            }
         }
 
+        /// <summary>
+        /// Font metrics for the terminal grid.
+        /// </summary>
         private sealed class TextLayoutParameters
         {
-            public TextLayoutParameters(
-                DWrite.IDWriteFactory factory,
-                string name,
-                float pointSize,
-                bool bold,
-                bool italic,
-                bool underline,
-                bool strikeout,
-                SizeF dpi)
+            public TextLayoutParameters(string fontName, float pointSize)
             {
-                this.FontName = name;
+                this.FontName = fontName;
                 this.PointSize = pointSize;
-                this.DipSize = Helpers.GetFontSize(pointSize);
-                this.Weight = bold ? DWrite.FontWeight.Bold : DWrite.FontWeight.Normal;
-                this.Style = italic ? DWrite.FontStyle.Italic : DWrite.FontStyle.Normal;
-                this.Underline = underline;
-                this.StrikeOut = strikeout;
+                this.SkiaFontSize = pointSize * 96f / 72f;
 
-                using (var textFormat = factory.CreateTextFormat(this.FontName, this.Weight, this.Style, DWrite.FontStretch.Normal, this.DipSize))
-                using (var textLayout = factory.CreateTextLayout("A", textFormat, 1000, 1000))
-                {
-                    var metrics = textLayout.Metrics;
-                    var overhangMetrics = textLayout.OverhangMetrics;
-                    this.LineHeight = Helpers.AlignToPixel(metrics.Height, dpi.Height);
-                    this.CharWidth = Helpers.AlignToPixel(overhangMetrics.Left + (1000 + overhangMetrics.Right), dpi.Width);
-                }
+                using var typeface = SKTypeface.FromFamilyName(fontName);
+                using var paint = new SKPaint();
+                paint.Typeface = typeface;
+                paint.TextSize = this.SkiaFontSize;
+                paint.IsAntialias = true;
+
+                var metrics = paint.FontMetrics;
+                this.LineHeight = (float)Math.Ceiling(-metrics.Ascent + metrics.Descent + metrics.Leading);
+                this.CharWidth = paint.MeasureText("A");
+
+                // Round to pixels to prevent sub-pixel artifacts in the grid
+                this.LineHeight = (float)Math.Ceiling(this.LineHeight);
+                this.CharWidth = (float)Math.Ceiling(this.CharWidth);
             }
 
             public string FontName { get; }
 
             public float PointSize { get; }
 
-            public float DipSize { get; }
-
-            public DWrite.FontStyle Style { get; }
-
-            public DWrite.FontWeight Weight { get; }
-
-            public bool Underline { get; }
-
-            public bool StrikeOut { get; }
+            public float SkiaFontSize { get; }
 
             public float LineHeight { get; }
 

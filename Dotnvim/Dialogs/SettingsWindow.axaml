@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Dotnvim.Dialogs.SettingsWindow"
+        Title="Settings" Height="305" Width="571"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Neovim Path -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Neovim Path" VerticalAlignment="Center" Width="80" />
+            <TextBox Name="NeovimPathBox" Width="367" Margin="5,0" />
+            <Button Name="BrowseButton" Content="Browse..." Click="Browse_Click" />
+        </StackPanel>
+
+        <!-- Appearance Group -->
+        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Appearance" FontWeight="Bold" Margin="0,0,0,5" />
+
+                <CheckBox Name="LigatureCheckBox" Content="Enable Font Ligature" Margin="0,0,0,5" />
+
+                <CheckBox Name="BlurBehindCheckBox" Content="Enable Blurring Behind Window" Margin="0,0,0,5" />
+
+                <RadioButton Name="GaussianRadio" Content="Gaussian Blur (Windows 10)"
+                             GroupName="BlurKind" Margin="20,0,0,3" />
+
+                <RadioButton Name="AcrylicRadio" Content="Acrylic Blur (Windows 10 RS4+ / Windows 11 22H2+)"
+                             GroupName="BlurKind" Margin="20,0,0,3" />
+
+                <RadioButton Name="MicaRadio" Content="Mica (Windows 11 22H2+)"
+                             GroupName="BlurKind" Margin="20,0,0,5" />
+
+                <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
+                    <TextBlock Text="Background Color Opacity" VerticalAlignment="Center" />
+                    <Slider Name="OpacitySlider" Width="273" Minimum="0.01" Maximum="1"
+                            TickFrequency="0.01" IsSnapToTickEnabled="True" Margin="10,0" />
+                    <TextBlock Name="OpacityLabel" Width="40" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Prompt Label -->
+        <TextBlock Grid.Row="2" Name="PromptLabel" IsVisible="False"
+                   Background="Yellow" Padding="25,5" Margin="0,0,0,5" />
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="OK" Width="76" Margin="0,0,5,0" Click="Ok_Click" />
+            <Button Content="Cancel" Width="76" Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
