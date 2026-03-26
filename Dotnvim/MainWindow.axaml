@@ -2,9 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Dotnvim.MainWindow"
         Title="dotnvim"
-        Width="{Binding WindowWidth}"
-        Height="{Binding WindowHeight}"
-        TransparencyLevelHint="AcrylicBlur,Mica,Transparent"
+        TransparencyLevelHint="Transparent,Blur,AcrylicBlur,Mica"
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
@@ -14,7 +12,8 @@
 
     <DockPanel LastChildFill="True">
         <!-- Custom Title Bar -->
-        <Grid DockPanel.Dock="Top" Height="28" Name="TitleBar" IsHitTestVisible="True">
+        <Grid DockPanel.Dock="Top" Height="28" Name="TitleBar" IsHitTestVisible="True"
+              PointerPressed="TitleBar_PointerPressed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -31,7 +30,7 @@
             <!-- Title -->
             <TextBlock Grid.Column="1" Name="TitleText" Text="dotnvim"
                        VerticalAlignment="Center" HorizontalAlignment="Right"
-                       Margin="8,0" TextTrimming="CharacterEllipsis"
+                       Margin="8, 0" TextTrimming="CharacterEllipsis"
                        Foreground="White" FontSize="12" />
 
             <!-- Settings Button -->

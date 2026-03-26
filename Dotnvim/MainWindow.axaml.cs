@@ -11,6 +11,7 @@ namespace Dotnvim
     using Avalonia.Controls;
     using Avalonia.Input;
     using Avalonia.Interactivity;
+    using Avalonia.Media;
     using Avalonia.Threading;
     using Dotnvim.Controls;
     using Dotnvim.Settings;
@@ -22,6 +23,7 @@ namespace Dotnvim
     public partial class MainWindow : Window
     {
         private readonly AppSettings settings = AppSettings.Default;
+        private int currentBackgroundColor = 0xFFFFFF;
         private NeovimClient.NeovimClient neovimClient;
         private NeovimControl neovimControl;
 
@@ -118,9 +120,7 @@ namespace Dotnvim
                 }
                 catch (Exception)
                 {
-                    var dialog = new Dialogs.SettingsWindow("Please specify the path to Neovim");
-                    await dialog.ShowDialog(this);
-                    if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Cancel)
+                    if (await this.ShowSettingsDialogAsync("Please specify the path to Neovim") == Dialogs.SettingsWindow.Result.Cancel)
                     {
                         this.Close();
                         return;
@@ -170,6 +170,7 @@ namespace Dotnvim
             {
                 Dispatcher.UIThread.Post(() =>
                 {
+                    this.currentBackgroundColor = intColor;
                     this.SetupBlurBehind();
                 });
              };
@@ -180,6 +181,7 @@ namespace Dotnvim
                 {
                     case nameof(AppSettings.EnableBlurBehind):
                     case nameof(AppSettings.BlurType):
+                    case nameof(AppSettings.BackgroundOpacity):
                         Dispatcher.UIThread.Post(() => this.SetupBlurBehind());
                         break;
                     case nameof(AppSettings.EnableLigature):
@@ -192,27 +194,25 @@ namespace Dotnvim
 
         private void SetupBlurBehind()
         {
-            if (Helpers.BlurBehindAvailable() && this.settings.EnableBlurBehind)
+            if (this.settings.EnableBlurBehind)
             {
-                switch (this.settings.BlurType)
-                {
-                    case 0: // Gaussian Blur
-                        this.TransparencyLevelHint = new[] { WindowTransparencyLevel.Blur };
-                        break;
-                    case 1: // Acrylic Blur
-                        this.TransparencyLevelHint = new[] { WindowTransparencyLevel.AcrylicBlur };
-                        break;
-                    case 2: // Mica
-                        this.TransparencyLevelHint = new[] { WindowTransparencyLevel.Mica };
-                        break;
-                    default:
-                        this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
-                        break;
-                }
+                this.TransparencyLevelHint = new[] { this.GetRequestedTransparencyLevel() };
             }
             else
             {
                 this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
+            }
+
+            float opacity = this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
+            IBrush backgroundBrush = new SolidColorBrush(Helpers.GetAvaloniaColor(this.currentBackgroundColor, opacity));
+
+            this.FindControl<Grid>("TitleBar").Background = backgroundBrush;
+            this.FindControl<Border>("NeovimBorder").Background = backgroundBrush;
+
+            if (this.neovimControl != null)
+            {
+                this.neovimControl.BackgroundAlpha = (byte)(opacity * 255);
+                this.neovimControl.InvalidateVisual();
             }
         }
 
@@ -221,10 +221,80 @@ namespace Dotnvim
             Dispatcher.UIThread.Post(() => this.Close());
         }
 
-        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        private async void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Dialogs.SettingsWindow();
-            dialog.ShowDialog(this);
+            await this.ShowSettingsDialogAsync();
+        }
+
+        private async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string promptText = null)
+        {
+            var dialog = new Dialogs.SettingsWindow(promptText);
+            await dialog.ShowDialog(this);
+
+            if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
+            {
+                await this.ShowTransparencyMismatchDialogAsync();
+            }
+
+            return dialog.CloseReason;
+        }
+
+        private WindowTransparencyLevel GetRequestedTransparencyLevel()
+        {
+            return this.settings.BlurType switch
+            {
+                0 => WindowTransparencyLevel.Blur,
+                1 => WindowTransparencyLevel.AcrylicBlur,
+                2 => WindowTransparencyLevel.Mica,
+                3 => WindowTransparencyLevel.Transparent,
+                _ => WindowTransparencyLevel.None,
+            };
+        }
+
+        private async Task ShowTransparencyMismatchDialogAsync()
+        {
+            if (!this.settings.EnableBlurBehind)
+            {
+                return;
+            }
+
+            var requestedLevel = this.GetRequestedTransparencyLevel();
+
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            await Task.Delay(100);
+
+            var actualLevel = this.ActualTransparencyLevel;
+            if (actualLevel == requestedLevel)
+            {
+                return;
+            }
+
+            var dialog = new Dialogs.MessageWindow(
+                $"The requested transparency level {requestedLevel} is not supported by your current Windows version. Falling back to {actualLevel}",
+                "Transparency Level Fallback");
+            await dialog.ShowDialog(this);
+        }
+
+        private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
+        {
+            if (e.Source is Button)
+            {
+                return;
+            }
+
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                if (e.ClickCount == 2)
+                {
+                    this.WindowState = this.WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                }
+                else
+                {
+                    this.BeginMoveDrag(e);
+                }
+            }
         }
 
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)

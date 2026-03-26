@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Dotnvim.Dialogs.SettingsWindow"
-        Title="Settings" Height="305" Width="571"
+        Title="Settings" Height="420" Width="571"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="10">
@@ -26,9 +26,12 @@
 
                 <CheckBox Name="LigatureCheckBox" Content="Enable Font Ligature" Margin="0,0,0,5" />
 
-                <CheckBox Name="BlurBehindCheckBox" Content="Enable Blurring Behind Window" Margin="0,0,0,5" />
+                <CheckBox Name="BlurBehindCheckBox" Content="Enable Window Transparency" Margin="0,0,0,5" />
 
-                <RadioButton Name="GaussianRadio" Content="Gaussian Blur (Windows 10)"
+                <RadioButton Name="TransparentRadio" Content="Transparent"
+                             GroupName="BlurKind" Margin="20,0,0,3" />
+
+                <RadioButton Name="GaussianRadio" Content="Blur (Windows 10)"
                              GroupName="BlurKind" Margin="20,0,0,3" />
 
                 <RadioButton Name="AcrylicRadio" Content="Acrylic Blur (Windows 10 RS4+ / Windows 11 22H2+)"

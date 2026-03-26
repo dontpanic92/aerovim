@@ -5,6 +5,7 @@
 
 namespace Dotnvim
 {
+    using System;
     using System.Collections.Generic;
     using Avalonia.Input;
 
@@ -65,9 +66,94 @@ namespace Dotnvim
                 return true;
             }
 
-            // For non-special keys, try to get the character via Win32 API
-            text = NativeInterop.Methods.VirtualKeyToString((int)e.Key);
+            if (!TryGetVirtualKey(e.Key, out int virtualKey))
+            {
+                text = null;
+                return false;
+            }
+
+            text = NativeInterop.Methods.VirtualKeyToString(virtualKey);
             return text != null;
+        }
+
+        private static bool TryGetVirtualKey(Key key, out int virtualKey)
+        {
+            if (key >= Key.A && key <= Key.Z)
+            {
+                virtualKey = 'A' + ((int)key - (int)Key.A);
+                return true;
+            }
+
+            if (key >= Key.D0 && key <= Key.D9)
+            {
+                virtualKey = '0' + ((int)key - (int)Key.D0);
+                return true;
+            }
+
+            if (key >= Key.NumPad0 && key <= Key.NumPad9)
+            {
+                virtualKey = 0x60 + ((int)key - (int)Key.NumPad0);
+                return true;
+            }
+
+            switch (key)
+            {
+                case Key.Multiply:
+                    virtualKey = 0x6A;
+                    return true;
+                case Key.Add:
+                    virtualKey = 0x6B;
+                    return true;
+                case Key.Separator:
+                    virtualKey = 0x6C;
+                    return true;
+                case Key.Subtract:
+                    virtualKey = 0x6D;
+                    return true;
+                case Key.Decimal:
+                    virtualKey = 0x6E;
+                    return true;
+                case Key.Divide:
+                    virtualKey = 0x6F;
+                    return true;
+                case Key.OemSemicolon:
+                    virtualKey = 0xBA;
+                    return true;
+                case Key.OemPlus:
+                    virtualKey = 0xBB;
+                    return true;
+                case Key.OemComma:
+                    virtualKey = 0xBC;
+                    return true;
+                case Key.OemMinus:
+                    virtualKey = 0xBD;
+                    return true;
+                case Key.OemPeriod:
+                    virtualKey = 0xBE;
+                    return true;
+                case Key.OemQuestion:
+                    virtualKey = 0xBF;
+                    return true;
+                case Key.OemTilde:
+                    virtualKey = 0xC0;
+                    return true;
+                case Key.OemOpenBrackets:
+                    virtualKey = 0xDB;
+                    return true;
+                case Key.OemPipe:
+                case Key.OemBackslash:
+                    virtualKey = 0xDC;
+                    return true;
+                case Key.OemCloseBrackets:
+                    virtualKey = 0xDD;
+                    return true;
+                case Key.OemQuotes:
+                    virtualKey = 0xDE;
+                    return true;
+                default:
+                    virtualKey = default;
+                    return false;
+            }
         }
     }
 }

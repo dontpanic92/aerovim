@@ -6,12 +6,15 @@
 namespace Dotnvim.NeovimClient
 {
     using System;
+    using System.Buffers;
+    using System.Collections;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using MessagePack;
 
     /// <summary>
     /// The RPC client using MsgPackRpc Protocol, through <see cref="Stream"/>s.
@@ -37,7 +40,7 @@ namespace Dotnvim.NeovimClient
             this.writer = writer;
             this.reader = reader;
             this.NotificationHandlers += handler;
-            this.readTask = new Thread(() => this.ReadTask());
+            this.readTask = new Thread(this.ReadTask);
             this.readTask.IsBackground = true;
             this.readTask.Start();
         }
@@ -93,9 +96,16 @@ namespace Dotnvim.NeovimClient
             var responseSignal = new TaskCompletionSource<(bool, object)>();
             this.responseSignals.TryAdd(requestId, responseSignal);
 
-            var request = new List<object>() { 0, requestId, name, args };
-            var packer = MsgPack.Serialization.MessagePackSerializer.Get<List<object>>();
-            packer.Pack(this.writer, request);
+            var buffer = new ArrayBufferWriter<byte>();
+            var packer = new MessagePackWriter(buffer);
+            packer.WriteArrayHeader(4);
+            packer.Write(0);
+            packer.Write(requestId);
+            packer.Write(name);
+            this.WriteObject(ref packer, args);
+            packer.Flush();
+
+            this.writer.Write(buffer.WrittenSpan);
             this.writer.Flush();
             return responseSignal.Task;
         }
@@ -109,18 +119,94 @@ namespace Dotnvim.NeovimClient
             this.writer.Close();
         }
 
+        private static IList<MsgPack.MessagePackObject> ReadArray(ref MessagePackReader unpacker)
+        {
+            int count = unpacker.ReadArrayHeader();
+            var items = new List<MsgPack.MessagePackObject>(count);
+            for (int i = 0; i < count; i++)
+            {
+                items.Add(ReadObject(ref unpacker));
+            }
+
+            return items;
+        }
+
+        private static MsgPack.MessagePackObjectDictionary ReadMap(ref MessagePackReader unpacker)
+        {
+            int count = unpacker.ReadMapHeader();
+            var items = new MsgPack.MessagePackObjectDictionary(count);
+            for (int i = 0; i < count; i++)
+            {
+                var key = ReadObject(ref unpacker);
+                var value = ReadObject(ref unpacker);
+                items[key] = value;
+            }
+
+            return items;
+        }
+
+        private static MsgPack.MessagePackObject ReadObject(ref MessagePackReader unpacker)
+        {
+            if (unpacker.TryReadNil())
+            {
+                return new MsgPack.MessagePackObject(null);
+            }
+
+            switch (unpacker.NextMessagePackType)
+            {
+                case MessagePackType.Boolean:
+                    return new MsgPack.MessagePackObject(unpacker.ReadBoolean());
+                case MessagePackType.Integer:
+                    return new MsgPack.MessagePackObject(unpacker.ReadInt64());
+                case MessagePackType.Float:
+                    return new MsgPack.MessagePackObject(unpacker.ReadDouble());
+                case MessagePackType.String:
+                    return new MsgPack.MessagePackObject(unpacker.ReadString());
+                case MessagePackType.Array:
+                    return new MsgPack.MessagePackObject(ReadArray(ref unpacker));
+                case MessagePackType.Map:
+                    return new MsgPack.MessagePackObject(ReadMap(ref unpacker));
+                case MessagePackType.Binary:
+                    {
+                        var bytes = unpacker.ReadBytes();
+                        return new MsgPack.MessagePackObject(bytes.HasValue ? bytes.Value.ToArray() : Array.Empty<byte>());
+                    }
+
+                case MessagePackType.Extension:
+                    {
+                        var extension = unpacker.ReadExtensionFormat();
+                        return new MsgPack.MessagePackObject(extension.Data.ToArray());
+                    }
+
+                default:
+                    throw new InvalidDataException("Unsupported MsgPack value type.");
+            }
+        }
+
         private void ReadTask()
         {
             var bufferedStream = new BufferedStream(this.reader);
+            var streamReader = new MessagePackStreamReader(bufferedStream);
 
             while (true)
             {
                 IList<MsgPack.MessagePackObject> list;
                 try
                 {
-                   list = MsgPack.Unpacking.UnpackArray(bufferedStream);
+                    var payload = streamReader.ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
+                    if (!payload.HasValue)
+                    {
+                        break;
+                    }
+
+                    var unpacker = new MessagePackReader(payload.Value);
+                    list = ReadArray(ref unpacker);
                 }
-                catch (MsgPack.UnpackException)
+                catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException or MessagePackSerializationException)
+                {
+                    throw new MsgPack.UnpackException("Failed to unpack msgpack-rpc payload.", ex);
+                }
+                catch (ObjectDisposedException)
                 {
                     break;
                 }
@@ -180,6 +266,81 @@ namespace Dotnvim.NeovimClient
             else
             {
                 signal.SetResult((true, result));
+            }
+        }
+
+        private void WriteObject(ref MessagePackWriter packer, object value)
+        {
+            switch (value)
+            {
+                case null:
+                    packer.WriteNil();
+                    return;
+                case MsgPack.MessagePackObject messagePackObject:
+                    this.WriteObject(ref packer, messagePackObject.GetRawValue());
+                    return;
+                case string text:
+                    packer.Write(text);
+                    return;
+                case bool boolean:
+                    packer.Write(boolean);
+                    return;
+                case byte byteValue:
+                    packer.Write(byteValue);
+                    return;
+                case sbyte signedByteValue:
+                    packer.Write(signedByteValue);
+                    return;
+                case short shortValue:
+                    packer.Write(shortValue);
+                    return;
+                case ushort unsignedShortValue:
+                    packer.Write(unsignedShortValue);
+                    return;
+                case int intValue:
+                    packer.Write(intValue);
+                    return;
+                case uint uintValue:
+                    packer.Write(uintValue);
+                    return;
+                case long longValue:
+                    packer.Write(longValue);
+                    return;
+                case ulong unsignedLongValue:
+                    packer.Write(unsignedLongValue);
+                    return;
+                case float floatValue:
+                    packer.Write(floatValue);
+                    return;
+                case double doubleValue:
+                    packer.Write(doubleValue);
+                    return;
+                case byte[] bytes:
+                    packer.Write(bytes);
+                    return;
+                case IDictionary dictionary:
+                    packer.WriteMapHeader(dictionary.Count);
+                    foreach (DictionaryEntry entry in dictionary)
+                    {
+                        this.WriteObject(ref packer, entry.Key);
+                        this.WriteObject(ref packer, entry.Value);
+                    }
+
+                    return;
+                case IEnumerable enumerable:
+                    {
+                        var items = enumerable.Cast<object>().ToList();
+                        packer.WriteArrayHeader(items.Count);
+                        foreach (var item in items)
+                        {
+                            this.WriteObject(ref packer, item);
+                        }
+
+                        return;
+                    }
+
+                default:
+                    throw new NotSupportedException($"Unsupported msgpack value type: {value.GetType().FullName}");
             }
         }
     }

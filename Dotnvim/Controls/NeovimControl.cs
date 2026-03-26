@@ -56,6 +56,11 @@ namespace Dotnvim.Controls
         public bool EnableLigature { get; set; }
 
         /// <summary>
+        /// Gets or sets the alpha channel used for the default background.
+        /// </summary>
+        public byte BackgroundAlpha { get; set; } = byte.MaxValue;
+
+        /// <summary>
         /// Gets the desired row count.
         /// </summary>
         public uint DesiredRowCount
@@ -183,7 +188,7 @@ namespace Dotnvim.Controls
                 return;
             }
 
-            canvas.Clear(SKColors.Transparent);
+            canvas.Clear(Helpers.GetSkColor(args.BackgroundColor, this.BackgroundAlpha));
 
             int rows = args.Cells.GetLength(0);
             int cols = args.Cells.GetLength(1);

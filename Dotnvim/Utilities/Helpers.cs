@@ -81,6 +81,24 @@ namespace Dotnvim.Utilities
         }
 
         /// <summary>
+        /// Check whether transparent window background is available.
+        /// </summary>
+        /// <returns>Whether transparent background is available.</returns>
+        public static bool TransparentAvailable()
+        {
+            return Environment.OSVersion.Version.Major >= 10;
+        }
+
+        /// <summary>
+        /// Check whether any Avalonia window transparency level is available.
+        /// </summary>
+        /// <returns>Whether any window transparency level is available.</returns>
+        public static bool WindowTransparencyAvailable()
+        {
+            return TransparentAvailable() || GaussianBlurAvailable() || AcrylicBlurAvailable() || MicaAvailable();
+        }
+
+        /// <summary>
         /// Check whether Gaussian blur is available (Windows 10 only, not Windows 11).
         /// </summary>
         /// <returns>Whether Gaussian blur is available.</returns>

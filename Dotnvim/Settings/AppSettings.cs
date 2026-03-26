@@ -22,11 +22,6 @@ namespace Dotnvim.Settings
 
         private static readonly string SettingsPath = Path.Combine(SettingsDirectory, "settings.json");
 
-        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
-
         private static AppSettings defaultInstance;
 
         private string neovimPath = string.Empty;
@@ -137,7 +132,7 @@ namespace Dotnvim.Settings
             try
             {
                 Directory.CreateDirectory(SettingsDirectory);
-                var json = JsonSerializer.Serialize(this, JsonOptions);
+                var json = JsonSerializer.Serialize(this, AppSettingsJsonContext.Default.AppSettings);
                 File.WriteAllText(SettingsPath, json);
             }
             catch (Exception)
@@ -169,7 +164,7 @@ namespace Dotnvim.Settings
                 if (File.Exists(SettingsPath))
                 {
                     var json = File.ReadAllText(SettingsPath);
-                    return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    return JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings) as AppSettings ?? new AppSettings();
                 }
             }
             catch (Exception)

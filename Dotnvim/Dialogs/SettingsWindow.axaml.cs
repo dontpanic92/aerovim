@@ -10,7 +10,6 @@ namespace Dotnvim.Dialogs
     using Avalonia.Interactivity;
     using Avalonia.Platform.Storage;
     using Dotnvim.Settings;
-    using Dotnvim.Utilities;
 
     /// <summary>
     /// Interaction logic for SettingsWindow.
@@ -88,19 +87,22 @@ namespace Dotnvim.Dialogs
             this.FindControl<CheckBox>("LigatureCheckBox").IsChecked = this.settings.EnableLigature;
 
             var blurBehindCheckBox = this.FindControl<CheckBox>("BlurBehindCheckBox");
-            blurBehindCheckBox.IsChecked = Helpers.BlurBehindEnabled();
-            blurBehindCheckBox.IsEnabled = Helpers.BlurBehindAvailable();
+            blurBehindCheckBox.IsChecked = this.settings.EnableBlurBehind;
+
+            var transparentRadio = this.FindControl<RadioButton>("TransparentRadio");
+            transparentRadio.IsEnabled = this.settings.EnableBlurBehind;
+            transparentRadio.IsChecked = this.settings.BlurType == 3 && this.settings.EnableBlurBehind;
 
             var gaussianRadio = this.FindControl<RadioButton>("GaussianRadio");
-            gaussianRadio.IsEnabled = Helpers.GaussianBlurAvailable() && this.settings.EnableBlurBehind;
+            gaussianRadio.IsEnabled = this.settings.EnableBlurBehind;
             gaussianRadio.IsChecked = this.settings.BlurType == 0 && this.settings.EnableBlurBehind;
 
             var acrylicRadio = this.FindControl<RadioButton>("AcrylicRadio");
-            acrylicRadio.IsEnabled = Helpers.AcrylicBlurAvailable() && this.settings.EnableBlurBehind;
+            acrylicRadio.IsEnabled = this.settings.EnableBlurBehind;
             acrylicRadio.IsChecked = this.settings.BlurType == 1 && this.settings.EnableBlurBehind;
 
             var micaRadio = this.FindControl<RadioButton>("MicaRadio");
-            micaRadio.IsEnabled = Helpers.MicaAvailable() && this.settings.EnableBlurBehind;
+            micaRadio.IsEnabled = this.settings.EnableBlurBehind;
             micaRadio.IsChecked = this.settings.BlurType == 2 && this.settings.EnableBlurBehind;
 
             var opacitySlider = this.FindControl<Slider>("OpacitySlider");
@@ -112,9 +114,10 @@ namespace Dotnvim.Dialogs
             blurBehindCheckBox.IsCheckedChanged += (s, e) =>
             {
                 bool isChecked = blurBehindCheckBox.IsChecked == true;
-                gaussianRadio.IsEnabled = Helpers.GaussianBlurAvailable() && isChecked;
-                acrylicRadio.IsEnabled = Helpers.AcrylicBlurAvailable() && isChecked;
-                micaRadio.IsEnabled = Helpers.MicaAvailable() && isChecked;
+                transparentRadio.IsEnabled = isChecked;
+                gaussianRadio.IsEnabled = isChecked;
+                acrylicRadio.IsEnabled = isChecked;
+                micaRadio.IsEnabled = isChecked;
                 opacitySlider.IsEnabled = isChecked;
             };
         }
@@ -126,7 +129,11 @@ namespace Dotnvim.Dialogs
             this.settings.EnableBlurBehind = this.FindControl<CheckBox>("BlurBehindCheckBox").IsChecked == true;
             this.settings.BackgroundOpacity = this.FindControl<Slider>("OpacitySlider").Value;
 
-            if (this.FindControl<RadioButton>("GaussianRadio").IsChecked == true)
+            if (this.FindControl<RadioButton>("TransparentRadio").IsChecked == true)
+            {
+                this.settings.BlurType = 3;
+            }
+            else if (this.FindControl<RadioButton>("GaussianRadio").IsChecked == true)
             {
                 this.settings.BlurType = 0;
             }

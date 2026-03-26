@@ -16,6 +16,7 @@
     <Copyright>Copyright © 2018</Copyright>
     <Platforms>x64;x86</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,7 +40,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\neovim-logo-flat.png" />
-    <Content Include="Assets\neovim_mark_flat.ico" />
+    <AvaloniaResource Include="Assets\neovim_mark_flat.ico" />
   </ItemGroup>
 
 </Project>
