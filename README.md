@@ -6,4 +6,6 @@ Neovim ❤ Acrylic
 ### Features
 
 - [x] Blur/Acrylic Blur on Windows 10
+- [x] Mica on Windows 11 22H2+
 - [x] Font Ligature
+- [x] Built with Avalonia UI and SkiaSharp

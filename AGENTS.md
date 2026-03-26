@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-dotnvim is a Neovim GUI for Windows featuring Blur/Acrylic effects and font ligature support. It is built on .NET 10 with DirectX rendering via Vortice.Windows.
+dotnvim is a Neovim GUI for Windows featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering.
 
 ## Repository Structure
 
