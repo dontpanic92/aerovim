@@ -50,5 +50,14 @@ namespace Dotnvim.NeovimClient.API
         {
             this.msgPackRpc.SendRequest("nvim_set_var", new List<object>() { name, value });
         }
+
+        /// <summary>
+        /// Execute a Neovim command.
+        /// </summary>
+        /// <param name="command">The command string.</param>
+        public void Command(string command)
+        {
+            this.msgPackRpc.SendRequest("nvim_command", new List<object>() { command });
+        }
     }
 }

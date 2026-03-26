@@ -141,6 +141,7 @@ namespace Dotnvim.NeovimClient
             else
             {
                 this.neovim.UI.Attach(width, height);
+                this.neovim.Global.Command("set title");
                 this.initialized = true;
             }
         }
@@ -170,6 +171,15 @@ namespace Dotnvim.NeovimClient
         public void SetVariable(string name, string value)
         {
             this.neovim.Global.SetGlobalVariable(name, value);
+        }
+
+        /// <summary>
+        /// Execute a Neovim command.
+        /// </summary>
+        /// <param name="command">The command string.</param>
+        public void Command(string command)
+        {
+            this.neovim.Global.Command(command);
         }
 
         /// <summary>

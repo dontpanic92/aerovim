@@ -23,7 +23,7 @@ namespace Dotnvim
     public partial class MainWindow : Window
     {
         private readonly AppSettings settings = AppSettings.Default;
-        private int currentBackgroundColor = 0xFFFFFF;
+        private int currentBackgroundColor;
         private NeovimClient.NeovimClient neovimClient;
         private NeovimControl neovimControl;
 
@@ -32,6 +32,7 @@ namespace Dotnvim
         /// </summary>
         public MainWindow()
         {
+            this.currentBackgroundColor = this.settings.BackgroundColor;
             this.InitializeComponent();
 
             this.SetupBlurBehind();
@@ -138,11 +139,12 @@ namespace Dotnvim
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    this.Title = title;
+                    var effectiveTitle = string.IsNullOrEmpty(title) ? "dotnvim" : title;
+                    this.Title = effectiveTitle;
                     var titleText = this.FindControl<TextBlock>("TitleText");
                     if (titleText != null)
                     {
-                        titleText.Text = title;
+                        titleText.Text = effectiveTitle;
                     }
                 });
              };
@@ -171,6 +173,7 @@ namespace Dotnvim
                 Dispatcher.UIThread.Post(() =>
                 {
                     this.currentBackgroundColor = intColor;
+                    this.settings.BackgroundColor = intColor;
                     this.SetupBlurBehind();
                 });
              };

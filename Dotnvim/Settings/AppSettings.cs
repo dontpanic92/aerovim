@@ -32,6 +32,7 @@ namespace Dotnvim.Settings
         private bool isMaximized;
         private int windowWidth = 800;
         private int windowHeight = 600;
+        private int backgroundColor = 0xFFFFFF;
 
         /// <inheritdoc />
         public event PropertyChangedEventHandler PropertyChanged;
@@ -125,6 +126,15 @@ namespace Dotnvim.Settings
         }
 
         /// <summary>
+        /// Gets or sets the last background color from Neovim.
+        /// </summary>
+        public int BackgroundColor
+        {
+            get => this.backgroundColor;
+            set => this.SetField(ref this.backgroundColor, value);
+        }
+
+        /// <summary>
         /// Save settings to disk.
         /// </summary>
         public void Save()
@@ -155,6 +165,7 @@ namespace Dotnvim.Settings
             this.IsMaximized = fresh.IsMaximized;
             this.WindowWidth = fresh.WindowWidth;
             this.WindowHeight = fresh.WindowHeight;
+            this.BackgroundColor = fresh.BackgroundColor;
         }
 
         private static AppSettings Load()

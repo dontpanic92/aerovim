@@ -16,6 +16,14 @@ namespace Dotnvim.Dialogs
         /// <summary>
         /// Initializes a new instance of the <see cref="MessageWindow"/> class.
         /// </summary>
+        public MessageWindow()
+        {
+            this.InitializeComponent();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageWindow"/> class.
+        /// </summary>
         /// <param name="message">Dialog message.</param>
         /// <param name="title">Dialog title.</param>
         public MessageWindow(string message, string title)

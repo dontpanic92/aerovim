@@ -13,6 +13,7 @@
     <DockPanel LastChildFill="True">
         <!-- Custom Title Bar -->
         <Grid DockPanel.Dock="Top" Height="28" Name="TitleBar" IsHitTestVisible="True"
+              RenderOptions.TextRenderingMode="Antialias"
               PointerPressed="TitleBar_PointerPressed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -40,6 +41,7 @@
                     BorderThickness="0" CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
+                    Focusable="False"
                     Click="SettingsButton_Click" />
 
             <!-- Minimize Button -->
@@ -49,6 +51,7 @@
                     BorderThickness="0" CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
+                    Focusable="False"
                     Click="MinimizeButton_Click" />
 
             <!-- Maximize Button -->
@@ -58,6 +61,7 @@
                     BorderThickness="0" CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
+                    Focusable="False"
                     Click="MaximizeButton_Click" />
 
             <!-- Close Button -->
@@ -67,6 +71,7 @@
                     BorderThickness="0" CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
+                    Focusable="False"
                     Click="CloseButton_Click" />
         </Grid>
 

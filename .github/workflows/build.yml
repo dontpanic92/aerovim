@@ -22,13 +22,11 @@ jobs:
     - name: Restore NuGet packages
       run: dotnet restore dotnvim.sln
 
-    - name: Build
-      run: dotnet build dotnvim.sln --configuration Release --no-restore
+    - name: Publish
+      run: dotnet publish Dotnvim/Dotnvim.csproj --configuration Release --runtime win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none -p:GenerateDocumentationFile=false
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: dotnvim_x64
-        path: |
-          Dotnvim/bin/x64/Release/net10.0-windows/*.exe
-          Dotnvim/bin/x64/Release/net10.0-windows/*.dll
+        path: Dotnvim/bin/x64/Release/net10.0-windows/win-x64/publish/
