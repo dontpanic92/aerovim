@@ -23,10 +23,12 @@ jobs:
       run: dotnet restore dotnvim.sln
 
     - name: Publish
-      run: dotnet publish Dotnvim/Dotnvim.csproj --configuration Release --runtime win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none -p:GenerateDocumentationFile=false
+      run: dotnet publish Dotnvim/Dotnvim.csproj --configuration Release --runtime win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: dotnvim_x64
-        path: Dotnvim/bin/x64/Release/net10.0-windows/win-x64/publish/
+        path: |
+          Dotnvim/bin/x64/Release/net10.0-windows/win-x64/publish/
+          !Dotnvim/bin/x64/Release/net10.0-windows/win-x64/publish/*.xml
