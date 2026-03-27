@@ -159,6 +159,8 @@ namespace Dotnvim
 
             this.neovimClient.NeovimExited += this.OnNeovimExited;
 
+            this.neovimClient.Command("set mouse=a");
+
             this.neovimClient.TitleChanged += (string title) =>
             {
                 Dispatcher.UIThread.Post(() =>

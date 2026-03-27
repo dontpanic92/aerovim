@@ -9,6 +9,7 @@ namespace Dotnvim.Controls
     using System.Collections.Concurrent;
     using Avalonia;
     using Avalonia.Controls;
+    using Avalonia.Input;
     using Avalonia.Media;
     using Avalonia.Platform;
     using Avalonia.Rendering.SceneGraph;
@@ -32,6 +33,7 @@ namespace Dotnvim.Controls
         private TextLayoutParameters textParam;
         private SKTypeface primaryTypeface;
         private bool isDisposed;
+        private string pressedMouseButton;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NeovimControl"/> class.
@@ -126,6 +128,103 @@ namespace Dotnvim.Controls
             }
         }
 
+        /// <inheritdoc />
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            base.OnPointerPressed(e);
+
+            var point = e.GetCurrentPoint(this);
+            var (row, col) = this.PixelToGridPosition(point.Position);
+            var modifier = this.GetModifierString(e.KeyModifiers);
+
+            if (point.Properties.IsLeftButtonPressed)
+            {
+                this.pressedMouseButton = "left";
+            }
+            else if (point.Properties.IsRightButtonPressed)
+            {
+                this.pressedMouseButton = "right";
+            }
+            else if (point.Properties.IsMiddleButtonPressed)
+            {
+                this.pressedMouseButton = "middle";
+            }
+            else
+            {
+                return;
+            }
+
+            this.neovimClient.InputMouse(this.pressedMouseButton, "press", modifier, 0, row, col);
+            e.Handled = true;
+        }
+
+        /// <inheritdoc />
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            base.OnPointerMoved(e);
+
+            if (this.pressedMouseButton == null)
+            {
+                return;
+            }
+
+            var point = e.GetCurrentPoint(this);
+            var (row, col) = this.PixelToGridPosition(point.Position);
+            var modifier = this.GetModifierString(e.KeyModifiers);
+
+            this.neovimClient.InputMouse(this.pressedMouseButton, "drag", modifier, 0, row, col);
+            e.Handled = true;
+        }
+
+        /// <inheritdoc />
+        protected override void OnPointerReleased(PointerReleasedEventArgs e)
+        {
+            base.OnPointerReleased(e);
+
+            if (this.pressedMouseButton == null)
+            {
+                return;
+            }
+
+            var point = e.GetCurrentPoint(this);
+            var (row, col) = this.PixelToGridPosition(point.Position);
+            var modifier = this.GetModifierString(e.KeyModifiers);
+
+            this.neovimClient.InputMouse(this.pressedMouseButton, "release", modifier, 0, row, col);
+            this.pressedMouseButton = null;
+            e.Handled = true;
+        }
+
+        /// <inheritdoc />
+        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+        {
+            base.OnPointerWheelChanged(e);
+
+            var point = e.GetCurrentPoint(this);
+            var (row, col) = this.PixelToGridPosition(point.Position);
+            var modifier = this.GetModifierString(e.KeyModifiers);
+
+            if (e.Delta.Y > 0)
+            {
+                this.neovimClient.InputMouse("wheel", "up", modifier, 0, row, col);
+            }
+            else if (e.Delta.Y < 0)
+            {
+                this.neovimClient.InputMouse("wheel", "down", modifier, 0, row, col);
+            }
+
+            if (e.Delta.X > 0)
+            {
+                this.neovimClient.InputMouse("wheel", "right", modifier, 0, row, col);
+            }
+            else if (e.Delta.X < 0)
+            {
+                this.neovimClient.InputMouse("wheel", "left", modifier, 0, row, col);
+            }
+
+            e.Handled = true;
+        }
+
         /// <summary>
         /// Dispose managed and unmanaged resources.
         /// </summary>
@@ -162,6 +261,42 @@ namespace Dotnvim.Controls
                 $"Dotnvim: Font \"{fontName}\" not found (resolved to \"{typeface.FamilyName}\"). Using SkiaSharp default.");
             typeface.Dispose();
             return SKTypeface.Default;
+        }
+
+        private (int Row, int Col) PixelToGridPosition(Point pixel)
+        {
+            int row = (int)(pixel.Y / this.textParam.LineHeight);
+            int col = (int)(pixel.X / this.textParam.CharWidth);
+
+            int maxRow = (int)this.DesiredRowCount - 1;
+            int maxCol = (int)this.DesiredColCount - 1;
+
+            row = Math.Clamp(row, 0, maxRow);
+            col = Math.Clamp(col, 0, maxCol);
+
+            return (row, col);
+        }
+
+        private string GetModifierString(KeyModifiers modifiers)
+        {
+            var parts = string.Empty;
+
+            if (modifiers.HasFlag(KeyModifiers.Shift))
+            {
+                parts += "S";
+            }
+
+            if (modifiers.HasFlag(KeyModifiers.Control))
+            {
+                parts += "C";
+            }
+
+            if (modifiers.HasFlag(KeyModifiers.Alt))
+            {
+                parts += "A";
+            }
+
+            return parts;
         }
 
         private void OnRedraw()
