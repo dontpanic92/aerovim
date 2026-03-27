@@ -3,7 +3,7 @@
         x:Class="Dotnvim.MainWindow"
         Title="dotnvim"
         RequestedThemeVariant="Light"
-        TransparencyLevelHint="Transparent,Blur,AcrylicBlur,Mica"
+        TransparencyLevelHint="Transparent"
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"

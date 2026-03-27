@@ -221,6 +221,12 @@ namespace Dotnvim
 
         private void SetupBlurBehind()
         {
+            this.UpdateTransparencyLevelHint();
+            this.UpdateBackgroundOpacity();
+        }
+
+        private void UpdateTransparencyLevelHint()
+        {
             if (this.settings.EnableBlurBehind)
             {
                 this.TransparencyLevelHint = new[] { this.GetRequestedTransparencyLevel() };
@@ -230,6 +236,22 @@ namespace Dotnvim
                 this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
             }
 
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                if (this.GetRequestedTransparencyLevel() == WindowTransparencyLevel.Transparent)
+                {
+                    MacOSInterop.SetTransparentTitlebar(nsWindow);
+                }
+                else
+                {
+                    MacOSInterop.RestoreDefaultTitlebar(nsWindow);
+                }
+            }
+        }
+
+        private void UpdateBackgroundOpacity()
+        {
             float opacity = this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
             IBrush backgroundBrush = new SolidColorBrush(Helpers.GetAvaloniaColor(this.currentBackgroundColor, opacity));
 
@@ -299,7 +321,7 @@ namespace Dotnvim
             var requestedLevel = this.GetRequestedTransparencyLevel();
 
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-            await Task.Delay(100);
+            await Task.Delay(500);
 
             var actualLevel = this.ActualTransparencyLevel;
             if (actualLevel == requestedLevel)

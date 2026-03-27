@@ -92,19 +92,19 @@ namespace Dotnvim.Dialogs
             blurBehindCheckBox.IsChecked = this.settings.EnableBlurBehind;
 
             var transparentRadio = this.FindControl<RadioButton>("TransparentRadio");
-            transparentRadio.IsEnabled = this.settings.EnableBlurBehind;
+            transparentRadio.IsEnabled = this.settings.EnableBlurBehind && Helpers.TransparentAvailable();
             transparentRadio.IsChecked = this.settings.BlurType == 3 && this.settings.EnableBlurBehind;
 
             var gaussianRadio = this.FindControl<RadioButton>("GaussianRadio");
-            gaussianRadio.IsEnabled = this.settings.EnableBlurBehind;
+            gaussianRadio.IsEnabled = this.settings.EnableBlurBehind && Helpers.GaussianBlurAvailable();
             gaussianRadio.IsChecked = this.settings.BlurType == 0 && this.settings.EnableBlurBehind;
 
             var acrylicRadio = this.FindControl<RadioButton>("AcrylicRadio");
-            acrylicRadio.IsEnabled = this.settings.EnableBlurBehind;
+            acrylicRadio.IsEnabled = this.settings.EnableBlurBehind && Helpers.AcrylicBlurAvailable();
             acrylicRadio.IsChecked = this.settings.BlurType == 1 && this.settings.EnableBlurBehind;
 
             var micaRadio = this.FindControl<RadioButton>("MicaRadio");
-            micaRadio.IsEnabled = this.settings.EnableBlurBehind;
+            micaRadio.IsEnabled = this.settings.EnableBlurBehind && Helpers.MicaAvailable();
             micaRadio.IsChecked = this.settings.BlurType == 2 && this.settings.EnableBlurBehind;
 
             var opacitySlider = this.FindControl<Slider>("OpacitySlider");
@@ -116,10 +116,10 @@ namespace Dotnvim.Dialogs
             blurBehindCheckBox.IsCheckedChanged += (s, e) =>
             {
                 bool isChecked = blurBehindCheckBox.IsChecked == true;
-                transparentRadio.IsEnabled = isChecked;
-                gaussianRadio.IsEnabled = isChecked;
-                acrylicRadio.IsEnabled = isChecked;
-                micaRadio.IsEnabled = isChecked;
+                transparentRadio.IsEnabled = isChecked && Helpers.TransparentAvailable();
+                gaussianRadio.IsEnabled = isChecked && Helpers.GaussianBlurAvailable();
+                acrylicRadio.IsEnabled = isChecked && Helpers.AcrylicBlurAvailable();
+                micaRadio.IsEnabled = isChecked && Helpers.MicaAvailable();
                 opacitySlider.IsEnabled = isChecked;
             };
         }
