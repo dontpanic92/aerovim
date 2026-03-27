@@ -18,6 +18,7 @@
               PointerPressed="TitleBar_PointerPressed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -25,18 +26,21 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
+            <!-- Spacer for macOS traffic light buttons (width set in code-behind) -->
+            <Border Grid.Column="0" Name="TrafficLightSpacer" Width="0" />
+
             <!-- Logo -->
-            <Image Grid.Column="0" Source="avares://dotnvim/Assets/neovim-logo-flat.png"
+            <Image Grid.Column="1" Source="avares://dotnvim/Assets/neovim-logo-flat.png"
                    Margin="8,3,8,3" Stretch="Uniform" />
 
             <!-- Title -->
-            <TextBlock Grid.Column="1" Name="TitleText" Text="dotnvim"
+            <TextBlock Grid.Column="2" Name="TitleText" Text="dotnvim"
                        VerticalAlignment="Center" HorizontalAlignment="Right"
                        Margin="8, 0" TextTrimming="CharacterEllipsis"
                        Foreground="White" FontSize="12" />
 
             <!-- Settings Button -->
-            <Button Grid.Column="2" Name="SettingsButton" Content="⚙"
+            <Button Grid.Column="3" Name="SettingsButton" Content="⚙"
                     Width="46" Height="28" FontSize="14"
                     Background="Transparent" Foreground="White"
                     BorderThickness="0" CornerRadius="0"
@@ -46,7 +50,7 @@
                     Click="SettingsButton_Click" />
 
             <!-- Minimize Button -->
-            <Button Grid.Column="3" Name="MinimizeButton" Content="🗕"
+            <Button Grid.Column="4" Name="MinimizeButton" Content="🗕"
                     Width="46" Height="28" FontSize="14"
                     Background="Transparent" Foreground="White"
                     BorderThickness="0" CornerRadius="0"
@@ -56,7 +60,7 @@
                     Click="MinimizeButton_Click" />
 
             <!-- Maximize Button -->
-            <Button Grid.Column="4" Name="MaximizeButton" Content="🗖"
+            <Button Grid.Column="5" Name="MaximizeButton" Content="🗖"
                     Width="46" Height="28" FontSize="14"
                     Background="Transparent" Foreground="White"
                     BorderThickness="0" CornerRadius="0"
@@ -66,7 +70,7 @@
                     Click="MaximizeButton_Click" />
 
             <!-- Close Button -->
-            <Button Grid.Column="5" Name="CloseButton" Content="✕"
+            <Button Grid.Column="6" Name="CloseButton" Content="✕"
                     Width="46" Height="28" FontSize="14"
                     Background="Transparent" Foreground="White"
                     BorderThickness="0" CornerRadius="0"

@@ -6,6 +6,7 @@
 namespace Dotnvim.Utilities
 {
     using System;
+    using System.Linq;
     using System.Runtime.InteropServices;
     using Dotnvim.Settings;
     using SkiaSharp;
@@ -16,23 +17,50 @@ namespace Dotnvim.Utilities
     public static class Helpers
     {
         /// <summary>
+        /// Checks whether a font family is available on the system via SkiaSharp.
+        /// </summary>
+        /// <param name="fontName">The font family name to look up.</param>
+        /// <returns>True when the font manager reports the family as available.</returns>
+        public static bool IsFontAvailable(string fontName)
+        {
+            var families = SKFontManager.Default.FontFamilies;
+            return families.Contains(fontName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Gets the platform-appropriate default monospace font name.
+        /// Tries a sequence of known monospace fonts and returns the first one
+        /// that is actually available through SkiaSharp, so the caller never
+        /// receives a name that would silently fall back to a proportional font.
         /// </summary>
         /// <returns>The default monospace font name for the current platform.</returns>
         public static string GetDefaultMonospaceFontName()
         {
+            string[] candidates;
+
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                return "Consolas";
+                candidates = new[] { "Consolas", "Courier New", "Lucida Console" };
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                return "Menlo";
+                candidates = new[] { "Menlo", "SF Mono", "Monaco", "Courier" };
             }
             else
             {
-                return "DejaVu Sans Mono";
+                candidates = new[] { "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono", "Monospace" };
             }
+
+            foreach (var name in candidates)
+            {
+                if (IsFontAvailable(name))
+                {
+                    return name;
+                }
+            }
+
+            // Last resort: return the platform's first choice and let SkiaSharp resolve it.
+            return candidates[0];
         }
 
         /// <summary>

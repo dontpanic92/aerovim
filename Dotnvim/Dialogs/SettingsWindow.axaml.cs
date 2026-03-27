@@ -11,6 +11,7 @@ namespace Dotnvim.Dialogs
     using Avalonia.Interactivity;
     using Avalonia.Platform.Storage;
     using Dotnvim.Settings;
+    using Dotnvim.Utilities;
 
     /// <summary>
     /// Interaction logic for SettingsWindow.
@@ -184,6 +185,37 @@ namespace Dotnvim.Dialogs
             if (files.Count > 0)
             {
                 this.FindControl<TextBox>("NeovimPathBox").Text = files[0].Path.LocalPath;
+            }
+        }
+
+        private async void Detect_Click(object sender, RoutedEventArgs e)
+        {
+            var detected = NeovimPathDetector.FindNeovimInPath();
+            if (detected == null)
+            {
+                var msg = new MessageWindow("Neovim was not found in PATH.", "Detect Neovim");
+                await msg.ShowDialog(this);
+                return;
+            }
+
+            var pathBox = this.FindControl<TextBox>("NeovimPathBox");
+            var currentPath = pathBox.Text ?? string.Empty;
+
+            if (string.IsNullOrEmpty(currentPath))
+            {
+                pathBox.Text = detected;
+            }
+            else if (!string.Equals(currentPath, detected, StringComparison.OrdinalIgnoreCase))
+            {
+                var confirm = new ConfirmWindow(
+                    $"Detected Neovim at:\n{detected}\n\nReplace the current path?",
+                    "Detect Neovim");
+                await confirm.ShowDialog(this);
+
+                if (confirm.Confirmed)
+                {
+                    pathBox.Text = detected;
+                }
             }
         }
 

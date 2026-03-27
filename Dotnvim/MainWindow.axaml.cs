@@ -6,6 +6,7 @@
 namespace Dotnvim
 {
     using System;
+    using System.Runtime.InteropServices;
     using System.Threading.Tasks;
     using Avalonia;
     using Avalonia.Controls;
@@ -34,6 +35,11 @@ namespace Dotnvim
         {
             this.currentBackgroundColor = this.settings.BackgroundColor;
             this.InitializeComponent();
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                this.SetupMacOSTitleBar();
+            }
 
             this.SetupBlurBehind();
 
@@ -120,6 +126,16 @@ namespace Dotnvim
 
         private async Task InitializeNeovimAsync()
         {
+            if (string.IsNullOrEmpty(this.settings.NeovimPath))
+            {
+                var detected = NeovimPathDetector.FindNeovimInPath();
+                if (detected != null)
+                {
+                    this.settings.NeovimPath = detected;
+                    this.settings.Save();
+                }
+            }
+
             while (true)
             {
                 try
@@ -225,6 +241,17 @@ namespace Dotnvim
                 this.neovimControl.BackgroundAlpha = (byte)(opacity * 255);
                 this.neovimControl.InvalidateVisual();
             }
+        }
+
+        private void SetupMacOSTitleBar()
+        {
+            this.ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.PreferSystemChrome;
+
+            this.FindControl<Button>("MinimizeButton").IsVisible = false;
+            this.FindControl<Button>("MaximizeButton").IsVisible = false;
+            this.FindControl<Button>("CloseButton").IsVisible = false;
+
+            this.FindControl<Border>("TrafficLightSpacer").Width = 78;
         }
 
         private void OnNeovimExited(int exitCode)

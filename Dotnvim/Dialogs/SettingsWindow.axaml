@@ -17,6 +17,7 @@
             <TextBlock Text="Neovim Path" VerticalAlignment="Center" Width="80" />
             <TextBox Name="NeovimPathBox" Width="367" Margin="5,0" />
             <Button Name="BrowseButton" Content="Browse..." Click="Browse_Click" />
+            <Button Name="DetectButton" Content="Detect" Margin="5,0,0,0" Click="Detect_Click" />
         </StackPanel>
 
         <!-- Appearance Group -->

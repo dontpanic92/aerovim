@@ -47,8 +47,8 @@ namespace Dotnvim.Controls
             this.Focusable = true;
 
             var defaultFont = Utilities.Helpers.GetDefaultMonospaceFontName();
-            this.primaryTypeface = SKTypeface.FromFamilyName(defaultFont);
-            this.textParam = new TextLayoutParameters(defaultFont, 11);
+            this.primaryTypeface = this.CreateValidatedTypeface(defaultFont);
+            this.textParam = new TextLayoutParameters(this.primaryTypeface.FamilyName, 11);
         }
 
         /// <summary>
@@ -145,6 +145,25 @@ namespace Dotnvim.Controls
             }
         }
 
+        /// <summary>
+        /// Creates a typeface and validates it resolved to the requested font family.
+        /// Falls back to the SkiaSharp default typeface when the font cannot be found.
+        /// </summary>
+        private SKTypeface CreateValidatedTypeface(string fontName)
+        {
+            var typeface = SKTypeface.FromFamilyName(fontName);
+            if (string.Equals(typeface.FamilyName, fontName, StringComparison.OrdinalIgnoreCase))
+            {
+                return typeface;
+            }
+
+            // The requested font wasn't found; SkiaSharp silently substituted another.
+            System.Diagnostics.Trace.TraceWarning(
+                $"Dotnvim: Font \"{fontName}\" not found (resolved to \"{typeface.FamilyName}\"). Using SkiaSharp default.");
+            typeface.Dispose();
+            return SKTypeface.Default;
+        }
+
         private void OnRedraw()
         {
             Dispatcher.UIThread.Post(() => this.InvalidateVisual());
@@ -154,23 +173,23 @@ namespace Dotnvim.Controls
         {
             this.pendingActions.Enqueue(() =>
             {
+                var weight = font.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
+                var slant = font.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
                 var newTypeface = SKTypeface.FromFamilyName(
-                    font.FontName,
-                    font.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                    SKFontStyleWidth.Normal,
-                    font.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+                    font.FontName, weight, SKFontStyleWidth.Normal, slant);
 
-                if (newTypeface != null)
+                if (!string.Equals(newTypeface?.FamilyName, font.FontName, StringComparison.OrdinalIgnoreCase))
                 {
-                    this.primaryTypeface?.Dispose();
-                    this.primaryTypeface = newTypeface;
-                    this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
-                    this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
+                    newTypeface?.Dispose();
+                    this.neovimClient.WriteErrorMessage(
+                        $"Dotnvim: Font \"{font.FontName}\" not found (resolved to \"{newTypeface?.FamilyName}\"). Keeping current font.");
+                    return;
                 }
-                else
-                {
-                    this.neovimClient.WriteErrorMessage($"Dotnvim: Unable to use font: {font.FontName}");
-                }
+
+                this.primaryTypeface?.Dispose();
+                this.primaryTypeface = newTypeface;
+                this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
+                this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
             });
 
             Dispatcher.UIThread.Post(() => this.InvalidateVisual());
