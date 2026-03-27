@@ -6,7 +6,7 @@
         Height="160"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
-    <Grid Margin="10">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />

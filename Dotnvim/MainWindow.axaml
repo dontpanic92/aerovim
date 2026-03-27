@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Dotnvim.MainWindow"
         Title="dotnvim"
+        RequestedThemeVariant="Light"
         TransparencyLevelHint="Transparent,Blur,AcrylicBlur,Mica"
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True"

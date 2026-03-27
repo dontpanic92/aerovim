@@ -5,9 +5,12 @@
 
 namespace Dotnvim
 {
+    using System.ComponentModel;
+    using System.Runtime.InteropServices;
     using Avalonia;
     using Avalonia.Controls.ApplicationLifetimes;
     using Avalonia.Markup.Xaml;
+    using Avalonia.Styling;
 
     /// <summary>
     /// The Avalonia application.
@@ -18,6 +21,7 @@ namespace Dotnvim
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
+            this.ApplyPlatformTheme();
         }
 
         /// <inheritdoc />
@@ -29,6 +33,31 @@ namespace Dotnvim
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>
+        /// Applies the platform-specific Devolutions theme.
+        /// </summary>
+        private void ApplyPlatformTheme()
+        {
+            ISupportInitialize theme;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                theme = new Devolutions.AvaloniaTheme.DevExpress.DevolutionsDevExpressTheme();
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                theme = new Devolutions.AvaloniaTheme.MacOS.DevolutionsMacOsTheme();
+            }
+            else
+            {
+                theme = new Devolutions.AvaloniaTheme.Linux.DevolutionsLinuxYaruTheme();
+            }
+
+            theme.BeginInit();
+            theme.EndInit();
+            this.Styles.Add((Styles)theme);
         }
     }
 }

@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Dotnvim.Dialogs.SettingsWindow"
-        Title="Settings" Height="420" Width="571"
+        Title="Settings" Height="380" Width="571"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="10">
