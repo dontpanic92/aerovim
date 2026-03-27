@@ -1,10 +1,15 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.4.11620.152 stable
+VisualStudioVersion = 18.4.11620.152
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeovimClient", "NeovimClient\NeovimClient.csproj", "{33C21588-0053-4981-AA4F-D0EED36D6392}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AeroVim", "AeroVim\AeroVim.csproj", "{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EditorAbstraction", "EditorAbstraction\EditorAbstraction.csproj", "{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VimClient", "VimClient\VimClient.csproj", "{48A5A29A-E8A9-4D49-B464-875898FCFDE7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,6 +45,30 @@ Global
 		{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}.Release|x64.Build.0 = Release|x64
 		{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}.Release|x86.ActiveCfg = Release|x86
 		{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}.Release|x86.Build.0 = Release|x86
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Debug|x64.ActiveCfg = Debug|x64
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Debug|x64.Build.0 = Debug|x64
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Debug|x86.ActiveCfg = Debug|x86
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Debug|x86.Build.0 = Debug|x86
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Release|x64.ActiveCfg = Release|x64
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Release|x64.Build.0 = Release|x64
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Release|x86.ActiveCfg = Release|x86
+		{76DCBEF6-C1C1-4ABE-9350-42CECF8C0011}.Release|x86.Build.0 = Release|x86
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Debug|x64.ActiveCfg = Debug|x64
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Debug|x64.Build.0 = Debug|x64
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Debug|x86.ActiveCfg = Debug|x86
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Debug|x86.Build.0 = Debug|x86
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Release|x64.ActiveCfg = Release|x64
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Release|x64.Build.0 = Release|x64
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Release|x86.ActiveCfg = Release|x86
+		{48A5A29A-E8A9-4D49-B464-875898FCFDE7}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -9,8 +9,10 @@ namespace AeroVim
     using System.Runtime.InteropServices;
     using System.Threading.Tasks;
     using AeroVim.Controls;
+    using AeroVim.Editor;
     using AeroVim.Settings;
     using AeroVim.Utilities;
+    using AeroVim.VimClient;
     using Avalonia;
     using Avalonia.Controls;
     using Avalonia.Input;
@@ -25,8 +27,8 @@ namespace AeroVim
     {
         private readonly AppSettings settings = AppSettings.Default;
         private int currentBackgroundColor;
-        private NeovimClient.NeovimClient neovimClient;
-        private NeovimControl neovimControl;
+        private IEditorClient editorClient;
+        private EditorControl editorControl;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MainWindow"/> class.
@@ -57,9 +59,9 @@ namespace AeroVim
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
-            if (this.neovimClient != null && KeyMapping.TryMap(e, out var text))
+            if (this.editorClient != null && KeyMapping.TryMap(e, out var text))
             {
-                this.neovimClient.Input(text);
+                this.editorClient.Input(text);
                 e.Handled = true;
             }
         }
@@ -68,7 +70,7 @@ namespace AeroVim
         protected override void OnTextInput(TextInputEventArgs e)
         {
             base.OnTextInput(e);
-            if (this.neovimClient != null && !string.IsNullOrEmpty(e.Text))
+            if (this.editorClient != null && !string.IsNullOrEmpty(e.Text))
             {
                 // Only forward printable characters that were not already handled by OnKeyDown
                 foreach (var ch in e.Text)
@@ -78,11 +80,11 @@ namespace AeroVim
                         // Escape '<' so Neovim doesn't interpret it as a special key sequence
                         if (ch == '<')
                         {
-                            this.neovimClient.Input("<lt>");
+                            this.editorClient.Input("<lt>");
                         }
                         else
                         {
-                            this.neovimClient.Input(ch.ToString());
+                            this.editorClient.Input(ch.ToString());
                         }
                     }
                 }
@@ -109,43 +111,36 @@ namespace AeroVim
 
             this.settings.Save();
 
-            if (this.neovimClient != null)
+            if (this.editorClient != null)
             {
-                this.neovimClient.NeovimExited -= this.OnNeovimExited;
+                this.editorClient.EditorExited -= this.OnEditorExited;
             }
 
-            this.neovimControl?.Dispose();
-            this.neovimClient?.Dispose();
+            this.editorControl?.Dispose();
+            this.editorClient?.Dispose();
         }
 
         private async void OnWindowOpened(object sender, EventArgs e)
         {
             this.Opened -= this.OnWindowOpened;
-            await this.InitializeNeovimAsync();
+            await this.InitializeEditorAsync();
         }
 
-        private async Task InitializeNeovimAsync()
+        private async Task InitializeEditorAsync()
         {
-            if (string.IsNullOrEmpty(this.settings.NeovimPath))
-            {
-                var detected = NeovimPathDetector.FindNeovimInPath();
-                if (detected != null)
-                {
-                    this.settings.NeovimPath = detected;
-                    this.settings.Save();
-                }
-            }
+            this.AutoDetectEditorPath();
 
             while (true)
             {
                 try
                 {
-                    this.neovimClient = new NeovimClient.NeovimClient(this.settings.NeovimPath);
+                    this.editorClient = this.CreateEditorClient();
                     break;
                 }
                 catch (Exception)
                 {
-                    if (await this.ShowSettingsDialogAsync("Please specify the path to Neovim") == Dialogs.SettingsWindow.Result.Cancel)
+                    string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
+                    if (await this.ShowSettingsDialogAsync($"Please specify the path to {editorName}") == Dialogs.SettingsWindow.Result.Cancel)
                     {
                         this.Close();
                         return;
@@ -153,15 +148,15 @@ namespace AeroVim
                 }
             }
 
-            this.neovimControl = new NeovimControl(this.neovimClient);
-            var neovimBorder = this.FindControl<Border>("NeovimBorder");
-            neovimBorder.Child = this.neovimControl;
+            this.editorControl = new EditorControl(this.editorClient);
+            var editorBorder = this.FindControl<Border>("NeovimBorder");
+            editorBorder.Child = this.editorControl;
 
-            this.neovimClient.NeovimExited += this.OnNeovimExited;
+            this.editorClient.EditorExited += this.OnEditorExited;
 
-            this.neovimClient.Command("set mouse=a");
+            this.editorClient.Command("set mouse=a");
 
-            this.neovimClient.TitleChanged += (string title) =>
+            this.editorClient.TitleChanged += (string title) =>
             {
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -175,7 +170,7 @@ namespace AeroVim
                 });
              };
 
-            this.neovimClient.ForegroundColorChanged += (int intColor) =>
+            this.editorClient.ForegroundColorChanged += (int intColor) =>
             {
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -194,7 +189,7 @@ namespace AeroVim
                 });
              };
 
-            this.neovimClient.BackgroundColorChanged += (int intColor) =>
+            this.editorClient.BackgroundColorChanged += (int intColor) =>
             {
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -214,11 +209,49 @@ namespace AeroVim
                         Dispatcher.UIThread.Post(() => this.SetupBlurBehind());
                         break;
                     case nameof(AppSettings.EnableLigature):
-                        this.neovimControl.EnableLigature = this.settings.EnableLigature;
-                        this.neovimControl.InvalidateVisual();
+                        this.editorControl.EnableLigature = this.settings.EnableLigature;
+                        this.editorControl.InvalidateVisual();
                         break;
                 }
              };
+        }
+
+        private void AutoDetectEditorPath()
+        {
+            if (this.settings.EditorType == EditorType.Vim)
+            {
+                if (string.IsNullOrEmpty(this.settings.VimPath))
+                {
+                    var detected = EditorPathDetector.FindVimInPath();
+                    if (detected != null)
+                    {
+                        this.settings.VimPath = detected;
+                        this.settings.Save();
+                    }
+                }
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(this.settings.NeovimPath))
+                {
+                    var detected = NeovimPathDetector.FindNeovimInPath();
+                    if (detected != null)
+                    {
+                        this.settings.NeovimPath = detected;
+                        this.settings.Save();
+                    }
+                }
+            }
+        }
+
+        private IEditorClient CreateEditorClient()
+        {
+            if (this.settings.EditorType == EditorType.Vim)
+            {
+                return new VimClient.VimClient(this.settings.VimPath);
+            }
+
+            return new NeovimClient.NeovimClient(this.settings.NeovimPath);
         }
 
         private void SetupBlurBehind()
@@ -260,10 +293,10 @@ namespace AeroVim
             this.FindControl<Grid>("TitleBar").Background = backgroundBrush;
             this.FindControl<Border>("NeovimBorder").Background = backgroundBrush;
 
-            if (this.neovimControl != null)
+            if (this.editorControl != null)
             {
-                this.neovimControl.BackgroundAlpha = (byte)(opacity * 255);
-                this.neovimControl.InvalidateVisual();
+                this.editorControl.BackgroundAlpha = (byte)(opacity * 255);
+                this.editorControl.InvalidateVisual();
             }
         }
 
@@ -278,7 +311,7 @@ namespace AeroVim
             this.FindControl<Border>("TrafficLightSpacer").Width = 78;
         }
 
-        private void OnNeovimExited(int exitCode)
+        private void OnEditorExited(int exitCode)
         {
             Dispatcher.UIThread.Post(() => this.Close());
         }
@@ -290,15 +323,51 @@ namespace AeroVim
 
         private async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string promptText = null)
         {
+            // Capture current editor settings before opening the dialog
+            var previousEditorType = this.settings.EditorType;
+            var previousNeovimPath = this.settings.NeovimPath;
+            var previousVimPath = this.settings.VimPath;
+
             var dialog = new Dialogs.SettingsWindow(promptText);
             await dialog.ShowDialog(this);
 
             if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
             {
                 await this.ShowTransparencyMismatchDialogAsync();
+
+                // When opened at runtime (not during startup), warn if editor config changed
+                if (promptText == null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
+                {
+                    var msg = new Dialogs.MessageWindow(
+                        "Editor backend changes will take effect the next time AeroVim is started.",
+                        "Restart Required");
+                    await msg.ShowDialog(this);
+                }
             }
 
             return dialog.CloseReason;
+        }
+
+        private bool HasEditorConfigChanged(EditorType previousType, string previousNeovimPath, string previousVimPath)
+        {
+            if (this.settings.EditorType != previousType)
+            {
+                return true;
+            }
+
+            if (this.settings.EditorType == EditorType.Neovim
+                && !string.Equals(this.settings.NeovimPath, previousNeovimPath, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (this.settings.EditorType == EditorType.Vim
+                && !string.Equals(this.settings.VimPath, previousVimPath, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private WindowTransparencyLevel GetRequestedTransparencyLevel()

@@ -25,6 +25,8 @@ namespace AeroVim.Settings
         private static AppSettings defaultInstance;
 
         private string neovimPath = string.Empty;
+        private string vimPath = string.Empty;
+        private EditorType editorType = EditorType.Neovim;
         private double backgroundOpacity = 0.75;
         private bool enableLigature = true;
         private bool enableBlurBehind = true;
@@ -60,6 +62,24 @@ namespace AeroVim.Settings
         {
             get => this.neovimPath;
             set => this.SetField(ref this.neovimPath, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the Vim executable path.
+        /// </summary>
+        public string VimPath
+        {
+            get => this.vimPath;
+            set => this.SetField(ref this.vimPath, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the editor type (Neovim or Vim).
+        /// </summary>
+        public EditorType EditorType
+        {
+            get => this.editorType;
+            set => this.SetField(ref this.editorType, value);
         }
 
         /// <summary>
@@ -158,6 +178,8 @@ namespace AeroVim.Settings
         {
             var fresh = Load();
             this.NeovimPath = fresh.NeovimPath;
+            this.VimPath = fresh.VimPath;
+            this.EditorType = fresh.EditorType;
             this.BackgroundOpacity = fresh.BackgroundOpacity;
             this.EnableLigature = fresh.EnableLigature;
             this.EnableBlurBehind = fresh.EnableBlurBehind;

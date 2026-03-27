@@ -1,27 +1,46 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AeroVim.Dialogs.SettingsWindow"
-        Title="Settings" Height="380" Width="571"
+        Title="Settings" Height="440" Width="600"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Neovim Path -->
+        <!-- Editor Type -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Backend" VerticalAlignment="Center" Width="80" />
+            <ComboBox Name="EditorTypeCombo" Width="120" Margin="5,0">
+                <ComboBoxItem Content="Neovim" />
+                <ComboBoxItem Content="Vim" />
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Neovim Path -->
+        <StackPanel Grid.Row="1" Name="NeovimPathPanel" Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Text="Neovim Path" VerticalAlignment="Center" Width="80" />
-            <TextBox Name="NeovimPathBox" Width="367" Margin="5,0" />
-            <Button Name="BrowseButton" Content="Browse..." Click="Browse_Click" />
-            <Button Name="DetectButton" Content="Detect" Margin="5,0,0,0" Click="Detect_Click" />
+            <TextBox Name="NeovimPathBox" Width="320" Margin="5,0" />
+            <Button Name="BrowseButton" Width="76" Content="Browse..." Click="Browse_Click" />
+            <Button Name="DetectButton" Width="76" Content="Detect" Margin="5,0,0,0" Click="Detect_Click" />
+        </StackPanel>
+
+        <!-- Vim Path -->
+        <StackPanel Grid.Row="2" Name="VimPathPanel" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Vim Path" VerticalAlignment="Center" Width="80" />
+            <TextBox Name="VimPathBox" Width="320" Margin="5,0" />
+            <Button Name="VimBrowseButton" Width="76" Content="Browse..." Click="VimBrowse_Click" />
+            <Button Name="VimDetectButton" Width="76" Content="Detect" Margin="5,0,0,0" Click="VimDetect_Click" />
         </StackPanel>
 
         <!-- Appearance Group -->
-        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
+        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
             <StackPanel>
                 <TextBlock Text="Appearance" FontWeight="Bold" Margin="0,0,0,5" />
 
@@ -51,11 +70,11 @@
         </Border>
 
         <!-- Prompt Label -->
-        <TextBlock Grid.Row="2" Name="PromptLabel" IsVisible="False"
+        <TextBlock Grid.Row="4" Name="PromptLabel" IsVisible="False"
                    Background="Yellow" Padding="25,5" Margin="0,0,0,5" />
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="OK" Width="76" Margin="0,0,5,0" Click="Ok_Click" />
             <Button Content="Cancel" Width="76" Click="Cancel_Click" />
         </StackPanel>

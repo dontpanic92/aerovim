@@ -7,7 +7,7 @@ namespace AeroVim.NeovimClient.Events
 {
     using System.Collections.Generic;
     using System.Linq;
-    using AeroVim.NeovimClient.Utilities;
+    using AeroVim.Editor.Utilities;
 
     /// <summary>
     /// The ModeInfoSet event.
@@ -22,7 +22,7 @@ namespace AeroVim.NeovimClient.Events
         public ModeInfoSetEvent(bool cursorStyleEnabled, IList<IDictionary<string, string>> modeInfo)
         {
             this.CursorStyleEnabled = cursorStyleEnabled;
-            this.ModeInfo = modeInfo.Select(info => new ModeInfo(info)).ToList();
+            this.ModeInfo = modeInfo.Select(info => ParseModeInfo(info)).ToList();
         }
 
         /// <summary>
@@ -34,5 +34,38 @@ namespace AeroVim.NeovimClient.Events
         /// Gets the list of mode info.
         /// </summary>
         public IList<ModeInfo> ModeInfo { get; }
+
+        private static ModeInfo ParseModeInfo(IDictionary<string, string> info)
+        {
+            var cursorShape = CursorShape.Block;
+            if (info.TryGetValue("cursor_shape", out var cursorShapeStr))
+            {
+                if (System.Enum.TryParse<CursorShape>(cursorShapeStr, true, out var shape))
+                {
+                    cursorShape = shape;
+                }
+            }
+
+            int cellPercentage = 100;
+            if (info.TryGetValue("cell_percentage", out var cellPercentageStr))
+            {
+                if (int.TryParse(cellPercentageStr, out var percentage))
+                {
+                    cellPercentage = percentage;
+                }
+            }
+
+            var cursorBlinking = CursorBlinking.BlinkOff;
+            if (info.TryGetValue("blinkwait", out var wait) && int.TryParse(wait, out var intWait) && intWait == 1)
+            {
+                cursorBlinking = CursorBlinking.BlinkWait;
+            }
+            else if (info.TryGetValue("blinkon", out var on) && int.TryParse(on, out var intOn) && intOn == 1)
+            {
+                cursorBlinking = CursorBlinking.BlinkOn;
+            }
+
+            return new ModeInfo(cursorShape, cellPercentage, cursorBlinking);
+        }
     }
 }

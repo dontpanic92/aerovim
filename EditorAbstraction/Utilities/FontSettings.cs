@@ -3,7 +3,7 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace AeroVim.NeovimClient.Utilities
+namespace AeroVim.Editor.Utilities
 {
     /// <summary>
     /// Represents the settings of guifont.

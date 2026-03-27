@@ -1,28 +1,23 @@
-// <copyright file="CursorShape.cs">
+// <copyright file="EditorType.cs">
 // Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace AeroVim.NeovimClient.Utilities
+namespace AeroVim.Settings
 {
     /// <summary>
-    /// The cursor shapes.
+    /// The type of editor backend to use.
     /// </summary>
-    public enum CursorShape
+    public enum EditorType
     {
         /// <summary>
-        /// Block.
+        /// Neovim (MsgPack RPC via --embed).
         /// </summary>
-        Block,
+        Neovim = 0,
 
         /// <summary>
-        /// Horizontal.
+        /// Vim (PTY with VT escape sequences).
         /// </summary>
-        Horizontal,
-
-        /// <summary>
-        /// Vertical.
-        /// </summary>
-        Vertical,
+        Vim = 1,
     }
 }

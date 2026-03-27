@@ -38,6 +38,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NeovimClient\NeovimClient.csproj" />
+    <ProjectReference Include="..\EditorAbstraction\EditorAbstraction.csproj" />
+    <ProjectReference Include="..\VimClient\VimClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

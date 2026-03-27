@@ -6,7 +6,7 @@
 namespace AeroVim.NeovimClient.Events
 {
     using System.Linq;
-    using AeroVim.NeovimClient.Utilities;
+    using AeroVim.Editor.Utilities;
 
     /// <summary>
     /// The GuiFont event.

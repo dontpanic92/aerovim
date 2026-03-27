@@ -1,4 +1,4 @@
-// <copyright file="NeovimControl.cs">
+// <copyright file="EditorControl.cs">
 // Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
@@ -7,6 +7,8 @@ namespace AeroVim.Controls
 {
     using System;
     using System.Collections.Concurrent;
+    using AeroVim.Editor;
+    using AeroVim.Editor.Utilities;
     using AeroVim.Utilities;
     using Avalonia;
     using Avalonia.Controls;
@@ -17,17 +19,14 @@ namespace AeroVim.Controls
     using Avalonia.Skia;
     using Avalonia.Threading;
     using SkiaSharp;
-    using Cell = AeroVim.NeovimClient.NeovimClient.Cell;
-    using CursorShape = AeroVim.NeovimClient.Utilities.CursorShape;
-    using FontSettings = AeroVim.NeovimClient.Utilities.FontSettings;
-    using NeovimScreen = AeroVim.NeovimClient.NeovimClient.Screen;
+    using EditorScreen = AeroVim.Editor.Screen;
 
     /// <summary>
-    /// The Neovim control using Avalonia custom rendering with SkiaSharp.
+    /// The editor control using Avalonia custom rendering with SkiaSharp.
     /// </summary>
-    public class NeovimControl : Control, IDisposable
+    public class EditorControl : Control, IDisposable
     {
-        private readonly NeovimClient.NeovimClient neovimClient;
+        private readonly IEditorClient editorClient;
         private readonly ConcurrentQueue<Action> pendingActions = new ConcurrentQueue<Action>();
 
         private TextLayoutParameters textParam;
@@ -36,14 +35,14 @@ namespace AeroVim.Controls
         private string pressedMouseButton;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="NeovimControl"/> class.
+        /// Initializes a new instance of the <see cref="EditorControl"/> class.
         /// </summary>
-        /// <param name="neovimClient">The neovim client.</param>
-        public NeovimControl(NeovimClient.NeovimClient neovimClient)
+        /// <param name="editorClient">The editor client.</param>
+        public EditorControl(IEditorClient editorClient)
         {
-            this.neovimClient = neovimClient;
-            this.neovimClient.Redraw += this.OnRedraw;
-            this.neovimClient.FontChanged += this.OnFontChanged;
+            this.editorClient = editorClient;
+            this.editorClient.Redraw += this.OnRedraw;
+            this.editorClient.FontChanged += this.OnFontChanged;
 
             this.ClipToBounds = true;
             this.Focusable = true;
@@ -88,18 +87,18 @@ namespace AeroVim.Controls
         }
 
         /// <summary>
-        /// Input text to neovim.
+        /// Input text to the editor.
         /// </summary>
         /// <param name="text">The input text sequence.</param>
         public void Input(string text)
         {
-            this.neovimClient.Input(text);
+            this.editorClient.Input(text);
         }
 
         /// <inheritdoc />
         public override void Render(DrawingContext context)
         {
-            var customOp = new NeovimDrawOperation(this, new Rect(0, 0, this.Bounds.Width, this.Bounds.Height));
+            var customOp = new EditorDrawOperation(this, new Rect(0, 0, this.Bounds.Width, this.Bounds.Height));
             context.Custom(customOp);
         }
 
@@ -124,7 +123,7 @@ namespace AeroVim.Controls
             base.OnSizeChanged(e);
             if (e.NewSize.Width > 0 && e.NewSize.Height > 0)
             {
-                this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
+                this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
             }
         }
 
@@ -154,7 +153,7 @@ namespace AeroVim.Controls
                 return;
             }
 
-            this.neovimClient.InputMouse(this.pressedMouseButton, "press", modifier, 0, row, col);
+            this.editorClient.InputMouse(this.pressedMouseButton, "press", modifier, 0, row, col);
             e.Handled = true;
         }
 
@@ -172,7 +171,7 @@ namespace AeroVim.Controls
             var (row, col) = this.PixelToGridPosition(point.Position);
             var modifier = this.GetModifierString(e.KeyModifiers);
 
-            this.neovimClient.InputMouse(this.pressedMouseButton, "drag", modifier, 0, row, col);
+            this.editorClient.InputMouse(this.pressedMouseButton, "drag", modifier, 0, row, col);
             e.Handled = true;
         }
 
@@ -190,7 +189,7 @@ namespace AeroVim.Controls
             var (row, col) = this.PixelToGridPosition(point.Position);
             var modifier = this.GetModifierString(e.KeyModifiers);
 
-            this.neovimClient.InputMouse(this.pressedMouseButton, "release", modifier, 0, row, col);
+            this.editorClient.InputMouse(this.pressedMouseButton, "release", modifier, 0, row, col);
             this.pressedMouseButton = null;
             e.Handled = true;
         }
@@ -206,20 +205,20 @@ namespace AeroVim.Controls
 
             if (e.Delta.Y > 0)
             {
-                this.neovimClient.InputMouse("wheel", "up", modifier, 0, row, col);
+                this.editorClient.InputMouse("wheel", "up", modifier, 0, row, col);
             }
             else if (e.Delta.Y < 0)
             {
-                this.neovimClient.InputMouse("wheel", "down", modifier, 0, row, col);
+                this.editorClient.InputMouse("wheel", "down", modifier, 0, row, col);
             }
 
             if (e.Delta.X > 0)
             {
-                this.neovimClient.InputMouse("wheel", "right", modifier, 0, row, col);
+                this.editorClient.InputMouse("wheel", "right", modifier, 0, row, col);
             }
             else if (e.Delta.X < 0)
             {
-                this.neovimClient.InputMouse("wheel", "left", modifier, 0, row, col);
+                this.editorClient.InputMouse("wheel", "left", modifier, 0, row, col);
             }
 
             e.Handled = true;
@@ -235,8 +234,8 @@ namespace AeroVim.Controls
             {
                 if (disposing)
                 {
-                    this.neovimClient.Redraw -= this.OnRedraw;
-                    this.neovimClient.FontChanged -= this.OnFontChanged;
+                    this.editorClient.Redraw -= this.OnRedraw;
+                    this.editorClient.FontChanged -= this.OnFontChanged;
                     this.primaryTypeface?.Dispose();
                 }
 
@@ -316,7 +315,7 @@ namespace AeroVim.Controls
                 if (!string.Equals(newTypeface?.FamilyName, font.FontName, StringComparison.OrdinalIgnoreCase))
                 {
                     newTypeface?.Dispose();
-                    this.neovimClient.WriteErrorMessage(
+                    System.Diagnostics.Trace.TraceWarning(
                         $"AeroVim: Font \"{font.FontName}\" not found (resolved to \"{newTypeface?.FamilyName}\"). Keeping current font.");
                     return;
                 }
@@ -324,7 +323,7 @@ namespace AeroVim.Controls
                 this.primaryTypeface?.Dispose();
                 this.primaryTypeface = newTypeface;
                 this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
-                this.neovimClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
+                this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
             });
 
             Dispatcher.UIThread.Post(() => this.InvalidateVisual());
@@ -337,7 +336,7 @@ namespace AeroVim.Controls
                 action();
             }
 
-            var args = this.neovimClient.GetScreen();
+            var args = this.editorClient.GetScreen();
             if (args == null)
             {
                 return;
@@ -415,7 +414,7 @@ namespace AeroVim.Controls
             this.DrawCursor(canvas, args);
         }
 
-        private void DrawCellRange(SKCanvas canvas, SKPaint textPaint, NeovimScreen args, int row, int colStart, int colEnd)
+        private void DrawCellRange(SKCanvas canvas, SKPaint textPaint, EditorScreen args, int row, int colStart, int colEnd)
         {
             bool bold = args.Cells[row, colStart].Bold;
             bool italic = args.Cells[row, colStart].Italic;
@@ -505,10 +504,10 @@ namespace AeroVim.Controls
             }
         }
 
-        private void DrawCursor(SKCanvas canvas, NeovimScreen args)
+        private void DrawCursor(SKCanvas canvas, EditorScreen args)
         {
-            var cursorPercentage = this.neovimClient.ModeInfo?.CellPercentage ?? 100;
-            var cursorShape = this.neovimClient.ModeInfo?.CursorShape ?? CursorShape.Block;
+            var cursorPercentage = this.editorClient.ModeInfo?.CellPercentage ?? 100;
+            var cursorShape = this.editorClient.ModeInfo?.CursorShape ?? CursorShape.Block;
             int cellWidth = this.GetCharWidth(args.Cells, args.CursorPosition.Row, args.CursorPosition.Col);
 
             float left, top, right, bottom;
@@ -560,13 +559,13 @@ namespace AeroVim.Controls
         }
 
         /// <summary>
-        /// Custom draw operation for rendering the Neovim grid with SkiaSharp.
+        /// Custom draw operation for rendering the editor grid with SkiaSharp.
         /// </summary>
-        private sealed class NeovimDrawOperation : ICustomDrawOperation
+        private sealed class EditorDrawOperation : ICustomDrawOperation
         {
-            private readonly NeovimControl control;
+            private readonly EditorControl control;
 
-            public NeovimDrawOperation(NeovimControl control, Rect bounds)
+            public EditorDrawOperation(EditorControl control, Rect bounds)
             {
                 this.control = control;
                 this.Bounds = bounds;
