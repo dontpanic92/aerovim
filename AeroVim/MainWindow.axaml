@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="Dotnvim.MainWindow"
-        Title="dotnvim"
+        x:Class="AeroVim.MainWindow"
+        Title="AeroVim"
         RequestedThemeVariant="Light"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
@@ -9,7 +9,7 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="28"
         SystemDecorations="Full"
-        Icon="avares://dotnvim/Assets/neovim_mark_flat.ico">
+        Icon="avares://aerovim/Assets/neovim_mark_flat.ico">
 
     <DockPanel LastChildFill="True">
         <!-- Custom Title Bar -->
@@ -30,11 +30,13 @@
             <Border Grid.Column="0" Name="TrafficLightSpacer" Width="0" />
 
             <!-- Logo -->
-            <Image Grid.Column="1" Source="avares://dotnvim/Assets/neovim-logo-flat.png"
-                   Margin="8,3,8,3" Stretch="Uniform" />
+            <TextBlock Grid.Column="1"
+                       Text="AeroVim" VerticalAlignment="Center"
+                       Margin="8,0,8,0"
+                       Foreground="White" FontSize="12" FontWeight="Bold" />
 
             <!-- Title -->
-            <TextBlock Grid.Column="2" Name="TitleText" Text="dotnvim"
+            <TextBlock Grid.Column="2" Name="TitleText" Text="AeroVim"
                        VerticalAlignment="Center" HorizontalAlignment="Right"
                        Margin="8, 0" TextTrimming="CharacterEllipsis"
                        Foreground="White" FontSize="12" />

@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="Dotnvim.Dialogs.MessageWindow"
+        x:Class="AeroVim.Dialogs.MessageWindow"
         Title="Message"
         Width="420"
         Height="160"

@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="Dotnvim.Dialogs.ConfirmWindow"
+        x:Class="AeroVim.Dialogs.ConfirmWindow"
         Title="Confirm"
         Width="420"
         Height="160"

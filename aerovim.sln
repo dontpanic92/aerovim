@@ -4,7 +4,7 @@ VisualStudioVersion = 18.4.11620.152 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeovimClient", "NeovimClient\NeovimClient.csproj", "{33C21588-0053-4981-AA4F-D0EED36D6392}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotnvim", "Dotnvim\Dotnvim.csproj", "{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AeroVim", "AeroVim\AeroVim.csproj", "{2FF45BC3-AF61-4D82-91A1-1AA2FF12645A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

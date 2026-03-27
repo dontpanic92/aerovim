@@ -13,16 +13,16 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-            artifact: dotnvim_win_x64
+            artifact: aerovim_win_x64
           - os: macos-latest
             rid: osx-arm64
-            artifact: dotnvim_osx_arm64
+            artifact: aerovim_osx_arm64
           - os: macos-13
             rid: osx-x64
-            artifact: dotnvim_osx_x64
+            artifact: aerovim_osx_x64
           - os: ubuntu-latest
             rid: linux-x64
-            artifact: dotnvim_linux_x64
+            artifact: aerovim_linux_x64
 
     runs-on: ${{ matrix.os }}
 
@@ -35,15 +35,15 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Restore NuGet packages
-      run: dotnet restore dotnvim.sln
+      run: dotnet restore aerovim.sln
 
     - name: Publish
-      run: dotnet publish Dotnvim/Dotnvim.csproj --configuration Release --runtime ${{ matrix.rid }} -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
+      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact }}
         path: |
-          Dotnvim/bin/Release/net10.0/${{ matrix.rid }}/publish/
-          !Dotnvim/bin/Release/net10.0/${{ matrix.rid }}/publish/*.xml
+          AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish/
+          !AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish/*.xml

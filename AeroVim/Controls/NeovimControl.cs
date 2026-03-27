@@ -1,12 +1,13 @@
 // <copyright file="NeovimControl.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim.Controls
+namespace AeroVim.Controls
 {
     using System;
     using System.Collections.Concurrent;
+    using AeroVim.Utilities;
     using Avalonia;
     using Avalonia.Controls;
     using Avalonia.Input;
@@ -15,12 +16,11 @@ namespace Dotnvim.Controls
     using Avalonia.Rendering.SceneGraph;
     using Avalonia.Skia;
     using Avalonia.Threading;
-    using Dotnvim.Utilities;
     using SkiaSharp;
-    using Cell = Dotnvim.NeovimClient.NeovimClient.Cell;
-    using CursorShape = Dotnvim.NeovimClient.Utilities.CursorShape;
-    using FontSettings = Dotnvim.NeovimClient.Utilities.FontSettings;
-    using NeovimScreen = Dotnvim.NeovimClient.NeovimClient.Screen;
+    using Cell = AeroVim.NeovimClient.NeovimClient.Cell;
+    using CursorShape = AeroVim.NeovimClient.Utilities.CursorShape;
+    using FontSettings = AeroVim.NeovimClient.Utilities.FontSettings;
+    using NeovimScreen = AeroVim.NeovimClient.NeovimClient.Screen;
 
     /// <summary>
     /// The Neovim control using Avalonia custom rendering with SkiaSharp.
@@ -258,7 +258,7 @@ namespace Dotnvim.Controls
 
             // The requested font wasn't found; SkiaSharp silently substituted another.
             System.Diagnostics.Trace.TraceWarning(
-                $"Dotnvim: Font \"{fontName}\" not found (resolved to \"{typeface.FamilyName}\"). Using SkiaSharp default.");
+                $"AeroVim: Font \"{fontName}\" not found (resolved to \"{typeface.FamilyName}\"). Using SkiaSharp default.");
             typeface.Dispose();
             return SKTypeface.Default;
         }
@@ -317,7 +317,7 @@ namespace Dotnvim.Controls
                 {
                     newTypeface?.Dispose();
                     this.neovimClient.WriteErrorMessage(
-                        $"Dotnvim: Font \"{font.FontName}\" not found (resolved to \"{newTypeface?.FamilyName}\"). Keeping current font.");
+                        $"AeroVim: Font \"{font.FontName}\" not found (resolved to \"{newTypeface?.FamilyName}\"). Keeping current font.");
                     return;
                 }
 

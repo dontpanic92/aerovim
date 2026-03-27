@@ -1,7 +1,7 @@
-# dotnvim [![Build](https://github.com/dontpanic92/dotnvim/actions/workflows/build.yml/badge.svg)](https://github.com/dontpanic92/dotnvim/actions/workflows/build.yml)
+# aerovim [![Build](https://github.com/dontpanic92/aerovim/actions/workflows/build.yml/badge.svg)](https://github.com/dontpanic92/aerovim/actions/workflows/build.yml)
 Neovim ❤ Acrylic
 
-![screenshot.jpg](https://github.com/dontpanic92/dotnvim/blob/master/screenshot.jpg)
+![screenshot.jpg](https://github.com/dontpanic92/aerovim/blob/master/screenshot.jpg)
 
 ### Features
 
@@ -24,22 +24,22 @@ Neovim ❤ Acrylic
 Requires .NET 10 SDK.
 
 ```bash
-dotnet restore dotnvim.sln
-dotnet build dotnvim.sln --configuration Debug
+dotnet restore aerovim.sln
+dotnet build aerovim.sln --configuration Debug
 ```
 
 ### Publish
 
 ```bash
 # Windows
-dotnet publish Dotnvim/Dotnvim.csproj -c Release -r win-x64
+dotnet publish AeroVim/AeroVim.csproj -c Release -r win-x64
 
 # macOS (Apple Silicon)
-dotnet publish Dotnvim/Dotnvim.csproj -c Release -r osx-arm64
+dotnet publish AeroVim/AeroVim.csproj -c Release -r osx-arm64
 
 # macOS (Intel)
-dotnet publish Dotnvim/Dotnvim.csproj -c Release -r osx-x64
+dotnet publish AeroVim/AeroVim.csproj -c Release -r osx-x64
 
 # Linux
-dotnet publish Dotnvim/Dotnvim.csproj -c Release -r linux-x64
+dotnet publish AeroVim/AeroVim.csproj -c Release -r linux-x64
 ```

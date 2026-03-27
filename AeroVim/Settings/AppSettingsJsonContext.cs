@@ -1,9 +1,9 @@
 // <copyright file="AppSettingsJsonContext.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim.Settings
+namespace AeroVim.Settings
 {
     using System.Text.Json.Serialization;
 

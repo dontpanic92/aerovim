@@ -1,17 +1,17 @@
 // <copyright file="SettingsWindow.axaml.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim.Dialogs
+namespace AeroVim.Dialogs
 {
     using System;
     using System.Runtime.InteropServices;
+    using AeroVim.Settings;
+    using AeroVim.Utilities;
     using Avalonia.Controls;
     using Avalonia.Interactivity;
     using Avalonia.Platform.Storage;
-    using Dotnvim.Settings;
-    using Dotnvim.Utilities;
 
     /// <summary>
     /// Interaction logic for SettingsWindow.

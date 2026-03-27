@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="Dotnvim.Dialogs.SettingsWindow"
+        x:Class="AeroVim.Dialogs.SettingsWindow"
         Title="Settings" Height="380" Width="571"
         CanResize="False"
         WindowStartupLocation="CenterOwner">

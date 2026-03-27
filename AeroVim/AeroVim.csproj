@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>Dotnvim</RootNamespace>
-    <AssemblyName>dotnvim</AssemblyName>
+    <RootNamespace>AeroVim</RootNamespace>
+    <AssemblyName>aerovim</AssemblyName>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -41,7 +41,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\neovim-logo-flat.png" />
     <AvaloniaResource Include="Assets\neovim_mark_flat.ico" />
   </ItemGroup>
 

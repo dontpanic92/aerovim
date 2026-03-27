@@ -12,7 +12,7 @@
       "variables": {
         "licenseName": "GPLv2",
         "licenseFile": "LICENSE",
-        "developers": "dotnvim Developers"
+        "developers": "aerovim Developers"
       },
       "xmlHeader": false
     }

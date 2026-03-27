@@ -1,14 +1,14 @@
 // <copyright file="Helpers.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim.Utilities
+namespace AeroVim.Utilities
 {
     using System;
     using System.Linq;
     using System.Runtime.InteropServices;
-    using Dotnvim.Settings;
+    using AeroVim.Settings;
     using SkiaSharp;
 
     /// <summary>

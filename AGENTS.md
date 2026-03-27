@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-dotnvim is a cross-platform Neovim GUI featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering. Supported platforms: Windows, macOS, and Linux.
+aerovim is a cross-platform Neovim GUI featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering. Supported platforms: Windows, macOS, and Linux.
 
 ## Repository Structure
 
-- **Dotnvim/** — Main application (C#, .NET 10, cross-platform)
+- **AeroVim/** — Main application (C#, .NET 10, cross-platform)
 - **NeovimClient/** — Neovim RPC client library (C#, .NET 10) using MsgPack.Cli
 
-Dependency graph: `Dotnvim → NeovimClient`
+Dependency graph: `AeroVim → NeovimClient`
 
 ## Build Instructions
 
@@ -18,24 +18,24 @@ This project requires the .NET 10 SDK. On Windows, Visual Studio 2022 can also b
 ### Restore packages
 
 ```powershell
-dotnet restore dotnvim.sln
+dotnet restore aerovim.sln
 ```
 
 ### Build the solution
 
 ```powershell
-dotnet build dotnvim.sln --configuration Debug
+dotnet build aerovim.sln --configuration Debug
 ```
 
 For a release build:
 
 ```powershell
-dotnet build dotnvim.sln --configuration Release
+dotnet build aerovim.sln --configuration Release
 ```
 
 Build output locations:
-- `Dotnvim\bin\x64\{Configuration}\net10.0\dotnvim.exe` (Windows)
-- `NeovimClient\bin\x64\{Configuration}\net10.0\Dotnvim.NeovimClient.dll`
+- `AeroVim\bin\x64\{Configuration}\net10.0\aerovim.exe` (Windows)
+- `NeovimClient\bin\x64\{Configuration}\net10.0\AeroVim.NeovimClient.dll`
 
 ## Platform Notes
 
@@ -52,5 +52,5 @@ There are no test projects in this solution.
 - **StyleCop.Analyzers** (1.1.118) is enabled on both C# projects.
 - Both C# projects set `TreatWarningsAsErrors: true` — all warnings are build errors.
 - StyleCop configuration is in `stylecop.json` at the repo root.
-- Copyright header: GPLv2, attributed to "dotnvim Developers".
+- Copyright header: GPLv2, attributed to "aerovim Developers".
 - No `.editorconfig` is present; StyleCop is the primary style enforcer.

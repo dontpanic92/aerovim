@@ -1,9 +1,9 @@
-﻿// <copyright file="DefaultNeovimRpcClient.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// <copyright file="DefaultNeovimRpcClient.cs">
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim.NeovimClient
+namespace AeroVim.NeovimClient
 {
     /// <summary>
     /// The default neovim client.

@@ -1,22 +1,22 @@
 // <copyright file="MainWindow.axaml.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim
+namespace AeroVim
 {
     using System;
     using System.Runtime.InteropServices;
     using System.Threading.Tasks;
+    using AeroVim.Controls;
+    using AeroVim.Settings;
+    using AeroVim.Utilities;
     using Avalonia;
     using Avalonia.Controls;
     using Avalonia.Input;
     using Avalonia.Interactivity;
     using Avalonia.Media;
     using Avalonia.Threading;
-    using Dotnvim.Controls;
-    using Dotnvim.Settings;
-    using Dotnvim.Utilities;
 
     /// <summary>
     /// The main window.
@@ -165,7 +165,7 @@ namespace Dotnvim
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    var effectiveTitle = string.IsNullOrEmpty(title) ? "dotnvim" : title;
+                    var effectiveTitle = string.IsNullOrEmpty(title) ? "AeroVim" : title;
                     this.Title = effectiveTitle;
                     var titleText = this.FindControl<TextBlock>("TitleText");
                     if (titleText != null)

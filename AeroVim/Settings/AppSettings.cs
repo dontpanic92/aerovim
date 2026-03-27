@@ -1,9 +1,9 @@
 // <copyright file="AppSettings.cs">
-// Copyright (c) dotnvim Developers. All rights reserved.
+// Copyright (c) aerovim Developers. All rights reserved.
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace Dotnvim.Settings
+namespace AeroVim.Settings
 {
     using System;
     using System.ComponentModel;
@@ -18,7 +18,7 @@ namespace Dotnvim.Settings
     {
         private static readonly string SettingsDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "dotnvim");
+            "AeroVim");
 
         private static readonly string SettingsPath = Path.Combine(SettingsDirectory, "settings.json");
 
