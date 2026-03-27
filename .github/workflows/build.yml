@@ -8,7 +8,23 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            artifact: dotnvim_win_x64
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: dotnvim_osx_arm64
+          - os: macos-13
+            rid: osx-x64
+            artifact: dotnvim_osx_x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: dotnvim_linux_x64
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -22,12 +38,12 @@ jobs:
       run: dotnet restore dotnvim.sln
 
     - name: Publish
-      run: dotnet publish Dotnvim/Dotnvim.csproj --configuration Release --runtime win-x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
+      run: dotnet publish Dotnvim/Dotnvim.csproj --configuration Release --runtime ${{ matrix.rid }} -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: dotnvim_x64
+        name: ${{ matrix.artifact }}
         path: |
-          Dotnvim/bin/Release/net10.0-windows/win-x64/publish/
-          !Dotnvim/bin/Release/net10.0-windows/win-x64/publish/*.xml
+          Dotnvim/bin/Release/net10.0/${{ matrix.rid }}/publish/
+          !Dotnvim/bin/Release/net10.0/${{ matrix.rid }}/publish/*.xml

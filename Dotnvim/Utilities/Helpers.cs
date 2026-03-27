@@ -6,6 +6,7 @@
 namespace Dotnvim.Utilities
 {
     using System;
+    using System.Runtime.InteropServices;
     using Dotnvim.Settings;
     using SkiaSharp;
 
@@ -14,6 +15,26 @@ namespace Dotnvim.Utilities
     /// </summary>
     public static class Helpers
     {
+        /// <summary>
+        /// Gets the platform-appropriate default monospace font name.
+        /// </summary>
+        /// <returns>The default monospace font name for the current platform.</returns>
+        public static string GetDefaultMonospaceFontName()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return "Consolas";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return "Menlo";
+            }
+            else
+            {
+                return "DejaVu Sans Mono";
+            }
+        }
+
         /// <summary>
         /// Convert font Pt size to DIP size.
         /// </summary>
@@ -60,15 +81,20 @@ namespace Dotnvim.Utilities
 
         /// <summary>
         /// Check whether we are running on a platform that supports blur effects.
-        /// Available on Windows 10 and Windows 11 22H2+.
-        /// Not available on Windows 11 21H2 (builds 22000-22620) where the old API is broken
-        /// and the new DWM backdrop API is not yet available.
+        /// On Windows: available on Windows 10 and Windows 11 22H2+.
+        /// On macOS/Linux: basic transparency is generally available.
         /// </summary>
         /// <returns>Whether the blurbehind feature is available.</returns>
         public static bool BlurBehindAvailable()
         {
-            var build = Environment.OSVersion.Version.Build;
-            return Environment.OSVersion.Version.Major >= 10 && (build < 22000 || build >= 22621);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var build = Environment.OSVersion.Version.Build;
+                return Environment.OSVersion.Version.Major >= 10 && (build < 22000 || build >= 22621);
+            }
+
+            // macOS and Linux support basic transparency via compositing window managers
+            return true;
         }
 
         /// <summary>
@@ -86,7 +112,13 @@ namespace Dotnvim.Utilities
         /// <returns>Whether transparent background is available.</returns>
         public static bool TransparentAvailable()
         {
-            return Environment.OSVersion.Version.Major >= 10;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return Environment.OSVersion.Version.Major >= 10;
+            }
+
+            // Transparent backgrounds are generally available on macOS and modern Linux compositors
+            return true;
         }
 
         /// <summary>
@@ -99,31 +131,56 @@ namespace Dotnvim.Utilities
         }
 
         /// <summary>
-        /// Check whether Gaussian blur is available (Windows 10 only, not Windows 11).
+        /// Check whether Gaussian blur is available.
+        /// On Windows: only Windows 10, not Windows 11.
+        /// On macOS/Linux: not available.
         /// </summary>
         /// <returns>Whether Gaussian blur is available.</returns>
         public static bool GaussianBlurAvailable()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return false;
+            }
+
             var build = Environment.OSVersion.Version.Build;
             return Environment.OSVersion.Version.Major >= 10 && build < 22000;
         }
 
         /// <summary>
-        /// Check whether we are running in Windows 10 RS4+ or Windows 11 22H2+.
+        /// Check whether acrylic blur is available.
+        /// On Windows: Windows 10 RS4+ or Windows 11 22H2+.
+        /// On macOS: available via Avalonia's platform integration.
+        /// On Linux: not available.
         /// </summary>
         /// <returns>Whether the acrylic blur feature is available.</returns>
         public static bool AcrylicBlurAvailable()
         {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return true;
+            }
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return false;
+            }
+
             var build = Environment.OSVersion.Version.Build;
             return (build >= 17134 && build < 22000) || build >= 22621;
         }
 
         /// <summary>
-        /// Check whether Mica effect is available (Windows 11 22H2+).
+        /// Check whether Mica effect is available (Windows 11 22H2+ only).
         /// </summary>
         /// <returns>Whether Mica is available.</returns>
         public static bool MicaAvailable()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return false;
+            }
+
             return Environment.OSVersion.Version.Build >= 22621;
         }
 
@@ -133,6 +190,11 @@ namespace Dotnvim.Utilities
         /// <returns>Whether the DWM backdrop is available.</returns>
         public static bool Windows11BackdropAvailable()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return false;
+            }
+
             return Environment.OSVersion.Version.Build >= 22621;
         }
     }

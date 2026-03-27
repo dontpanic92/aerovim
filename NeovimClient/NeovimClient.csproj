@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Dotnvim.NeovimClient</RootNamespace>
     <AssemblyName>Dotnvim.NeovimClient</AssemblyName>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

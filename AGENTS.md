@@ -2,18 +2,18 @@
 
 ## Project Overview
 
-dotnvim is a Neovim GUI for Windows featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering.
+dotnvim is a cross-platform Neovim GUI featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering. Supported platforms: Windows, macOS, and Linux.
 
 ## Repository Structure
 
-- **Dotnvim/** — Main WinExe application (C#, .NET 10, x64)
+- **Dotnvim/** — Main application (C#, .NET 10, cross-platform)
 - **NeovimClient/** — Neovim RPC client library (C#, .NET 10) using MsgPack.Cli
 
 Dependency graph: `Dotnvim → NeovimClient`
 
 ## Build Instructions
 
-This project requires Visual Studio 2022 with the .NET 10 SDK.
+This project requires the .NET 10 SDK. On Windows, Visual Studio 2022 can also be used.
 
 ### Restore packages
 
@@ -34,8 +34,14 @@ dotnet build dotnvim.sln --configuration Release
 ```
 
 Build output locations:
-- `Dotnvim\bin\x64\{Configuration}\net10.0-windows\dotnvim.exe`
-- `NeovimClient\bin\x64\{Configuration}\net10.0-windows\Dotnvim.NeovimClient.dll`
+- `Dotnvim\bin\x64\{Configuration}\net10.0\dotnvim.exe` (Windows)
+- `NeovimClient\bin\x64\{Configuration}\net10.0\Dotnvim.NeovimClient.dll`
+
+## Platform Notes
+
+- **Keyboard input** uses Avalonia's `TextInput` event for character keys and `KeyMapping.cs` for special keys and modifier combinations (Ctrl/Alt + key).
+- **Transparency effects** vary by platform. `Helpers.cs` contains platform-aware availability checks.
+- **Default font** is platform-specific: Consolas (Windows), Menlo (macOS), DejaVu Sans Mono (Linux).
 
 ## Tests
 

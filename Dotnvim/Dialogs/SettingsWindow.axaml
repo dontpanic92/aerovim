@@ -31,13 +31,13 @@
                 <RadioButton Name="TransparentRadio" Content="Transparent"
                              GroupName="BlurKind" Margin="20,0,0,3" />
 
-                <RadioButton Name="GaussianRadio" Content="Blur (Windows 10)"
+                <RadioButton Name="GaussianRadio" Content="Blur"
                              GroupName="BlurKind" Margin="20,0,0,3" />
 
-                <RadioButton Name="AcrylicRadio" Content="Acrylic Blur (Windows 10 RS4+ / Windows 11 22H2+)"
+                <RadioButton Name="AcrylicRadio" Content="Acrylic Blur"
                              GroupName="BlurKind" Margin="20,0,0,3" />
 
-                <RadioButton Name="MicaRadio" Content="Mica (Windows 11 22H2+)"
+                <RadioButton Name="MicaRadio" Content="Mica (Windows only)"
                              GroupName="BlurKind" Margin="20,0,0,5" />
 
                 <StackPanel Orientation="Horizontal" Margin="20,0,0,0">

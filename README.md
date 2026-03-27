@@ -5,7 +5,41 @@ Neovim ❤ Acrylic
 
 ### Features
 
-- [x] Blur/Acrylic Blur on Windows 10
-- [x] Mica on Windows 11 22H2+
+- [x] Cross-platform: Windows, macOS, and Linux
+- [x] Blur/Acrylic/Mica transparency effects (availability varies by platform)
 - [x] Font Ligature
 - [x] Built with Avalonia UI and SkiaSharp
+
+### Supported Platforms
+
+| Platform | Runtime ID | Transparency Effects |
+|----------|-----------|---------------------|
+| Windows x64 | `win-x64` | Blur, Acrylic, Mica, Transparent |
+| macOS ARM64 (Apple Silicon) | `osx-arm64` | Acrylic, Transparent |
+| macOS x64 | `osx-x64` | Acrylic, Transparent |
+| Linux x64 | `linux-x64` | Transparent (compositor-dependent) |
+
+### Build
+
+Requires .NET 10 SDK.
+
+```bash
+dotnet restore dotnvim.sln
+dotnet build dotnvim.sln --configuration Debug
+```
+
+### Publish
+
+```bash
+# Windows
+dotnet publish Dotnvim/Dotnvim.csproj -c Release -r win-x64
+
+# macOS (Apple Silicon)
+dotnet publish Dotnvim/Dotnvim.csproj -c Release -r osx-arm64
+
+# macOS (Intel)
+dotnet publish Dotnvim/Dotnvim.csproj -c Release -r osx-x64
+
+# Linux
+dotnet publish Dotnvim/Dotnvim.csproj -c Release -r linux-x64
+```

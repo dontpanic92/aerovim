@@ -62,97 +62,101 @@ namespace Dotnvim
 
             if (specialKeys.TryGetValue(e.Key, out text))
             {
-                text = NativeInterop.Methods.DecorateInput(text, control, shift, alt);
+                text = DecorateInput(text, control, shift, alt);
                 return true;
             }
 
-            if (!TryGetVirtualKey(e.Key, out int virtualKey))
+            // Without Ctrl/Alt modifiers, let TextInput handle character input
+            if (!control && !alt)
             {
                 text = null;
                 return false;
             }
 
-            text = NativeInterop.Methods.VirtualKeyToString(virtualKey);
-            return text != null;
+            string baseChar = KeyToBaseCharacter(e.Key);
+            if (baseChar == null)
+            {
+                text = null;
+                return false;
+            }
+
+            if (baseChar == "<")
+            {
+                text = DecorateInput("lt", control, shift, alt);
+                return true;
+            }
+
+            if (baseChar == "\\")
+            {
+                text = DecorateInput("Bslash", control, shift, alt);
+                return true;
+            }
+
+            text = DecorateInput(baseChar, control, shift, alt);
+            return true;
         }
 
-        private static bool TryGetVirtualKey(Key key, out int virtualKey)
+        private static string DecorateInput(string input, bool control, bool shift, bool alt)
+        {
+            string output = "<";
+
+            if (control)
+            {
+                output += "C-";
+            }
+
+            if (shift)
+            {
+                output += "S-";
+            }
+
+            if (alt)
+            {
+                output += "A-";
+            }
+
+            output += input + ">";
+
+            return output;
+        }
+
+        private static string KeyToBaseCharacter(Key key)
         {
             if (key >= Key.A && key <= Key.Z)
             {
-                virtualKey = 'A' + ((int)key - (int)Key.A);
-                return true;
+                return ((char)('a' + (key - Key.A))).ToString();
             }
 
             if (key >= Key.D0 && key <= Key.D9)
             {
-                virtualKey = '0' + ((int)key - (int)Key.D0);
-                return true;
+                return ((char)('0' + (key - Key.D0))).ToString();
             }
 
             if (key >= Key.NumPad0 && key <= Key.NumPad9)
             {
-                virtualKey = 0x60 + ((int)key - (int)Key.NumPad0);
-                return true;
+                return ((char)('0' + (key - Key.NumPad0))).ToString();
             }
 
             switch (key)
             {
-                case Key.Multiply:
-                    virtualKey = 0x6A;
-                    return true;
-                case Key.Add:
-                    virtualKey = 0x6B;
-                    return true;
-                case Key.Separator:
-                    virtualKey = 0x6C;
-                    return true;
-                case Key.Subtract:
-                    virtualKey = 0x6D;
-                    return true;
-                case Key.Decimal:
-                    virtualKey = 0x6E;
-                    return true;
-                case Key.Divide:
-                    virtualKey = 0x6F;
-                    return true;
-                case Key.OemSemicolon:
-                    virtualKey = 0xBA;
-                    return true;
-                case Key.OemPlus:
-                    virtualKey = 0xBB;
-                    return true;
-                case Key.OemComma:
-                    virtualKey = 0xBC;
-                    return true;
-                case Key.OemMinus:
-                    virtualKey = 0xBD;
-                    return true;
-                case Key.OemPeriod:
-                    virtualKey = 0xBE;
-                    return true;
-                case Key.OemQuestion:
-                    virtualKey = 0xBF;
-                    return true;
-                case Key.OemTilde:
-                    virtualKey = 0xC0;
-                    return true;
-                case Key.OemOpenBrackets:
-                    virtualKey = 0xDB;
-                    return true;
-                case Key.OemPipe:
-                case Key.OemBackslash:
-                    virtualKey = 0xDC;
-                    return true;
-                case Key.OemCloseBrackets:
-                    virtualKey = 0xDD;
-                    return true;
-                case Key.OemQuotes:
-                    virtualKey = 0xDE;
-                    return true;
-                default:
-                    virtualKey = default;
-                    return false;
+                case Key.Multiply: return "*";
+                case Key.Add: return "+";
+                case Key.Subtract: return "-";
+                case Key.Decimal: return ".";
+                case Key.Divide: return "/";
+                case Key.OemSemicolon: return ";";
+                case Key.OemPlus: return "=";
+                case Key.OemComma: return ",";
+                case Key.OemMinus: return "-";
+                case Key.OemPeriod: return ".";
+                case Key.OemQuestion: return "/";
+                case Key.OemTilde: return "`";
+                case Key.OemOpenBrackets: return "[";
+                case Key.OemPipe: return "\\";
+                case Key.OemBackslash: return "\\";
+                case Key.OemCloseBrackets: return "]";
+                case Key.OemQuotes: return "'";
+                default: return null;
             }
         }
     }

@@ -69,7 +69,15 @@ namespace Dotnvim
                 {
                     if (!char.IsControl(ch))
                     {
-                        this.neovimClient.Input(ch.ToString());
+                        // Escape '<' so Neovim doesn't interpret it as a special key sequence
+                        if (ch == '<')
+                        {
+                            this.neovimClient.Input("<lt>");
+                        }
+                        else
+                        {
+                            this.neovimClient.Input(ch.ToString());
+                        }
                     }
                 }
 
@@ -273,7 +281,7 @@ namespace Dotnvim
             }
 
             var dialog = new Dialogs.MessageWindow(
-                $"The requested transparency level {requestedLevel} is not supported by your current Windows version. Falling back to {actualLevel}",
+                $"The requested transparency level {requestedLevel} is not supported on your system. Falling back to {actualLevel}",
                 "Transparency Level Fallback");
             await dialog.ShowDialog(this);
         }

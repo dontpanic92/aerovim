@@ -46,8 +46,9 @@ namespace Dotnvim.Controls
             this.ClipToBounds = true;
             this.Focusable = true;
 
-            this.primaryTypeface = SKTypeface.FromFamilyName("Consolas");
-            this.textParam = new TextLayoutParameters("Consolas", 11);
+            var defaultFont = Utilities.Helpers.GetDefaultMonospaceFontName();
+            this.primaryTypeface = SKTypeface.FromFamilyName(defaultFont);
+            this.textParam = new TextLayoutParameters(defaultFont, 11);
         }
 
         /// <summary>

@@ -6,6 +6,7 @@
 namespace Dotnvim.Dialogs
 {
     using System;
+    using System.Runtime.InteropServices;
     using Avalonia.Controls;
     using Avalonia.Interactivity;
     using Avalonia.Platform.Storage;
@@ -162,15 +163,22 @@ namespace Dotnvim.Dialogs
         private async void Browse_Click(object sender, RoutedEventArgs e)
         {
             var topLevel = TopLevel.GetTopLevel(this);
+            var fileTypeFilters = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? new[]
+                {
+                    new FilePickerFileType("Executable Files") { Patterns = new[] { "*.exe" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } },
+                }
+                : new[]
+                {
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                };
+
             var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "Select Neovim executable",
                 AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("Executable Files") { Patterns = new[] { "*.exe" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } },
-                },
+                FileTypeFilter = fileTypeFilters,
             });
 
             if (files.Count > 0)
