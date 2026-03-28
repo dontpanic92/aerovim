@@ -6,8 +6,12 @@
 namespace AeroVim.VimClient
 {
     using System;
+    using System.Collections;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
     using AeroVim.Editor;
     using AeroVim.Editor.Utilities;
     using Pty.Net;
@@ -25,6 +29,7 @@ namespace AeroVim.VimClient
         private readonly object screenLock = new object();
 
         private IPtyConnection ptyConnection;
+        private Task spawnTask;
         private bool disposed;
         private ModeInfo currentModeInfo;
 
@@ -91,17 +96,20 @@ namespace AeroVim.VimClient
         {
             if (this.ptyConnection == null)
             {
-                this.SpawnVim(width, height);
-            }
-            else
-            {
-                lock (this.screenLock)
+                if (this.spawnTask == null)
                 {
-                    this.buffer.Resize((int)width, (int)height);
+                    this.spawnTask = this.SpawnVimAsync(width, height);
                 }
 
-                this.ptyConnection.Resize((int)width, (int)height);
+                return;
             }
+
+            lock (this.screenLock)
+            {
+                this.buffer.Resize((int)width, (int)height);
+            }
+
+            this.ptyConnection.Resize((int)width, (int)height);
         }
 
         /// <summary>
@@ -116,7 +124,9 @@ namespace AeroVim.VimClient
             }
 
             string encoded = TerminalInputEncoder.Encode(text);
-            this.ptyConnection.Write(encoded);
+            byte[] bytes = Encoding.UTF8.GetBytes(encoded);
+            this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
+            this.ptyConnection.WriterStream.Flush();
         }
 
         /// <summary>
@@ -138,7 +148,9 @@ namespace AeroVim.VimClient
             string encoded = EncodeSgrMouse(button, action, modifier, row, col);
             if (encoded != null)
             {
-                this.ptyConnection.Write(encoded);
+                byte[] bytes = Encoding.UTF8.GetBytes(encoded);
+                this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
+                this.ptyConnection.WriterStream.Flush();
             }
         }
 
@@ -172,6 +184,7 @@ namespace AeroVim.VimClient
             if (!this.disposed)
             {
                 this.disposed = true;
+                this.ptyConnection?.Kill();
                 if (this.ptyConnection is IDisposable disposable)
                 {
                     disposable.Dispose();
@@ -256,10 +269,16 @@ namespace AeroVim.VimClient
             }
         }
 
-        private void SpawnVim(uint cols, uint rows)
+        private async Task SpawnVimAsync(uint cols, uint rows)
         {
-            Environment.SetEnvironmentVariable("TERM", "xterm-256color");
-            Environment.SetEnvironmentVariable("COLORTERM", "truecolor");
+            var env = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
+            {
+                env[(string)entry.Key] = (string)entry.Value;
+            }
+
+            env["TERM"] = "xterm-256color";
+            env["COLORTERM"] = "truecolor";
 
             string cwd = this.workingDirectory
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -269,39 +288,53 @@ namespace AeroVim.VimClient
                 this.buffer.Resize((int)cols, (int)rows);
             }
 
-            this.ptyConnection = PtyProvider.Spawn(
-                this.vimPath,
-                (int)cols,
-                (int)rows,
-                cwd,
-                BackendOptions.Default);
+            var options = new PtyOptions
+            {
+                App = this.vimPath,
+                Cols = (int)cols,
+                Rows = (int)rows,
+                Cwd = cwd,
+                Environment = env,
+            };
 
-            this.ptyConnection.PtyData += this.OnPtyData;
-            this.ptyConnection.PtyDisconnected += this.OnPtyDisconnected;
+            this.ptyConnection = await PtyProvider.SpawnAsync(options, CancellationToken.None).ConfigureAwait(false);
+            this.ptyConnection.ProcessExited += this.OnProcessExited;
+
+            _ = Task.Run(() => this.ReadLoopAsync());
         }
 
-        private void OnPtyData(object sender, string data)
+        private async Task ReadLoopAsync()
         {
-            if (this.disposed)
+            var readBuffer = new byte[4096];
+            try
             {
-                return;
+                while (!this.disposed)
+                {
+                    int bytesRead = await this.ptyConnection.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length).ConfigureAwait(false);
+                    if (bytesRead == 0)
+                    {
+                        break;
+                    }
+
+                    lock (this.screenLock)
+                    {
+                        this.parser.Process(readBuffer.AsSpan(0, bytesRead));
+                    }
+
+                    this.Redraw?.Invoke();
+                }
             }
-
-            byte[] bytes = Encoding.UTF8.GetBytes(data);
-
-            lock (this.screenLock)
+            catch (Exception) when (this.disposed)
             {
-                this.parser.Process(bytes.AsSpan());
+                // Expected during cleanup
             }
-
-            this.Redraw?.Invoke();
         }
 
-        private void OnPtyDisconnected(object sender)
+        private void OnProcessExited(object sender, EventArgs e)
         {
             if (!this.disposed)
             {
-                this.EditorExited?.Invoke(0);
+                this.EditorExited?.Invoke(this.ptyConnection?.ExitCode ?? 0);
             }
         }
 
