@@ -42,6 +42,7 @@ namespace AeroVim
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 this.SetupMacOSTitleBar();
+                this.Activated += this.OnWindowActivatedMacOS;
             }
 
             this.SetupBlurBehind();
@@ -361,15 +362,8 @@ namespace AeroVim
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                // Defer so that Avalonia finishes applying TransparencyLevelHint
-                // before we override NSWindow properties.
-                Dispatcher.UIThread.Post(
-                    () =>
-                    {
-                        var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                        MacOSInterop.SetTransparentTitlebar(nsWindow);
-                    },
-                    DispatcherPriority.Background);
+                var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                MacOSInterop.SetTransparentTitlebar(nsWindow);
             }
         }
 
@@ -395,6 +389,17 @@ namespace AeroVim
             this.FindControl<Button>("CloseButton").IsVisible = false;
 
             this.FindControl<Border>("TrafficLightSpacer").Width = 78;
+        }
+
+        private async void OnWindowActivatedMacOS(object sender, EventArgs e)
+        {
+            // Re-show native traffic light buttons after the window regains
+            // focus (e.g. after a modal dialog is dismissed). A short delay
+            // is required because Avalonia's internal window management may
+            // reset the NSWindow style mask after the Activated event fires.
+            await Task.Delay(100);
+            var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+            MacOSInterop.SetTransparentTitlebar(nsWindow);
         }
 
         private void OnEditorExited(int exitCode)
