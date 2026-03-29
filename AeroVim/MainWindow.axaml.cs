@@ -56,6 +56,38 @@ namespace AeroVim
             this.Opened += this.OnWindowOpened;
         }
 
+        /// <summary>
+        /// Opens the settings dialog and returns its result.
+        /// </summary>
+        /// <param name="promptText">Optional prompt text displayed in the dialog.</param>
+        /// <returns>The dialog result indicating whether the user accepted or cancelled.</returns>
+        internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string promptText = null)
+        {
+            // Capture current editor settings before opening the dialog
+            var previousEditorType = this.settings.EditorType;
+            var previousNeovimPath = this.settings.NeovimPath;
+            var previousVimPath = this.settings.VimPath;
+
+            var dialog = new Dialogs.SettingsWindow(promptText);
+            await dialog.ShowDialog(this);
+
+            if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
+            {
+                await this.ShowTransparencyMismatchDialogAsync();
+
+                // When opened at runtime (not during startup), warn if editor config changed
+                if (promptText == null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
+                {
+                    var msg = new Dialogs.MessageWindow(
+                        "Editor backend changes will take effect the next time AeroVim is started.",
+                        "Restart Required");
+                    await msg.ShowDialog(this);
+                }
+            }
+
+            return dialog.CloseReason;
+        }
+
         /// <inheritdoc />
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
@@ -373,33 +405,6 @@ namespace AeroVim
         private async void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
             await this.ShowSettingsDialogAsync();
-        }
-
-        private async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string promptText = null)
-        {
-            // Capture current editor settings before opening the dialog
-            var previousEditorType = this.settings.EditorType;
-            var previousNeovimPath = this.settings.NeovimPath;
-            var previousVimPath = this.settings.VimPath;
-
-            var dialog = new Dialogs.SettingsWindow(promptText);
-            await dialog.ShowDialog(this);
-
-            if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
-            {
-                await this.ShowTransparencyMismatchDialogAsync();
-
-                // When opened at runtime (not during startup), warn if editor config changed
-                if (promptText == null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
-                {
-                    var msg = new Dialogs.MessageWindow(
-                        "Editor backend changes will take effect the next time AeroVim is started.",
-                        "Restart Required");
-                    await msg.ShowDialog(this);
-                }
-            }
-
-            return dialog.CloseReason;
         }
 
         private bool HasEditorConfigChanged(EditorType previousType, string previousNeovimPath, string previousVimPath)

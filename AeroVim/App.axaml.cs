@@ -5,9 +5,11 @@
 
 namespace AeroVim
 {
+    using System;
     using System.ComponentModel;
     using System.Runtime.InteropServices;
     using Avalonia;
+    using Avalonia.Controls;
     using Avalonia.Controls.ApplicationLifetimes;
     using Avalonia.Markup.Xaml;
     using Avalonia.Styling;
@@ -33,6 +35,18 @@ namespace AeroVim
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>
+        /// Handles the Preferences menu item click by opening the settings dialog.
+        /// </summary>
+        private async void OnPreferencesClicked(object sender, EventArgs e)
+        {
+            if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                && desktop.MainWindow is MainWindow mainWindow)
+            {
+                await mainWindow.ShowSettingsDialogAsync();
+            }
         }
 
         /// <summary>
