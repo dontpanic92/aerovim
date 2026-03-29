@@ -15,6 +15,7 @@ namespace AeroVim
     using AeroVim.VimClient;
     using Avalonia;
     using Avalonia.Controls;
+    using Avalonia.Controls.Primitives;
     using Avalonia.Input;
     using Avalonia.Interactivity;
     using Avalonia.Media;
@@ -53,6 +54,45 @@ namespace AeroVim
             }
 
             this.Opened += this.OnWindowOpened;
+        }
+
+        /// <inheritdoc />
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        {
+            base.OnPropertyChanged(change);
+
+            if (change.Property == WindowStateProperty && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var newState = (WindowState)change.NewValue;
+                Dispatcher.UIThread.Post(
+                    () =>
+                    {
+                        var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                        if (newState == WindowState.FullScreen)
+                        {
+                            MacOSInterop.ConfigureForFullScreen(nsWindow);
+                        }
+                        else
+                        {
+                            MacOSInterop.SetTransparentTitlebar(nsWindow);
+                        }
+                    },
+                    DispatcherPriority.Background);
+            }
+        }
+
+        /// <inheritdoc />
+        protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+        {
+            base.OnApplyTemplate(e);
+
+            // Hide the PART_TransparencyFallback border that Avalonia's Window
+            // template shows when ActualTransparencyLevel falls back to None.
+            // Its default brush (white) appears behind semi-transparent content.
+            if (e.NameScope.Find("PART_TransparencyFallback") is Border fallback)
+            {
+                fallback.IsVisible = false;
+            }
         }
 
         /// <inheritdoc />
@@ -123,6 +163,20 @@ namespace AeroVim
         private async void OnWindowOpened(object sender, EventArgs e)
         {
             this.Opened -= this.OnWindowOpened;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                // Defer so that Avalonia finishes applying TransparencyLevelHint
+                // before we override NSWindow properties.
+                Dispatcher.UIThread.Post(
+                    () =>
+                    {
+                        var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                        MacOSInterop.SetTransparentTitlebar(nsWindow);
+                    },
+                    DispatcherPriority.Background);
+            }
+
             await this.InitializeEditorAsync();
         }
 
@@ -256,6 +310,8 @@ namespace AeroVim
 
         private void SetupBlurBehind()
         {
+            this.TransparencyBackgroundFallback = Brushes.Transparent;
+            this.Background = Brushes.Transparent;
             this.UpdateTransparencyLevelHint();
             this.UpdateBackgroundOpacity();
         }
@@ -273,15 +329,15 @@ namespace AeroVim
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                if (this.GetRequestedTransparencyLevel() == WindowTransparencyLevel.Transparent)
-                {
-                    MacOSInterop.SetTransparentTitlebar(nsWindow);
-                }
-                else
-                {
-                    MacOSInterop.RestoreDefaultTitlebar(nsWindow);
-                }
+                // Defer so that Avalonia finishes applying TransparencyLevelHint
+                // before we override NSWindow properties.
+                Dispatcher.UIThread.Post(
+                    () =>
+                    {
+                        var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                        MacOSInterop.SetTransparentTitlebar(nsWindow);
+                    },
+                    DispatcherPriority.Background);
             }
         }
 
@@ -302,8 +358,6 @@ namespace AeroVim
 
         private void SetupMacOSTitleBar()
         {
-            this.ExtendClientAreaChromeHints = Avalonia.Platform.ExtendClientAreaChromeHints.PreferSystemChrome;
-
             this.FindControl<Button>("MinimizeButton").IsVisible = false;
             this.FindControl<Button>("MaximizeButton").IsVisible = false;
             this.FindControl<Button>("CloseButton").IsVisible = false;

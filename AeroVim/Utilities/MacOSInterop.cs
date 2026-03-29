@@ -29,14 +29,14 @@ namespace AeroVim.Utilities
             }
 
             // [NSColor clearColor]
-            // IntPtr nsColorClass = NativeMethods.ObjCGetClass("NSColor");
-            // IntPtr clearColor = NativeMethods.ObjCMsgSend(nsColorClass, NativeMethods.SelRegisterName("clearColor"));
+            IntPtr nsColorClass = NativeMethods.ObjCGetClass("NSColor");
+            IntPtr clearColor = NativeMethods.ObjCMsgSend(nsColorClass, NativeMethods.SelRegisterName("clearColor"));
 
             // [window setBackgroundColor:[NSColor clearColor]]
-            // NativeMethods.ObjCMsgSendIntPtr(nsWindow, NativeMethods.SelRegisterName("setBackgroundColor:"), clearColor);
+            NativeMethods.ObjCMsgSendIntPtr(nsWindow, NativeMethods.SelRegisterName("setBackgroundColor:"), clearColor);
 
             // [window setOpaque:NO]
-            // NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setOpaque:"), false);
+            NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setOpaque:"), false);
 
             // [window setTitlebarSeparatorStyle:NSTitlebarSeparatorStyleNone] (0)
             NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitlebarSeparatorStyle:"), 0);
@@ -49,6 +49,10 @@ namespace AeroVim.Utilities
 
             // [window setHasShadow:YES]
             NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setHasShadow:"), true);
+
+            // Ensure native traffic light buttons are visible since we use
+            // NoChrome (Avalonia won't manage them for us).
+            ShowTrafficLightButtons(nsWindow);
         }
 
         /// <summary>
@@ -82,6 +86,54 @@ namespace AeroVim.Utilities
 
             // [window setTitleVisibility:NSWindowTitleVisible] (0)
             NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitleVisibility:"), 0);
+        }
+
+        /// <summary>
+        /// Configures the NSWindow for macOS full screen mode so the native
+        /// titlebar auto-shows when the user moves the mouse to the top of the
+        /// screen. Makes the titlebar opaque and the title visible so that the
+        /// system reveals a usable titlebar alongside the menu bar.
+        /// </summary>
+        /// <param name="nsWindow">The NSWindow handle.</param>
+        public static void ConfigureForFullScreen(IntPtr nsWindow)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || nsWindow == IntPtr.Zero)
+            {
+                return;
+            }
+
+            // [window setTitlebarAppearsTransparent:NO]
+            NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setTitlebarAppearsTransparent:"), false);
+
+            // [window setTitleVisibility:NSWindowTitleVisible] (0)
+            NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitleVisibility:"), 0);
+
+            // [window setTitlebarSeparatorStyle:NSTitlebarSeparatorStyleAutomatic] (1)
+            NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitlebarSeparatorStyle:"), 1);
+
+            ShowTrafficLightButtons(nsWindow);
+        }
+
+        /// <summary>
+        /// Ensures the native macOS traffic light buttons (close, miniaturize,
+        /// zoom) are visible. Called when using NoChrome so Avalonia does not
+        /// manage them, but the NSWindow still owns the standard button instances.
+        /// </summary>
+        /// <param name="nsWindow">The NSWindow handle.</param>
+        private static void ShowTrafficLightButtons(IntPtr nsWindow)
+        {
+            IntPtr standardWindowButtonSel = NativeMethods.SelRegisterName("standardWindowButton:");
+            IntPtr setHiddenSel = NativeMethods.SelRegisterName("setHidden:");
+
+            // NSWindowCloseButton = 0, NSWindowMiniaturizeButton = 1, NSWindowZoomButton = 2
+            for (long buttonType = 0; buttonType <= 2; buttonType++)
+            {
+                IntPtr button = NativeMethods.ObjCMsgSendLongRetPtr(nsWindow, standardWindowButtonSel, buttonType);
+                if (button != IntPtr.Zero)
+                {
+                    NativeMethods.ObjCMsgSendBool(button, setHiddenSel, false);
+                }
+            }
         }
 
         /// <summary>
@@ -140,6 +192,40 @@ namespace AeroVim.Utilities
             /// <param name="arg">The long integer argument.</param>
             [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
             public static extern void ObjCMsgSendLong(IntPtr receiver, IntPtr selector, long arg);
+
+            /// <summary>
+            /// Sends a message with a long integer argument to an Objective-C object
+            /// and returns a pointer result.
+            /// </summary>
+            /// <param name="receiver">The target object.</param>
+            /// <param name="selector">The selector to invoke.</param>
+            /// <param name="arg">The long integer argument.</param>
+            /// <returns>The return value as a pointer.</returns>
+            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
+            public static extern IntPtr ObjCMsgSendLongRetPtr(IntPtr receiver, IntPtr selector, long arg);
+
+            /// <summary>
+            /// Sends a message with a pointer argument to an Objective-C object
+            /// and returns a pointer result.
+            /// </summary>
+            /// <param name="receiver">The target object.</param>
+            /// <param name="selector">The selector to invoke.</param>
+            /// <param name="arg">The pointer argument.</param>
+            /// <returns>The return value as a pointer.</returns>
+            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
+            public static extern IntPtr ObjCMsgSendPtrRetPtr(IntPtr receiver, IntPtr selector, IntPtr arg);
+
+            /// <summary>
+            /// Sends a message with a pointer argument to an Objective-C object
+            /// and returns a boolean result.
+            /// </summary>
+            /// <param name="receiver">The target object.</param>
+            /// <param name="selector">The selector to invoke.</param>
+            /// <param name="arg">The pointer argument.</param>
+            /// <returns>The boolean return value.</returns>
+            [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
+            [return: MarshalAs(UnmanagedType.I1)]
+            public static extern bool ObjCMsgSendPtrRetBool(IntPtr receiver, IntPtr selector, IntPtr arg);
         }
     }
 }

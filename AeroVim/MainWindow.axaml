@@ -5,6 +5,7 @@
         RequestedThemeVariant="Light"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
+        TransparencyBackgroundFallback="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="28"
