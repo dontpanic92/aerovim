@@ -148,149 +148,208 @@ namespace AeroVim.NeovimClient
                 {
                     case "set_title":
                         {
-                            var title = cmd[1].AsList()[0].AsStringUtf8();
-                            events.Add(this.factory.CreateSetTitleEvent(title));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var title = cmd[i].AsList()[0].AsStringUtf8();
+                                events.Add(this.factory.CreateSetTitleEvent(title));
+                            }
+
                             break;
                         }
 
                     case "set_icon":
                         {
-                            var title = cmd[1].AsList()[0].AsStringUtf8();
-                            events.Add(this.factory.CreateSetIconTitleEvent(title));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var title = cmd[i].AsList()[0].AsStringUtf8();
+                                events.Add(this.factory.CreateSetIconTitleEvent(title));
+                            }
+
                             break;
                         }
 
                     case "mode_info_set":
                         {
-                            var args = cmd[1].AsList();
-                            var cursorStyleEnabled = args[0].AsBoolean();
-                            var mode = args[1].AsList().Select(
-                                item => (IDictionary<string, string>)item.AsDictionary().ToDictionary(
-                                    k => k.Key.AsStringUtf8(),
-                                    v => v.Value.ToString())).ToList();
-                            events.Add(this.factory.CreateModeInfoSetEvent(cursorStyleEnabled, mode));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var args = cmd[i].AsList();
+                                var cursorStyleEnabled = args[0].AsBoolean();
+                                var mode = args[1].AsList().Select(
+                                    item => (IDictionary<string, string>)item.AsDictionary().ToDictionary(
+                                        k => k.Key.AsStringUtf8(),
+                                        v => v.Value.ToString())).ToList();
+                                events.Add(this.factory.CreateModeInfoSetEvent(cursorStyleEnabled, mode));
+                            }
+
                             break;
                         }
 
                     case "mode_change":
                         {
-                            var args = cmd[1].AsList();
-                            var modeName = args[0].AsStringUtf8();
-                            var index = args[1].AsInt32();
-                            events.Add(this.factory.CreateModeChangeEvent(modeName, index));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var args = cmd[i].AsList();
+                                var modeName = args[0].AsStringUtf8();
+                                var index = args[1].AsInt32();
+                                events.Add(this.factory.CreateModeChangeEvent(modeName, index));
+                            }
+
                             break;
                         }
 
                     case "cursor_goto":
                         {
-                            var list = cmd[1].AsList();
-                            uint row = list[0].AsUInt32();
-                            uint col = list[1].AsUInt32();
-                            events.Add(this.factory.CreateCursorGotoEvent(row, col));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var list = cmd[i].AsList();
+                                uint row = list[0].AsUInt32();
+                                uint col = list[1].AsUInt32();
+                                events.Add(this.factory.CreateCursorGotoEvent(row, col));
+                            }
+
                             break;
                         }
 
                     case "put":
                         {
-                            IList<int?> result = new List<int?>();
                             for (int i = 1; i < cmd.Count; i++)
                             {
-                                var ch = string.Join(string.Empty, cmd[i].AsEnumerable().Select(t => t.AsString()));
-                                int? codepoint = null;
-                                if (ch != string.Empty)
+                                IList<int?> result = new List<int?>();
+                                foreach (var item in cmd[i].AsEnumerable())
                                 {
-                                    codepoint = char.ConvertToUtf32(ch, 0);
+                                    var ch = item.AsString();
+                                    int? codepoint = null;
+                                    if (ch != string.Empty)
+                                    {
+                                        codepoint = char.ConvertToUtf32(ch, 0);
+                                    }
+
+                                    result.Add(codepoint);
                                 }
 
-                                result.Add(codepoint);
+                                events.Add(this.factory.CreatePutEvent(result));
                             }
 
-                            events.Add(this.factory.CreatePutEvent(result));
                             break;
                         }
 
                     case "clear":
                         {
-                            events.Add(this.factory.CreateClearEvent());
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                events.Add(this.factory.CreateClearEvent());
+                            }
+
                             break;
                         }
 
                     case "eol_clear":
                         {
-                            events.Add(this.factory.CreateEolClearEvent());
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                events.Add(this.factory.CreateEolClearEvent());
+                            }
+
                             break;
                         }
 
                     case "resize":
                         {
-                            var list = cmd[1].AsList();
-                            uint col = list[0].AsUInt32();
-                            uint row = list[1].AsUInt32();
-                            events.Add(this.factory.CreateResizeEvent(row, col));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var list = cmd[i].AsList();
+                                uint col = list[0].AsUInt32();
+                                uint row = list[1].AsUInt32();
+                                events.Add(this.factory.CreateResizeEvent(row, col));
+                            }
+
                             break;
                         }
 
                     case "highlight_set":
                         {
-                            var dict = cmd[1].AsList()[0].AsDictionary();
-                            int? foreground = TryGetValueFromDictionary(dict, "foreground")?.AsInt32();
-                            int? background = TryGetValueFromDictionary(dict, "background")?.AsInt32();
-                            int? special = TryGetValueFromDictionary(dict, "special")?.AsInt32();
-                            bool reverse = TryGetValueFromDictionary(dict, "reverse")?.AsBoolean() == true;
-                            bool italic = TryGetValueFromDictionary(dict, "italic")?.AsBoolean() == true;
-                            bool bold = TryGetValueFromDictionary(dict, "bold")?.AsBoolean() == true;
-                            bool underline = TryGetValueFromDictionary(dict, "underline")?.AsBoolean() == true;
-                            bool undercurl = TryGetValueFromDictionary(dict, "undercurl")?.AsBoolean() == true;
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var dict = cmd[i].AsList()[0].AsDictionary();
+                                int? foreground = TryGetValueFromDictionary(dict, "foreground")?.AsInt32();
+                                int? background = TryGetValueFromDictionary(dict, "background")?.AsInt32();
+                                int? special = TryGetValueFromDictionary(dict, "special")?.AsInt32();
+                                bool reverse = TryGetValueFromDictionary(dict, "reverse")?.AsBoolean() == true;
+                                bool italic = TryGetValueFromDictionary(dict, "italic")?.AsBoolean() == true;
+                                bool bold = TryGetValueFromDictionary(dict, "bold")?.AsBoolean() == true;
+                                bool underline = TryGetValueFromDictionary(dict, "underline")?.AsBoolean() == true;
+                                bool undercurl = TryGetValueFromDictionary(dict, "undercurl")?.AsBoolean() == true;
 
-                            events.Add(this.factory.CreateHightlightSetEvent(
-                                foreground,
-                                background,
-                                special,
-                                reverse,
-                                italic,
-                                bold,
-                                underline,
-                                undercurl));
+                                events.Add(this.factory.CreateHightlightSetEvent(
+                                    foreground,
+                                    background,
+                                    special,
+                                    reverse,
+                                    italic,
+                                    bold,
+                                    underline,
+                                    undercurl));
+                            }
 
                             break;
                         }
 
                     case "update_fg":
                         {
-                            var color = cmd[1].AsList()[0].AsInt32();
-                            events.Add(this.factory.CreateUpdateFgEvent(color));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var color = cmd[i].AsList()[0].AsInt32();
+                                events.Add(this.factory.CreateUpdateFgEvent(color));
+                            }
+
                             break;
                         }
 
                     case "update_bg":
                         {
-                            var color = cmd[1].AsList()[0].AsInt32();
-                            events.Add(this.factory.CreateUpdateBgEvent(color));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var color = cmd[i].AsList()[0].AsInt32();
+                                events.Add(this.factory.CreateUpdateBgEvent(color));
+                            }
+
                             break;
                         }
 
                     case "update_sp":
                         {
-                            var color = cmd[1].AsList()[0].AsInt32();
-                            events.Add(this.factory.CreateUpdateSpEvent(color));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var color = cmd[i].AsList()[0].AsInt32();
+                                events.Add(this.factory.CreateUpdateSpEvent(color));
+                            }
+
                             break;
                         }
 
                     case "set_scroll_region":
                         {
-                            var list = cmd[1].AsList();
-                            events.Add(this.factory.CreateSetScrollRegionEvent(
-                                list[0].AsInt32(),
-                                list[1].AsInt32(),
-                                list[2].AsInt32(),
-                                list[3].AsInt32()));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                var list = cmd[i].AsList();
+                                events.Add(this.factory.CreateSetScrollRegionEvent(
+                                    list[0].AsInt32(),
+                                    list[1].AsInt32(),
+                                    list[2].AsInt32(),
+                                    list[3].AsInt32()));
+                            }
+
                             break;
                         }
 
                     case "scroll":
                         {
-                            int count = cmd[1].AsList()[0].AsInt32();
-                            events.Add(this.factory.CreateScrollEvent(count));
+                            for (int i = 1; i < cmd.Count; i++)
+                            {
+                                int count = cmd[i].AsList()[0].AsInt32();
+                                events.Add(this.factory.CreateScrollEvent(count));
+                            }
+
                             break;
                         }
 
