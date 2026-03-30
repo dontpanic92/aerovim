@@ -6,6 +6,7 @@
 namespace AeroVim
 {
     using System;
+    using System.Diagnostics;
     using System.Runtime.InteropServices;
     using System.Threading.Tasks;
     using AeroVim.Controls;
@@ -116,6 +117,12 @@ namespace AeroVim
                     () =>
                     {
                         var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                        if (nsWindow == IntPtr.Zero)
+                        {
+                            Trace.WriteLine("AeroVim: macOS platform handle unavailable during WindowState change.");
+                            return;
+                        }
+
                         if (newState == WindowState.FullScreen)
                         {
                             this.isMacFullScreen = true;
@@ -204,18 +211,7 @@ namespace AeroVim
         {
             this.Opened -= this.OnWindowOpened;
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                // Defer so that Avalonia finishes applying TransparencyLevelHint
-                // before we override NSWindow properties.
-                Dispatcher.UIThread.Post(
-                    () =>
-                    {
-                        var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                        MacOSInterop.SetTransparentTitlebar(nsWindow);
-                    },
-                    DispatcherPriority.Background);
-            }
+            this.DeferMacOSNativeTransparency();
 
             await this.InitializeEditorAsync();
         }
@@ -299,7 +295,11 @@ namespace AeroVim
                 {
                     case nameof(AppSettings.EnableBlurBehind):
                     case nameof(AppSettings.BlurType):
-                        Dispatcher.UIThread.Post(() => this.SetupBlurBehind());
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            this.SetupBlurBehind();
+                            this.DeferMacOSNativeTransparency();
+                        });
                         break;
 
                     case nameof(AppSettings.BackgroundOpacity):
@@ -369,12 +369,34 @@ namespace AeroVim
             {
                 this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
             }
+        }
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        /// <summary>
+        /// Defers macOS native transparency setup (transparent titlebar, traffic light
+        /// buttons) to <see cref="DispatcherPriority.Background"/> so that Avalonia
+        /// finishes processing the transparency level hint before we override NSWindow
+        /// properties. A no-op on non-macOS platforms.
+        /// </summary>
+        private void DeferMacOSNativeTransparency()
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                MacOSInterop.SetTransparentTitlebar(nsWindow);
+                return;
             }
+
+            Dispatcher.UIThread.Post(
+                () =>
+                {
+                    var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                    if (nsWindow == IntPtr.Zero)
+                    {
+                        Trace.WriteLine("AeroVim: macOS platform handle unavailable, skipping native transparency setup.");
+                        return;
+                    }
+
+                    MacOSInterop.SetTransparentTitlebar(nsWindow);
+                },
+                DispatcherPriority.Background);
         }
 
         private void UpdateBackgroundOpacity()
@@ -408,13 +430,24 @@ namespace AeroVim
 
         private async void OnWindowActivatedMacOS(object sender, EventArgs e)
         {
-            // Re-show native traffic light buttons after the window regains
-            // focus (e.g. after a modal dialog is dismissed). A short delay
-            // is required because Avalonia's internal window management may
-            // reset the NSWindow style mask after the Activated event fires.
-            await Task.Delay(100);
-            var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-            MacOSInterop.SetTransparentTitlebar(nsWindow);
+            try
+            {
+                // Yield to Background priority so Avalonia finishes any internal
+                // NSWindow style mask resets before we reapply our overrides.
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                if (nsWindow == IntPtr.Zero)
+                {
+                    Trace.WriteLine("AeroVim: macOS platform handle unavailable in OnWindowActivatedMacOS.");
+                    return;
+                }
+
+                MacOSInterop.SetTransparentTitlebar(nsWindow);
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"AeroVim: OnWindowActivatedMacOS failed: {ex.Message}");
+            }
         }
 
         private async void OnEditorExited(int exitCode)
@@ -486,8 +519,20 @@ namespace AeroVim
 
             var requestedLevel = this.GetRequestedTransparencyLevel();
 
+            // Yield to let Avalonia process the TransparencyLevelHint change.
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-            await Task.Delay(500);
+
+            // Poll briefly for the platform to finish applying the effect.
+            // Some compositors need extra time beyond the dispatcher yield.
+            for (int i = 0; i < 5; i++)
+            {
+                if (this.ActualTransparencyLevel == requestedLevel)
+                {
+                    return;
+                }
+
+                await Task.Delay(100);
+            }
 
             var actualLevel = this.ActualTransparencyLevel;
             if (actualLevel == requestedLevel)
