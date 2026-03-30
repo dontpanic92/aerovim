@@ -3,23 +3,20 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace MsgPack
-{
-    using System;
+namespace MsgPack;
 
+/// <summary>
+/// Compatibility exception wrapper.
+/// </summary>
+public sealed class UnpackException : Exception
+{
     /// <summary>
-    /// Compatibility exception wrapper.
+    /// Initializes a new instance of the <see cref="UnpackException"/> class.
     /// </summary>
-    public sealed class UnpackException : Exception
+    /// <param name="message">Exception message.</param>
+    /// <param name="innerException">Inner exception.</param>
+    public UnpackException(string message, Exception innerException)
+        : base(message, innerException)
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="UnpackException"/> class.
-        /// </summary>
-        /// <param name="message">Exception message.</param>
-        /// <param name="innerException">Inner exception.</param>
-        public UnpackException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-        }
     }
 }

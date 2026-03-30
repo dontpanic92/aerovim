@@ -5,547 +5,544 @@
 
 #pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
 
-namespace AeroVim
+namespace AeroVim;
+
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using AeroVim.Controls;
+using AeroVim.Editor;
+using AeroVim.Settings;
+using AeroVim.Utilities;
+using AeroVim.VimClient;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
+
+/// <summary>
+/// The main window.
+/// </summary>
+public partial class MainWindow : Window
 {
-    using System;
-    using System.Diagnostics;
-    using System.Runtime.InteropServices;
-    using System.Threading.Tasks;
-    using AeroVim.Controls;
-    using AeroVim.Editor;
-    using AeroVim.Settings;
-    using AeroVim.Utilities;
-    using AeroVim.VimClient;
-    using Avalonia;
-    using Avalonia.Controls;
-    using Avalonia.Controls.Primitives;
-    using Avalonia.Input;
-    using Avalonia.Interactivity;
-    using Avalonia.Media;
-    using Avalonia.Threading;
+    private readonly AppSettings settings = AppSettings.Default;
+    private int currentBackgroundColor;
+    private bool isMacFullScreen;
+    private bool isSettingsDialogOpen;
+    private IEditorClient? editorClient;
+    private EditorControl? editorControl;
 
     /// <summary>
-    /// The main window.
+    /// Initializes a new instance of the <see cref="MainWindow"/> class.
     /// </summary>
-    public partial class MainWindow : Window
+    public MainWindow()
     {
-        private readonly AppSettings settings = AppSettings.Default;
-        private int currentBackgroundColor;
-        private bool isMacFullScreen;
-        private bool isSettingsDialogOpen;
-        private IEditorClient? editorClient;
-        private EditorControl? editorControl;
+        this.currentBackgroundColor = this.settings.BackgroundColor;
+        this.InitializeComponent();
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MainWindow"/> class.
-        /// </summary>
-        public MainWindow()
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            this.currentBackgroundColor = this.settings.BackgroundColor;
-            this.InitializeComponent();
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                this.SetupMacOSTitleBar();
-                this.Activated += this.OnWindowActivatedMacOS;
-            }
-
-            this.SetupBlurBehind();
-            WindowSettingsPersistence.Apply(this, this.settings);
-
-            this.Opened += this.OnWindowOpened;
+            this.SetupMacOSTitleBar();
+            this.Activated += this.OnWindowActivatedMacOS;
         }
 
-        /// <summary>
-        /// Opens the settings dialog and returns its result.
-        /// </summary>
-        /// <param name="promptText">Optional prompt text displayed in the dialog.</param>
-        /// <returns>The dialog result indicating whether the user accepted or cancelled.</returns>
-        internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string? promptText = null)
+        this.SetupBlurBehind();
+        WindowSettingsPersistence.Apply(this, this.settings);
+
+        this.Opened += this.OnWindowOpened;
+    }
+
+    /// <summary>
+    /// Opens the settings dialog and returns its result.
+    /// </summary>
+    /// <param name="promptText">Optional prompt text displayed in the dialog.</param>
+    /// <returns>The dialog result indicating whether the user accepted or cancelled.</returns>
+    internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string? promptText = null)
+    {
+        if (this.isSettingsDialogOpen)
         {
-            if (this.isSettingsDialogOpen)
+            return Dialogs.SettingsWindow.Result.Cancel;
+        }
+
+        this.isSettingsDialogOpen = true;
+        try
+        {
+            // Capture current editor settings before opening the dialog
+            var previousEditorType = this.settings.EditorType;
+            var previousNeovimPath = this.settings.NeovimPath;
+            var previousVimPath = this.settings.VimPath;
+
+            var dialog = new Dialogs.SettingsWindow(promptText);
+            await dialog.ShowDialog(this);
+
+            if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
             {
-                return Dialogs.SettingsWindow.Result.Cancel;
-            }
+                await this.ShowTransparencyMismatchDialogAsync();
 
-            this.isSettingsDialogOpen = true;
-            try
-            {
-                // Capture current editor settings before opening the dialog
-                var previousEditorType = this.settings.EditorType;
-                var previousNeovimPath = this.settings.NeovimPath;
-                var previousVimPath = this.settings.VimPath;
-
-                var dialog = new Dialogs.SettingsWindow(promptText);
-                await dialog.ShowDialog(this);
-
-                if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
+                // When opened at runtime (not during startup), warn if editor config changed
+                if (promptText == null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
                 {
-                    await this.ShowTransparencyMismatchDialogAsync();
-
-                    // When opened at runtime (not during startup), warn if editor config changed
-                    if (promptText == null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
-                    {
-                        var msg = new Dialogs.MessageWindow(
-                            "Editor backend changes will take effect the next time AeroVim is started.",
-                            "Restart Required");
-                        await msg.ShowDialog(this);
-                    }
-                }
-
-                return dialog.CloseReason;
-            }
-            finally
-            {
-                this.isSettingsDialogOpen = false;
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-        {
-            base.OnPropertyChanged(change);
-
-            if (change.Property == WindowStateProperty && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                var newState = (WindowState)change.NewValue!;
-                Dispatcher.UIThread.Post(
-                    () =>
-                    {
-                        var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-                        if (nsWindow == IntPtr.Zero)
-                        {
-                            Trace.WriteLine("AeroVim: macOS platform handle unavailable during WindowState change.");
-                            return;
-                        }
-
-                        if (newState == WindowState.FullScreen)
-                        {
-                            this.isMacFullScreen = true;
-                            this.FindControl<Grid>("TitleBar")!.IsVisible = false;
-                            MacOSInterop.ConfigureForFullScreen(nsWindow);
-                            this.UpdateBackgroundOpacity();
-                        }
-                        else
-                        {
-                            this.isMacFullScreen = false;
-                            this.FindControl<Grid>("TitleBar")!.IsVisible = true;
-                            MacOSInterop.SetTransparentTitlebar(nsWindow);
-                            this.UpdateBackgroundOpacity();
-                        }
-                    },
-                    DispatcherPriority.Background);
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-            if (this.editorClient != null && KeyMapping.TryMap(e, out var text) && text != null)
-            {
-                this.editorClient.Input(text);
-                e.Handled = true;
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnTextInput(TextInputEventArgs e)
-        {
-            base.OnTextInput(e);
-            if (this.editorClient != null && !string.IsNullOrEmpty(e.Text))
-            {
-                // Only forward printable characters that were not already handled by OnKeyDown
-                foreach (var ch in e.Text)
-                {
-                    if (!char.IsControl(ch))
-                    {
-                        // Escape '<' so Neovim doesn't interpret it as a special key sequence
-                        if (ch == '<')
-                        {
-                            this.editorClient.Input("<lt>");
-                        }
-                        else
-                        {
-                            this.editorClient.Input(ch.ToString());
-                        }
-                    }
-                }
-
-                e.Handled = true;
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnClosing(WindowClosingEventArgs e)
-        {
-            base.OnClosing(e);
-            WindowSettingsPersistence.Capture(this, this.settings);
-            this.settings.Save();
-
-            if (this.editorClient != null)
-            {
-                this.editorClient.EditorExited -= this.OnEditorExited;
-            }
-
-            this.editorControl?.Dispose();
-            this.editorClient?.Dispose();
-        }
-
-        private async void OnWindowOpened(object? sender, EventArgs e)
-        {
-            this.Opened -= this.OnWindowOpened;
-
-            this.DeferMacOSNativeTransparency();
-
-            await this.InitializeEditorAsync();
-        }
-
-        private async Task InitializeEditorAsync()
-        {
-            EditorPathDetector.PopulateUnsetPaths(this.settings);
-            await this.ShowSettingsPersistenceErrorIfNeededAsync();
-
-            while (true)
-            {
-                try
-                {
-                    this.editorClient = EditorClientFactory.Create(this.settings);
-                    break;
-                }
-                catch (Exception)
-                {
-                    string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
-                    if (await this.ShowSettingsDialogAsync($"Please specify the path to {editorName}") == Dialogs.SettingsWindow.Result.Cancel)
-                    {
-                        this.Close();
-                        return;
-                    }
+                    var msg = new Dialogs.MessageWindow(
+                        "Editor backend changes will take effect the next time AeroVim is started.",
+                        "Restart Required");
+                    await msg.ShowDialog(this);
                 }
             }
 
-            this.editorControl = new EditorControl(this.editorClient);
-            var editorBorder = this.FindControl<Border>("NeovimBorder")!;
-            editorBorder.Child = this.editorControl;
-
-            this.editorClient.EditorExited += this.OnEditorExited;
-
-            this.editorClient.Command("set mouse=a");
-
-            this.editorClient.TitleChanged += (string title) =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    var effectiveTitle = string.IsNullOrEmpty(title) ? "AeroVim" : title;
-                    this.Title = effectiveTitle;
-                    var titleText = this.FindControl<TextBlock>("TitleText");
-                    if (titleText != null)
-                    {
-                        titleText.Text = effectiveTitle;
-                    }
-                });
-             };
-
-            this.editorClient.ForegroundColorChanged += (int intColor) =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    var color = Helpers.GetAvaloniaColor(intColor);
-                    var brush = new Avalonia.Media.SolidColorBrush(color);
-                    var titleText = this.FindControl<TextBlock>("TitleText");
-                    if (titleText != null)
-                    {
-                        titleText.Foreground = brush;
-                    }
-
-                    this.FindControl<Button>("SettingsButton")!.Foreground = brush;
-                    this.FindControl<Button>("MinimizeButton")!.Foreground = brush;
-                    this.FindControl<Button>("MaximizeButton")!.Foreground = brush;
-                    this.FindControl<Button>("CloseButton")!.Foreground = brush;
-                });
-             };
-
-            this.editorClient.BackgroundColorChanged += (int intColor) =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    this.currentBackgroundColor = intColor;
-                    this.settings.BackgroundColor = intColor;
-                    this.settings.Save();
-                    this.UpdateBackgroundOpacity();
-                });
-              };
-
-            this.settings.PropertyChanged += (sender, propChangedArgs) =>
-            {
-                switch (propChangedArgs.PropertyName)
-                {
-                    case nameof(AppSettings.EnableBlurBehind):
-                    case nameof(AppSettings.BlurType):
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            this.SetupBlurBehind();
-                            this.DeferMacOSNativeTransparency();
-                        });
-                        break;
-
-                    case nameof(AppSettings.BackgroundOpacity):
-                        Dispatcher.UIThread.Post(() => this.UpdateBackgroundOpacity());
-                        break;
-                    case nameof(AppSettings.EnableLigature):
-                        this.editorControl.EnableLigature = this.settings.EnableLigature;
-                        this.editorControl.InvalidateVisual();
-                        break;
-                }
-              };
+            return dialog.CloseReason;
         }
-
-        private void SetupBlurBehind()
+        finally
         {
-            this.TransparencyBackgroundFallback = Brushes.Transparent;
-            this.Background = Brushes.Transparent;
-            this.UpdateTransparencyLevelHint();
-            this.UpdateBackgroundOpacity();
+            this.isSettingsDialogOpen = false;
         }
+    }
 
-        private void UpdateTransparencyLevelHint()
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == WindowStateProperty && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            if (this.settings.EnableBlurBehind)
-            {
-                this.TransparencyLevelHint = new[] { this.GetRequestedTransparencyLevel() };
-            }
-            else
-            {
-                this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
-            }
-        }
-
-        /// <summary>
-        /// Defers macOS native transparency setup (transparent titlebar, traffic light
-        /// buttons) to <see cref="DispatcherPriority.Background"/> so that Avalonia
-        /// finishes processing the transparency level hint before we override NSWindow
-        /// properties. A no-op on non-macOS platforms.
-        /// </summary>
-        private void DeferMacOSNativeTransparency()
-        {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                return;
-            }
-
+            var newState = (WindowState)change.NewValue!;
             Dispatcher.UIThread.Post(
                 () =>
                 {
                     var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                     if (nsWindow == IntPtr.Zero)
                     {
-                        Trace.WriteLine("AeroVim: macOS platform handle unavailable, skipping native transparency setup.");
+                        Trace.WriteLine("AeroVim: macOS platform handle unavailable during WindowState change.");
                         return;
                     }
 
-                    MacOSInterop.SetTransparentTitlebar(nsWindow);
+                    if (newState == WindowState.FullScreen)
+                    {
+                        this.isMacFullScreen = true;
+                        this.FindControl<Grid>("TitleBar")!.IsVisible = false;
+                        MacOSInterop.ConfigureForFullScreen(nsWindow);
+                        this.UpdateBackgroundOpacity();
+                    }
+                    else
+                    {
+                        this.isMacFullScreen = false;
+                        this.FindControl<Grid>("TitleBar")!.IsVisible = true;
+                        MacOSInterop.SetTransparentTitlebar(nsWindow);
+                        this.UpdateBackgroundOpacity();
+                    }
                 },
                 DispatcherPriority.Background);
         }
+    }
 
-        private void UpdateBackgroundOpacity()
+    /// <inheritdoc />
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (this.editorClient != null && KeyMapping.TryMap(e, out var text) && text != null)
         {
-            float opacity = this.isMacFullScreen ? 1f :
-                this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
-            IBrush backgroundBrush = new SolidColorBrush(Helpers.GetAvaloniaColor(this.currentBackgroundColor, opacity));
+            this.editorClient.Input(text);
+            e.Handled = true;
+        }
+    }
 
-            this.FindControl<Grid>("TitleBar")!.Background = backgroundBrush;
-            this.FindControl<Border>("NeovimBorder")!.Background = backgroundBrush;
-
-            if (this.editorControl != null)
+    /// <inheritdoc />
+    protected override void OnTextInput(TextInputEventArgs e)
+    {
+        base.OnTextInput(e);
+        if (this.editorClient != null && !string.IsNullOrEmpty(e.Text))
+        {
+            // Only forward printable characters that were not already handled by OnKeyDown
+            foreach (var ch in e.Text)
             {
-                this.editorControl.BackgroundAlpha = (byte)(opacity * 255);
-                this.editorControl.InvalidateVisual();
+                if (!char.IsControl(ch))
+                {
+                    // Escape '<' so Neovim doesn't interpret it as a special key sequence
+                    if (ch == '<')
+                    {
+                        this.editorClient.Input("<lt>");
+                    }
+                    else
+                    {
+                        this.editorClient.Input(ch.ToString());
+                    }
+                }
             }
-        }
 
-        private void SetupMacOSTitleBar()
+            e.Handled = true;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+        WindowSettingsPersistence.Capture(this, this.settings);
+        this.settings.Save();
+
+        if (this.editorClient != null)
         {
-            this.FindControl<Button>("MinimizeButton")!.IsVisible = false;
-            this.FindControl<Button>("MaximizeButton")!.IsVisible = false;
-            this.FindControl<Button>("CloseButton")!.IsVisible = false;
-            this.FindControl<Button>("SettingsButton")!.IsVisible = false;
-            this.FindControl<TextBlock>("LogoText")!.IsVisible = false;
-
-            var titleText = this.FindControl<TextBlock>("TitleText")!;
-            titleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-            titleText.FontWeight = FontWeight.Bold;
+            this.editorClient.EditorExited -= this.OnEditorExited;
         }
 
-        private async void OnWindowActivatedMacOS(object? sender, EventArgs e)
+        this.editorControl?.Dispose();
+        this.editorClient?.Dispose();
+    }
+
+    private async void OnWindowOpened(object? sender, EventArgs e)
+    {
+        this.Opened -= this.OnWindowOpened;
+
+        this.DeferMacOSNativeTransparency();
+
+        await this.InitializeEditorAsync();
+    }
+
+    private async Task InitializeEditorAsync()
+    {
+        EditorPathDetector.PopulateUnsetPaths(this.settings);
+        await this.ShowSettingsPersistenceErrorIfNeededAsync();
+
+        while (true)
         {
             try
             {
-                // Yield to Background priority so Avalonia finishes any internal
-                // NSWindow style mask resets before we reapply our overrides.
-                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                this.editorClient = EditorClientFactory.Create(this.settings);
+                break;
+            }
+            catch (Exception)
+            {
+                string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
+                if (await this.ShowSettingsDialogAsync($"Please specify the path to {editorName}") == Dialogs.SettingsWindow.Result.Cancel)
+                {
+                    this.Close();
+                    return;
+                }
+            }
+        }
+
+        this.editorControl = new EditorControl(this.editorClient);
+        var editorBorder = this.FindControl<Border>("NeovimBorder")!;
+        editorBorder.Child = this.editorControl;
+
+        this.editorClient.EditorExited += this.OnEditorExited;
+
+        this.editorClient.Command("set mouse=a");
+
+        this.editorClient.TitleChanged += (string title) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var effectiveTitle = string.IsNullOrEmpty(title) ? "AeroVim" : title;
+                this.Title = effectiveTitle;
+                var titleText = this.FindControl<TextBlock>("TitleText");
+                if (titleText != null)
+                {
+                    titleText.Text = effectiveTitle;
+                }
+            });
+         };
+
+        this.editorClient.ForegroundColorChanged += (int intColor) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var color = Helpers.GetAvaloniaColor(intColor);
+                var brush = new Avalonia.Media.SolidColorBrush(color);
+                var titleText = this.FindControl<TextBlock>("TitleText");
+                if (titleText != null)
+                {
+                    titleText.Foreground = brush;
+                }
+
+                this.FindControl<Button>("SettingsButton")!.Foreground = brush;
+                this.FindControl<Button>("MinimizeButton")!.Foreground = brush;
+                this.FindControl<Button>("MaximizeButton")!.Foreground = brush;
+                this.FindControl<Button>("CloseButton")!.Foreground = brush;
+            });
+         };
+
+        this.editorClient.BackgroundColorChanged += (int intColor) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                this.currentBackgroundColor = intColor;
+                this.settings.BackgroundColor = intColor;
+                this.settings.Save();
+                this.UpdateBackgroundOpacity();
+            });
+          };
+
+        this.settings.PropertyChanged += (sender, propChangedArgs) =>
+        {
+            switch (propChangedArgs.PropertyName)
+            {
+                case nameof(AppSettings.EnableBlurBehind):
+                case nameof(AppSettings.BlurType):
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        this.SetupBlurBehind();
+                        this.DeferMacOSNativeTransparency();
+                    });
+                    break;
+
+                case nameof(AppSettings.BackgroundOpacity):
+                    Dispatcher.UIThread.Post(() => this.UpdateBackgroundOpacity());
+                    break;
+                case nameof(AppSettings.EnableLigature):
+                    this.editorControl.EnableLigature = this.settings.EnableLigature;
+                    this.editorControl.InvalidateVisual();
+                    break;
+            }
+          };
+    }
+
+    private void SetupBlurBehind()
+    {
+        this.TransparencyBackgroundFallback = Brushes.Transparent;
+        this.Background = Brushes.Transparent;
+        this.UpdateTransparencyLevelHint();
+        this.UpdateBackgroundOpacity();
+    }
+
+    private void UpdateTransparencyLevelHint()
+    {
+        if (this.settings.EnableBlurBehind)
+        {
+            this.TransparencyLevelHint = new[] { this.GetRequestedTransparencyLevel() };
+        }
+        else
+        {
+            this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
+        }
+    }
+
+    /// <summary>
+    /// Defers macOS native transparency setup (transparent titlebar, traffic light
+    /// buttons) to <see cref="DispatcherPriority.Background"/> so that Avalonia
+    /// finishes processing the transparency level hint before we override NSWindow
+    /// properties. A no-op on non-macOS platforms.
+    /// </summary>
+    private void DeferMacOSNativeTransparency()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(
+            () =>
+            {
                 var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (nsWindow == IntPtr.Zero)
                 {
-                    Trace.WriteLine("AeroVim: macOS platform handle unavailable in OnWindowActivatedMacOS.");
+                    Trace.WriteLine("AeroVim: macOS platform handle unavailable, skipping native transparency setup.");
                     return;
                 }
 
                 MacOSInterop.SetTransparentTitlebar(nsWindow);
-            }
-            catch (Exception ex)
+            },
+            DispatcherPriority.Background);
+    }
+
+    private void UpdateBackgroundOpacity()
+    {
+        float opacity = this.isMacFullScreen ? 1f :
+            this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
+        IBrush backgroundBrush = new SolidColorBrush(Helpers.GetAvaloniaColor(this.currentBackgroundColor, opacity));
+
+        this.FindControl<Grid>("TitleBar")!.Background = backgroundBrush;
+        this.FindControl<Border>("NeovimBorder")!.Background = backgroundBrush;
+
+        if (this.editorControl != null)
+        {
+            this.editorControl.BackgroundAlpha = (byte)(opacity * 255);
+            this.editorControl.InvalidateVisual();
+        }
+    }
+
+    private void SetupMacOSTitleBar()
+    {
+        this.FindControl<Button>("MinimizeButton")!.IsVisible = false;
+        this.FindControl<Button>("MaximizeButton")!.IsVisible = false;
+        this.FindControl<Button>("CloseButton")!.IsVisible = false;
+        this.FindControl<Button>("SettingsButton")!.IsVisible = false;
+        this.FindControl<TextBlock>("LogoText")!.IsVisible = false;
+
+        var titleText = this.FindControl<TextBlock>("TitleText")!;
+        titleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        titleText.FontWeight = FontWeight.Bold;
+    }
+
+    private async void OnWindowActivatedMacOS(object? sender, EventArgs e)
+    {
+        try
+        {
+            // Yield to Background priority so Avalonia finishes any internal
+            // NSWindow style mask resets before we reapply our overrides.
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+            if (nsWindow == IntPtr.Zero)
             {
-                Trace.WriteLine($"AeroVim: OnWindowActivatedMacOS failed: {ex.Message}");
+                Trace.WriteLine("AeroVim: macOS platform handle unavailable in OnWindowActivatedMacOS.");
+                return;
             }
+
+            MacOSInterop.SetTransparentTitlebar(nsWindow);
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"AeroVim: OnWindowActivatedMacOS failed: {ex.Message}");
+        }
+    }
+
+    private async void OnEditorExited(int exitCode)
+    {
+        if (exitCode != 0)
+        {
+            string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
+            string message = exitCode == -1
+                ? $"{editorName} failed to start. Please check the executable path in Settings."
+                : $"{editorName} exited unexpectedly (exit code {exitCode}). Please verify the executable path in Settings.";
+
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await this.ShowSettingsDialogAsync(message);
+                this.Close();
+            });
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => this.Close());
+        }
+    }
+
+    private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await this.ShowSettingsDialogAsync();
+    }
+
+    private bool HasEditorConfigChanged(EditorType previousType, string previousNeovimPath, string previousVimPath)
+    {
+        if (this.settings.EditorType != previousType)
+        {
+            return true;
         }
 
-        private async void OnEditorExited(int exitCode)
+        if (this.settings.EditorType == EditorType.Neovim
+            && !string.Equals(this.settings.NeovimPath, previousNeovimPath, StringComparison.Ordinal))
         {
-            if (exitCode != 0)
-            {
-                string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
-                string message = exitCode == -1
-                    ? $"{editorName} failed to start. Please check the executable path in Settings."
-                    : $"{editorName} exited unexpectedly (exit code {exitCode}). Please verify the executable path in Settings.";
+            return true;
+        }
 
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    await this.ShowSettingsDialogAsync(message);
-                    this.Close();
-                });
+        if (this.settings.EditorType == EditorType.Vim
+            && !string.Equals(this.settings.VimPath, previousVimPath, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private WindowTransparencyLevel GetRequestedTransparencyLevel()
+    {
+        return this.settings.BlurType switch
+        {
+            0 => WindowTransparencyLevel.Blur,
+            1 => WindowTransparencyLevel.AcrylicBlur,
+            2 => WindowTransparencyLevel.Mica,
+            3 => WindowTransparencyLevel.Transparent,
+            _ => WindowTransparencyLevel.None,
+        };
+    }
+
+    private async Task ShowTransparencyMismatchDialogAsync()
+    {
+        if (!this.settings.EnableBlurBehind)
+        {
+            return;
+        }
+
+        var requestedLevel = this.GetRequestedTransparencyLevel();
+
+        // Yield to let Avalonia process the TransparencyLevelHint change.
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+
+        // Poll briefly for the platform to finish applying the effect.
+        // Some compositors need extra time beyond the dispatcher yield.
+        for (int i = 0; i < 5; i++)
+        {
+            if (this.ActualTransparencyLevel == requestedLevel)
+            {
+                return;
+            }
+
+            await Task.Delay(100);
+        }
+
+        var actualLevel = this.ActualTransparencyLevel;
+        if (actualLevel == requestedLevel)
+        {
+            return;
+        }
+
+        var dialog = new Dialogs.MessageWindow(
+            $"The requested transparency level {requestedLevel} is not supported on your system. Falling back to {actualLevel}",
+            "Transparency Level Fallback");
+        await dialog.ShowDialog(this);
+    }
+
+    private async Task ShowSettingsPersistenceErrorIfNeededAsync()
+    {
+        if (string.IsNullOrEmpty(this.settings.LastPersistenceError))
+        {
+            return;
+        }
+
+        var dialog = new Dialogs.MessageWindow(
+            $"Settings could not be fully loaded or saved:\n{this.settings.LastPersistenceError}",
+            "Settings Warning");
+        await dialog.ShowDialog(this);
+        this.settings.ClearLastPersistenceError();
+    }
+
+    private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Button)
+        {
+            return;
+        }
+
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (e.ClickCount == 2)
+            {
+                this.WindowState = this.WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
             }
             else
             {
-                Dispatcher.UIThread.Post(() => this.Close());
+                this.BeginMoveDrag(e);
             }
         }
+    }
 
-        private async void SettingsButton_Click(object sender, RoutedEventArgs e)
-        {
-            await this.ShowSettingsDialogAsync();
-        }
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        this.WindowState = WindowState.Minimized;
+    }
 
-        private bool HasEditorConfigChanged(EditorType previousType, string previousNeovimPath, string previousVimPath)
-        {
-            if (this.settings.EditorType != previousType)
-            {
-                return true;
-            }
+    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        this.WindowState = this.WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+    }
 
-            if (this.settings.EditorType == EditorType.Neovim
-                && !string.Equals(this.settings.NeovimPath, previousNeovimPath, StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            if (this.settings.EditorType == EditorType.Vim
-                && !string.Equals(this.settings.VimPath, previousVimPath, StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private WindowTransparencyLevel GetRequestedTransparencyLevel()
-        {
-            return this.settings.BlurType switch
-            {
-                0 => WindowTransparencyLevel.Blur,
-                1 => WindowTransparencyLevel.AcrylicBlur,
-                2 => WindowTransparencyLevel.Mica,
-                3 => WindowTransparencyLevel.Transparent,
-                _ => WindowTransparencyLevel.None,
-            };
-        }
-
-        private async Task ShowTransparencyMismatchDialogAsync()
-        {
-            if (!this.settings.EnableBlurBehind)
-            {
-                return;
-            }
-
-            var requestedLevel = this.GetRequestedTransparencyLevel();
-
-            // Yield to let Avalonia process the TransparencyLevelHint change.
-            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-
-            // Poll briefly for the platform to finish applying the effect.
-            // Some compositors need extra time beyond the dispatcher yield.
-            for (int i = 0; i < 5; i++)
-            {
-                if (this.ActualTransparencyLevel == requestedLevel)
-                {
-                    return;
-                }
-
-                await Task.Delay(100);
-            }
-
-            var actualLevel = this.ActualTransparencyLevel;
-            if (actualLevel == requestedLevel)
-            {
-                return;
-            }
-
-            var dialog = new Dialogs.MessageWindow(
-                $"The requested transparency level {requestedLevel} is not supported on your system. Falling back to {actualLevel}",
-                "Transparency Level Fallback");
-            await dialog.ShowDialog(this);
-        }
-
-        private async Task ShowSettingsPersistenceErrorIfNeededAsync()
-        {
-            if (string.IsNullOrEmpty(this.settings.LastPersistenceError))
-            {
-                return;
-            }
-
-            var dialog = new Dialogs.MessageWindow(
-                $"Settings could not be fully loaded or saved:\n{this.settings.LastPersistenceError}",
-                "Settings Warning");
-            await dialog.ShowDialog(this);
-            this.settings.ClearLastPersistenceError();
-        }
-
-        private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
-        {
-            if (e.Source is Button)
-            {
-                return;
-            }
-
-            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-            {
-                if (e.ClickCount == 2)
-                {
-                    this.WindowState = this.WindowState == WindowState.Maximized
-                        ? WindowState.Normal
-                        : WindowState.Maximized;
-                }
-                else
-                {
-                    this.BeginMoveDrag(e);
-                }
-            }
-        }
-
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = WindowState.Minimized;
-        }
-
-        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = this.WindowState == WindowState.Maximized
-                ? WindowState.Normal
-                : WindowState.Maximized;
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            this.Close();
-        }
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        this.Close();
     }
 }

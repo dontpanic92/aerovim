@@ -3,47 +3,44 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace AeroVim
-{
-    using System;
+namespace AeroVim;
 
-    using Avalonia;
-    using Avalonia.Controls;
-    using Avalonia.Controls.ApplicationLifetimes;
-    using Avalonia.Markup.Xaml;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+
+/// <summary>
+/// The Avalonia application.
+/// </summary>
+public class App : Application
+{
+    /// <inheritdoc />
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    /// <inheritdoc />
+    public override void OnFrameworkInitializationCompleted()
+    {
+        if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.MainWindow = new MainWindow();
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
 
     /// <summary>
-    /// The Avalonia application.
+    /// Handles the Preferences menu item click by opening the settings dialog.
     /// </summary>
-    public class App : Application
+    private async void OnPreferencesClicked(object sender, EventArgs e)
     {
-        /// <inheritdoc />
-        public override void Initialize()
+        if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && desktop.MainWindow is MainWindow mainWindow)
         {
-            AvaloniaXamlLoader.Load(this);
-        }
-
-        /// <inheritdoc />
-        public override void OnFrameworkInitializationCompleted()
-        {
-            if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            {
-                desktop.MainWindow = new MainWindow();
-            }
-
-            base.OnFrameworkInitializationCompleted();
-        }
-
-        /// <summary>
-        /// Handles the Preferences menu item click by opening the settings dialog.
-        /// </summary>
-        private async void OnPreferencesClicked(object sender, EventArgs e)
-        {
-            if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-                && desktop.MainWindow is MainWindow mainWindow)
-            {
-                await mainWindow.ShowSettingsDialogAsync();
-            }
+            await mainWindow.ShowSettingsDialogAsync();
         }
     }
 }

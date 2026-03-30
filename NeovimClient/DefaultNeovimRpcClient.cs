@@ -3,20 +3,19 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace AeroVim.NeovimClient
+namespace AeroVim.NeovimClient;
+
+/// <summary>
+/// The default neovim client.
+/// </summary>
+public class DefaultNeovimRpcClient : NeovimRpcClient<Events.IRedrawEvent>
 {
     /// <summary>
-    /// The default neovim client.
+    /// Initializes a new instance of the <see cref="DefaultNeovimRpcClient"/> class.
     /// </summary>
-    public class DefaultNeovimRpcClient : NeovimRpcClient<Events.IRedrawEvent>
+    /// <param name="path">The path to neovim.</param>
+    public DefaultNeovimRpcClient(string path)
+        : base(path, new DefaultRedrawEventFactory())
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DefaultNeovimRpcClient"/> class.
-        /// </summary>
-        /// <param name="path">The path to neovim.</param>
-        public DefaultNeovimRpcClient(string path)
-            : base(path, new DefaultRedrawEventFactory())
-        {
-        }
     }
 }
