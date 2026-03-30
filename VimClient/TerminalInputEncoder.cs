@@ -143,7 +143,7 @@ public static class TerminalInputEncoder
         if (alt && !ctrl && keyName.Length == 1)
         {
             char ch = shift ? char.ToUpper(keyName[0]) : keyName[0];
-            return "\x1B" + ch;
+            return $"\x1B{ch}";
         }
 
         // Look up unmodified special key

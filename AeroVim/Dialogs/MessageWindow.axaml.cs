@@ -35,7 +35,7 @@ public partial class MessageWindow : Window
         this.FindControl<TextBlock>("MessageTextBlock")!.Text = message;
     }
 
-    private void Ok_Click(object sender, RoutedEventArgs e)
+    private void Ok_Click(object? sender, RoutedEventArgs e)
     {
         this.Close();
     }

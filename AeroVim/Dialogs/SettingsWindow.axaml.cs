@@ -160,19 +160,19 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void Ok_Click(object sender, RoutedEventArgs e)
+    private void Ok_Click(object? sender, RoutedEventArgs e)
     {
         this.CloseReason = Result.Ok;
         this.Close();
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e)
+    private void Cancel_Click(object? sender, RoutedEventArgs e)
     {
         this.CloseReason = Result.Cancel;
         this.Close();
     }
 
-    private async void Browse_Click(object sender, RoutedEventArgs e)
+    private async void Browse_Click(object? sender, RoutedEventArgs e)
     {
         var topLevel = TopLevel.GetTopLevel(this);
         var fileTypeFilters = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
@@ -199,7 +199,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void Detect_Click(object sender, RoutedEventArgs e)
+    private async void Detect_Click(object? sender, RoutedEventArgs e)
     {
         var detected = EditorPathDetector.FindNeovimInPath();
         if (detected is null)
@@ -230,7 +230,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void VimBrowse_Click(object sender, RoutedEventArgs e)
+    private async void VimBrowse_Click(object? sender, RoutedEventArgs e)
     {
         var topLevel = TopLevel.GetTopLevel(this);
         var fileTypeFilters = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
@@ -257,7 +257,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async void VimDetect_Click(object sender, RoutedEventArgs e)
+    private async void VimDetect_Click(object? sender, RoutedEventArgs e)
     {
         var detected = EditorPathDetector.FindVimInPath();
         if (detected is null)

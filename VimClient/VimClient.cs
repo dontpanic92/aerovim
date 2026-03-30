@@ -180,7 +180,7 @@ public sealed class VimClient : IEditorClient
         }
 
         this.Input("\x1B");
-        this.Input(":" + command + "\r");
+        this.Input($":{command}\r");
     }
 
     /// <summary>
@@ -406,7 +406,7 @@ public sealed class VimClient : IEditorClient
         {
             string command = this.pendingCommands.Dequeue();
             this.Input("\x1B");
-            this.Input(":" + command + "\r");
+            this.Input($":{command}\r");
         }
     }
 

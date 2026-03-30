@@ -418,7 +418,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+    private async void SettingsButton_Click(object? sender, RoutedEventArgs e)
     {
         await this.ShowSettingsDialogAsync();
     }
@@ -507,7 +507,7 @@ public partial class MainWindow : Window
         this.settings.ClearLastPersistenceError();
     }
 
-    private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
+    private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.Source is Button)
         {
@@ -529,19 +529,19 @@ public partial class MainWindow : Window
         }
     }
 
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    private void MinimizeButton_Click(object? sender, RoutedEventArgs e)
     {
         this.WindowState = WindowState.Minimized;
     }
 
-    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
+    private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
     {
         this.WindowState = this.WindowState == WindowState.Maximized
             ? WindowState.Normal
             : WindowState.Maximized;
     }
 
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         this.Close();
     }

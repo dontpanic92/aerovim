@@ -40,13 +40,13 @@ public partial class ConfirmWindow : Window
     /// </summary>
     public bool Confirmed { get; private set; }
 
-    private void Yes_Click(object sender, RoutedEventArgs e)
+    private void Yes_Click(object? sender, RoutedEventArgs e)
     {
         this.Confirmed = true;
         this.Close();
     }
 
-    private void No_Click(object sender, RoutedEventArgs e)
+    private void No_Click(object? sender, RoutedEventArgs e)
     {
         this.Confirmed = false;
         this.Close();

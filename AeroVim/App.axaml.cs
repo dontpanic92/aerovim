@@ -35,7 +35,7 @@ public class App : Application
     /// <summary>
     /// Handles the Preferences menu item click by opening the settings dialog.
     /// </summary>
-    private async void OnPreferencesClicked(object sender, EventArgs e)
+    private async void OnPreferencesClicked(object? sender, EventArgs e)
     {
         if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
             && desktop.MainWindow is MainWindow mainWindow)

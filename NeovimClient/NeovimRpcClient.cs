@@ -118,7 +118,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     {
         if (name != "redraw")
         {
-            Trace.WriteLine("Unexpected notification received " + name);
+            Trace.WriteLine($"Unexpected notification received {name}");
             return;
         }
 

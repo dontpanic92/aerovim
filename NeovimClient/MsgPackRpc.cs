@@ -269,14 +269,14 @@ public sealed class MsgPackRpc : IDisposable
             case 0:
                 if (list.Count != 4)
                 {
-                    throw new InvalidDataException("Wrong MsgPackRpc format: Request must have 4 elements but " + list.Count + " received.");
+                    throw new InvalidDataException($"Wrong MsgPackRpc format: Request must have 4 elements but {list.Count} received.");
                 }
 
                 break;
             case 1:
                 if (list.Count != 4)
                 {
-                    throw new InvalidDataException("Wrong MsgPackRpc format: Response must have 4 elements but " + list.Count + " received.");
+                    throw new InvalidDataException($"Wrong MsgPackRpc format: Response must have 4 elements but {list.Count} received.");
                 }
 
                 this.OnResponse(list[1].AsUInt32(), list[2], list[3]);
@@ -284,13 +284,13 @@ public sealed class MsgPackRpc : IDisposable
             case 2:
                 if (list.Count != 3)
                 {
-                    throw new InvalidDataException("Wrong MsgPackRpc format: Notification must have 3 elements but " + list.Count + " received.");
+                    throw new InvalidDataException($"Wrong MsgPackRpc format: Notification must have 3 elements but {list.Count} received.");
                 }
 
                 this.OnNotification(list[1].AsString(), list[2].AsList());
                 break;
             default:
-                throw new InvalidDataException("Unknown type of message received. Type: " + type);
+                throw new InvalidDataException($"Unknown type of message received. Type: {type}");
         }
     }
 

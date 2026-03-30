@@ -113,9 +113,7 @@ public static class KeyMapping
             output += "A-";
         }
 
-        output += input + ">";
-
-        return output;
+        return $"{output}{input}>";
     }
 
     private static string? KeyToBaseCharacter(Key key)

@@ -248,7 +248,7 @@ internal sealed class NativePtyConnection : IDisposable
         int i = 0;
         foreach (var kv in env)
         {
-            IntPtr entry = Marshal.StringToHGlobalAnsi(kv.Key + "=" + kv.Value);
+            IntPtr entry = Marshal.StringToHGlobalAnsi($"{kv.Key}={kv.Value}");
             allocations.Add(entry);
             Marshal.WriteIntPtr(envp, IntPtr.Size * i, entry);
             i++;
