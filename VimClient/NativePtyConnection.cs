@@ -111,7 +111,7 @@ namespace AeroVim.VimClient
         /// <summary>
         /// Occurs when the child process has exited.
         /// </summary>
-        public event EventHandler ProcessExited;
+        public event EventHandler? ProcessExited;
 
         /// <summary>
         /// Gets the child process ID.
@@ -234,7 +234,7 @@ namespace AeroVim.VimClient
 
             for (int i = 0; i < (args?.Length ?? 0); i++)
             {
-                IntPtr argPtr = Marshal.StringToHGlobalAnsi(args[i]);
+                IntPtr argPtr = Marshal.StringToHGlobalAnsi(args![i]);
                 allocations.Add(argPtr);
                 Marshal.WriteIntPtr(argv, IntPtr.Size * (i + 1), argPtr);
             }

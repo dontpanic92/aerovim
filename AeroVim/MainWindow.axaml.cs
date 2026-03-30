@@ -3,6 +3,8 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
+#pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
+
 namespace AeroVim
 {
     using System;
@@ -31,8 +33,8 @@ namespace AeroVim
         private int currentBackgroundColor;
         private bool isMacFullScreen;
         private bool isSettingsDialogOpen;
-        private IEditorClient editorClient;
-        private EditorControl editorControl;
+        private IEditorClient? editorClient;
+        private EditorControl? editorControl;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MainWindow"/> class.
@@ -59,7 +61,7 @@ namespace AeroVim
         /// </summary>
         /// <param name="promptText">Optional prompt text displayed in the dialog.</param>
         /// <returns>The dialog result indicating whether the user accepted or cancelled.</returns>
-        internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string promptText = null)
+        internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string? promptText = null)
         {
             if (this.isSettingsDialogOpen)
             {
@@ -106,7 +108,7 @@ namespace AeroVim
 
             if (change.Property == WindowStateProperty && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                var newState = (WindowState)change.NewValue;
+                var newState = (WindowState)change.NewValue!;
                 Dispatcher.UIThread.Post(
                     () =>
                     {
@@ -120,14 +122,14 @@ namespace AeroVim
                         if (newState == WindowState.FullScreen)
                         {
                             this.isMacFullScreen = true;
-                            this.FindControl<Grid>("TitleBar").IsVisible = false;
+                            this.FindControl<Grid>("TitleBar")!.IsVisible = false;
                             MacOSInterop.ConfigureForFullScreen(nsWindow);
                             this.UpdateBackgroundOpacity();
                         }
                         else
                         {
                             this.isMacFullScreen = false;
-                            this.FindControl<Grid>("TitleBar").IsVisible = true;
+                            this.FindControl<Grid>("TitleBar")!.IsVisible = true;
                             MacOSInterop.SetTransparentTitlebar(nsWindow);
                             this.UpdateBackgroundOpacity();
                         }
@@ -140,7 +142,7 @@ namespace AeroVim
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
-            if (this.editorClient != null && KeyMapping.TryMap(e, out var text))
+            if (this.editorClient != null && KeyMapping.TryMap(e, out var text) && text != null)
             {
                 this.editorClient.Input(text);
                 e.Handled = true;
@@ -190,7 +192,7 @@ namespace AeroVim
             this.editorClient?.Dispose();
         }
 
-        private async void OnWindowOpened(object sender, EventArgs e)
+        private async void OnWindowOpened(object? sender, EventArgs e)
         {
             this.Opened -= this.OnWindowOpened;
 
@@ -223,7 +225,7 @@ namespace AeroVim
             }
 
             this.editorControl = new EditorControl(this.editorClient);
-            var editorBorder = this.FindControl<Border>("NeovimBorder");
+            var editorBorder = this.FindControl<Border>("NeovimBorder")!;
             editorBorder.Child = this.editorControl;
 
             this.editorClient.EditorExited += this.OnEditorExited;
@@ -256,10 +258,10 @@ namespace AeroVim
                         titleText.Foreground = brush;
                     }
 
-                    this.FindControl<Button>("SettingsButton").Foreground = brush;
-                    this.FindControl<Button>("MinimizeButton").Foreground = brush;
-                    this.FindControl<Button>("MaximizeButton").Foreground = brush;
-                    this.FindControl<Button>("CloseButton").Foreground = brush;
+                    this.FindControl<Button>("SettingsButton")!.Foreground = brush;
+                    this.FindControl<Button>("MinimizeButton")!.Foreground = brush;
+                    this.FindControl<Button>("MaximizeButton")!.Foreground = brush;
+                    this.FindControl<Button>("CloseButton")!.Foreground = brush;
                 });
              };
 
@@ -352,8 +354,8 @@ namespace AeroVim
                 this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
             IBrush backgroundBrush = new SolidColorBrush(Helpers.GetAvaloniaColor(this.currentBackgroundColor, opacity));
 
-            this.FindControl<Grid>("TitleBar").Background = backgroundBrush;
-            this.FindControl<Border>("NeovimBorder").Background = backgroundBrush;
+            this.FindControl<Grid>("TitleBar")!.Background = backgroundBrush;
+            this.FindControl<Border>("NeovimBorder")!.Background = backgroundBrush;
 
             if (this.editorControl != null)
             {
@@ -364,18 +366,18 @@ namespace AeroVim
 
         private void SetupMacOSTitleBar()
         {
-            this.FindControl<Button>("MinimizeButton").IsVisible = false;
-            this.FindControl<Button>("MaximizeButton").IsVisible = false;
-            this.FindControl<Button>("CloseButton").IsVisible = false;
-            this.FindControl<Button>("SettingsButton").IsVisible = false;
-            this.FindControl<TextBlock>("LogoText").IsVisible = false;
+            this.FindControl<Button>("MinimizeButton")!.IsVisible = false;
+            this.FindControl<Button>("MaximizeButton")!.IsVisible = false;
+            this.FindControl<Button>("CloseButton")!.IsVisible = false;
+            this.FindControl<Button>("SettingsButton")!.IsVisible = false;
+            this.FindControl<TextBlock>("LogoText")!.IsVisible = false;
 
-            var titleText = this.FindControl<TextBlock>("TitleText");
+            var titleText = this.FindControl<TextBlock>("TitleText")!;
             titleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
             titleText.FontWeight = FontWeight.Bold;
         }
 
-        private async void OnWindowActivatedMacOS(object sender, EventArgs e)
+        private async void OnWindowActivatedMacOS(object? sender, EventArgs e)
         {
             try
             {

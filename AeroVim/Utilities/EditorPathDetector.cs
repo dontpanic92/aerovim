@@ -19,7 +19,7 @@ namespace AeroVim.Utilities
         /// Searches the system PATH for a Neovim executable.
         /// </summary>
         /// <returns>The full absolute path to the nvim executable, or <c>null</c> if not found.</returns>
-        public static string FindNeovimInPath()
+        public static string? FindNeovimInPath()
         {
             var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "nvim.exe" : "nvim";
             return FindInPath(executableName);
@@ -29,7 +29,7 @@ namespace AeroVim.Utilities
         /// Searches the system PATH for a Vim executable.
         /// </summary>
         /// <returns>The full absolute path to the vim executable, or <c>null</c> if not found.</returns>
-        public static string FindVimInPath()
+        public static string? FindVimInPath()
         {
             var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "vim.exe" : "vim";
             return FindInPath(executableName);
@@ -72,7 +72,7 @@ namespace AeroVim.Utilities
         /// </summary>
         /// <param name="executableName">The executable file name to search for.</param>
         /// <returns>The full absolute path to the executable, or <c>null</c> if not found.</returns>
-        private static string FindInPath(string executableName)
+        private static string? FindInPath(string executableName)
         {
             var pathVar = Environment.GetEnvironmentVariable("PATH");
             if (string.IsNullOrEmpty(pathVar))

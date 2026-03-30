@@ -11,6 +11,15 @@ namespace AeroVim.Editor
     public sealed class Screen
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="Screen"/> class.
+        /// </summary>
+        /// <param name="cells">The cell grid.</param>
+        public Screen(Cell[,] cells)
+        {
+            this.Cells = cells;
+        }
+
+        /// <summary>
         /// Gets or sets the cell grid.
         /// </summary>
         public Cell[,] Cells { get; set; }

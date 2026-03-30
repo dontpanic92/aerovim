@@ -23,7 +23,7 @@ namespace AeroVim.NeovimClient
 
         private readonly DefaultNeovimRpcClient neovim;
         private readonly object screenLock = new object();
-        private readonly Screen screen = new Screen();
+        private readonly Screen screen = new Screen(new Cell[0, 0]);
 
         private int foregroundColor = DefaultForegroundColor;
         private int backgroundColor = DefaultBackgroundColor;
@@ -35,10 +35,12 @@ namespace AeroVim.NeovimClient
 
         private IList<ModeInfo> modeInfo = new List<ModeInfo>();
         private int modeIndex = 0;
-        private string title;
-        private string iconTitle;
-        private Cell[,] cells;
-        private bool[] dirtyRows;
+        private string title = string.Empty;
+        private string iconTitle = string.Empty;
+#pragma warning disable SA1011 // Closing square bracket should be followed by a space
+        private Cell[,]? cells;
+        private bool[]? dirtyRows;
+#pragma warning restore SA1011 // Closing square bracket should be followed by a space
         private bool allDirty;
         private (int Row, int Col) cursorPosition = (0, 0);
 
@@ -59,32 +61,32 @@ namespace AeroVim.NeovimClient
         /// <summary>
         /// Raised when the title changes.
         /// </summary>
-        public event TitleChangedHandler TitleChanged;
+        public event TitleChangedHandler? TitleChanged;
 
         /// <summary>
         /// Raised when the editor should redraw.
         /// </summary>
-        public event RedrawHandler Redraw;
+        public event RedrawHandler? Redraw;
 
         /// <summary>
         /// Raised when the editor process exits.
         /// </summary>
-        public event EditorExitedHandler EditorExited;
+        public event EditorExitedHandler? EditorExited;
 
         /// <summary>
         /// Raised when the foreground color changes.
         /// </summary>
-        public event ColorChangedHandler ForegroundColorChanged;
+        public event ColorChangedHandler? ForegroundColorChanged;
 
         /// <summary>
         /// Raised when the background color changes.
         /// </summary>
-        public event ColorChangedHandler BackgroundColorChanged;
+        public event ColorChangedHandler? BackgroundColorChanged;
 
         /// <summary>
         /// Raised when the font changes.
         /// </summary>
-        public event FontChangedHandler FontChanged;
+        public event FontChangedHandler? FontChanged;
 
         /// <summary>
         /// Gets the Font settings.
@@ -94,11 +96,11 @@ namespace AeroVim.NeovimClient
         /// <summary>
         /// Gets the mode info.
         /// </summary>
-        public ModeInfo ModeInfo => this.modeInfo?.Count > this.modeIndex ? this.modeInfo[this.modeIndex] : null;
+        public ModeInfo? ModeInfo => this.modeInfo?.Count > this.modeIndex ? this.modeInfo[this.modeIndex] : null;
 
-        private int Height => this.cells.GetLength(0);
+        private int Height => this.cells!.GetLength(0);
 
-        private int Width => this.cells.GetLength(1);
+        private int Width => this.cells!.GetLength(1);
 
         /// <summary>
         /// Try to resize the screen.
@@ -182,7 +184,7 @@ namespace AeroVim.NeovimClient
         /// Get the screen.
         /// </summary>
         /// <returns>The Screen.</returns>
-        public Screen GetScreen()
+        public Screen? GetScreen()
         {
             lock (this.screenLock)
             {
@@ -364,7 +366,7 @@ namespace AeroVim.NeovimClient
             {
                 for (int j = 0; j < this.Width; j++)
                 {
-                    this.ClearCell(ref this.cells[i, j]);
+                    this.ClearCell(ref this.cells![i, j]);
                 }
             }
 
@@ -377,7 +379,7 @@ namespace AeroVim.NeovimClient
             int row = this.cursorPosition.Row;
             for (int j = this.cursorPosition.Col; j < this.Width; j++)
             {
-                this.ClearCell(ref this.cells[row, j]);
+                this.ClearCell(ref this.cells![row, j]);
             }
 
             if (this.dirtyRows != null)
@@ -395,7 +397,7 @@ namespace AeroVim.NeovimClient
 
             foreach (var ch in text)
             {
-                this.cells[this.cursorPosition.Row, this.cursorPosition.Col].Set(ch, foreground, background, special, reverse, italic, bold, underline, undercurl);
+                this.cells![this.cursorPosition.Row, this.cursorPosition.Col].Set(ch, foreground, background, special, reverse, italic, bold, underline, undercurl);
                 this.cursorPosition.Col++;
             }
         }
@@ -425,13 +427,13 @@ namespace AeroVim.NeovimClient
                 for (int i = 0; i < this.scrollRegion.Bottom - this.scrollRegion.Top + 1 - Math.Abs(count); i++)
                 {
                     int deltaRow = i * Math.Sign(count);
-                    this.cells[destBegin + deltaRow, j] = this.cells[srcBegin + deltaRow, j];
+                    this.cells![destBegin + deltaRow, j] = this.cells[srcBegin + deltaRow, j];
                 }
 
                 for (int i = 0; i < Math.Abs(count); i++)
                 {
                     int deltaRow = -i * Math.Sign(count);
-                    this.ClearCell(ref this.cells[clearBegin + deltaRow, j]);
+                    this.ClearCell(ref this.cells![clearBegin + deltaRow, j]);
                 }
             }
 

@@ -75,7 +75,7 @@ namespace AeroVim.Editor
         /// <summary>
         /// Gets the current mode info (cursor shape, size, blink state).
         /// </summary>
-        ModeInfo ModeInfo { get; }
+        ModeInfo? ModeInfo { get; }
 
         /// <summary>
         /// Gets the current font settings.
@@ -116,6 +116,6 @@ namespace AeroVim.Editor
         /// Get the current screen state for rendering.
         /// </summary>
         /// <returns>The current screen state, or null if not yet initialized.</returns>
-        Screen GetScreen();
+        Screen? GetScreen();
     }
 }

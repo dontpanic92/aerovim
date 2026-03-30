@@ -51,7 +51,7 @@ namespace AeroVim.NeovimClient
             return events;
         }
 
-        private static MsgPack.MessagePackObject TryGetValueFromDictionary(MsgPack.MessagePackObjectDictionary dict, string key)
+        private static MsgPack.MessagePackObject? TryGetValueFromDictionary(MsgPack.MessagePackObjectDictionary dict, string key)
         {
             if (dict.TryGetValue(key, out var value))
             {

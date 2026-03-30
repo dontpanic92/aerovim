@@ -54,7 +54,7 @@ namespace AeroVim
         /// <param name="e">The key event.</param>
         /// <param name="text">Converted text.</param>
         /// <returns>Whether the key has a map.</returns>
-        public static bool TryMap(Avalonia.Input.KeyEventArgs e, out string text)
+        public static bool TryMap(Avalonia.Input.KeyEventArgs e, out string? text)
         {
             bool control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -73,7 +73,7 @@ namespace AeroVim
                 return false;
             }
 
-            string baseChar = KeyToBaseCharacter(e.Key);
+            string? baseChar = KeyToBaseCharacter(e.Key);
             if (baseChar == null)
             {
                 text = null;
@@ -120,7 +120,7 @@ namespace AeroVim
             return output;
         }
 
-        private static string KeyToBaseCharacter(Key key)
+        private static string? KeyToBaseCharacter(Key key)
         {
             if (key >= Key.A && key <= Key.Z)
             {

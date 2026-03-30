@@ -15,13 +15,13 @@ namespace MsgPack
     /// </summary>
     public sealed class MessagePackObject : IEquatable<MessagePackObject>
     {
-        private readonly object value;
+        private readonly object? value;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MessagePackObject"/> class.
         /// </summary>
         /// <param name="value">Underlying value.</param>
-        public MessagePackObject(object value)
+        public MessagePackObject(object? value)
         {
             this.value = value;
         }
@@ -73,13 +73,13 @@ namespace MsgPack
         /// Convert to list.
         /// </summary>
         /// <returns>List value.</returns>
-        public IList<MessagePackObject> AsList() => (IList<MessagePackObject>)this.value;
+        public IList<MessagePackObject> AsList() => (IList<MessagePackObject>)this.value!;
 
         /// <summary>
         /// Convert to dictionary.
         /// </summary>
         /// <returns>Dictionary value.</returns>
-        public MessagePackObjectDictionary AsDictionary() => (MessagePackObjectDictionary)this.value;
+        public MessagePackObjectDictionary AsDictionary() => (MessagePackObjectDictionary)this.value!;
 
         /// <summary>
         /// Convert to enumerable.
@@ -96,15 +96,15 @@ namespace MsgPack
                 string text => text,
                 byte[] bytes => Encoding.UTF8.GetString(bytes),
                 IList<MessagePackObject> list => string.Join(string.Empty, list.Select(item => item.ToString())),
-                _ => this.value.ToString(),
+                _ => this.value?.ToString() ?? string.Empty,
             };
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj) => this.Equals(obj as MessagePackObject);
+        public override bool Equals(object? obj) => this.Equals(obj as MessagePackObject);
 
         /// <inheritdoc/>
-        public bool Equals(MessagePackObject other)
+        public bool Equals(MessagePackObject? other)
         {
             if (ReferenceEquals(other, null))
             {
@@ -150,6 +150,6 @@ namespace MsgPack
         /// Gets the raw value.
         /// </summary>
         /// <returns>The raw value.</returns>
-        internal object GetRawValue() => this.value;
+        internal object? GetRawValue() => this.value;
     }
 }

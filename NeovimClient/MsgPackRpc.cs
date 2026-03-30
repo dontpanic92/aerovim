@@ -64,7 +64,7 @@ namespace AeroVim.NeovimClient
         /// <summary>
         /// Gets or sets the handlers to process requests.
         /// </summary>
-        public RequestHandler RequestHandlers { get; set; }
+        public RequestHandler? RequestHandlers { get; set; }
 
         /// <summary>
         /// Gets or sets the handlers to process notifications.
@@ -333,7 +333,7 @@ namespace AeroVim.NeovimClient
             }
         }
 
-        private void WriteObject(ref MessagePackWriter packer, object value)
+        private void WriteObject(ref MessagePackWriter packer, object? value)
         {
             switch (value)
             {

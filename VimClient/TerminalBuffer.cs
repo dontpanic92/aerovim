@@ -14,10 +14,12 @@ namespace AeroVim.VimClient
     public class TerminalBuffer
     {
         private readonly object screenLock = new object();
-        private readonly Screen screen = new Screen();
+        private readonly Screen screen = new Screen(new Cell[0, 0]);
 
         private Cell[,] cells;
-        private Cell[,] altCells;
+#pragma warning disable SA1011
+        private Cell[,]? altCells;
+#pragma warning restore SA1011
         private bool usingAltBuffer;
 
         private int cursorRow;
@@ -527,7 +529,7 @@ namespace AeroVim.VimClient
                 if (this.usingAltBuffer && this.altCells != null)
                 {
                     this.cells = this.altCells;
-                    this.altCells = null;
+                    this.altCells = null!;
                     this.usingAltBuffer = false;
                     this.allDirty = true;
                 }
@@ -547,7 +549,7 @@ namespace AeroVim.VimClient
                 this.scrollTop = 0;
                 this.scrollBottom = this.Rows - 1;
                 this.usingAltBuffer = false;
-                this.altCells = null;
+                this.altCells = null!;
                 this.ClearRegion(0, 0, this.Rows - 1, this.Cols - 1);
                 this.allDirty = true;
             }
@@ -624,7 +626,7 @@ namespace AeroVim.VimClient
         /// Get the current screen state for rendering.
         /// </summary>
         /// <returns>A screen snapshot.</returns>
-        public Screen GetScreen()
+        public Screen? GetScreen()
         {
             lock (this.screenLock)
             {

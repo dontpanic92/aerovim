@@ -27,7 +27,7 @@ namespace AeroVim.Tests
             buffer.Resize(4, 3);
 
             var screen = buffer.GetScreen();
-            Assert.That(screen.Cells[0, 0].Character, Is.EqualTo((int?)'A'));
+            Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo((int?)'A'));
             Assert.That(screen.Cells[1, 1].Character, Is.EqualTo((int?)'Z'));
             Assert.That(screen.Cells[2, 3].Character, Is.EqualTo((int?)' '));
         }
@@ -46,7 +46,7 @@ namespace AeroVim.Tests
             buffer.ScrollUp(1);
 
             var screen = buffer.GetScreen();
-            Assert.That(screen.Cells[0, 0].Character, Is.EqualTo((int?)'B'));
+            Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo((int?)'B'));
             Assert.That(screen.Cells[1, 0].Character, Is.EqualTo((int?)' '));
         }
     }

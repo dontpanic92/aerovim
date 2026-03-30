@@ -23,27 +23,27 @@ namespace AeroVim.VimClient
     public sealed class VimClient : IEditorClient
     {
         private readonly string vimPath;
-        private readonly string workingDirectory;
+        private readonly string? workingDirectory;
         private readonly TerminalBuffer buffer;
         private readonly VtParser parser;
         private readonly object screenLock = new object();
         private readonly Queue<string> pendingCommands = new Queue<string>();
 
-        private NativePtyConnection ptyConnection;
-        private Task spawnTask;
+        private NativePtyConnection? ptyConnection;
+        private Task? spawnTask;
         private bool disposed;
         private int processExitHandled;
         private ModeInfo currentModeInfo;
-        private ColorChangedHandler foregroundColorChanged;
-        private ColorChangedHandler backgroundColorChanged;
-        private FontChangedHandler fontChanged;
+        private ColorChangedHandler? foregroundColorChanged;
+        private ColorChangedHandler? backgroundColorChanged;
+        private FontChangedHandler? fontChanged;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VimClient"/> class.
         /// </summary>
         /// <param name="vimPath">Path to the Vim executable.</param>
         /// <param name="workingDirectory">Optional working directory for Vim.</param>
-        public VimClient(string vimPath, string workingDirectory = null)
+        public VimClient(string vimPath, string? workingDirectory = null)
         {
             this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));
             this.workingDirectory = workingDirectory;
@@ -55,17 +55,17 @@ namespace AeroVim.VimClient
         /// <summary>
         /// Raised when the title changes.
         /// </summary>
-        public event TitleChangedHandler TitleChanged;
+        public event TitleChangedHandler? TitleChanged;
 
         /// <summary>
         /// Raised when the editor should redraw.
         /// </summary>
-        public event RedrawHandler Redraw;
+        public event RedrawHandler? Redraw;
 
         /// <summary>
         /// Raised when the editor process exits.
         /// </summary>
-        public event EditorExitedHandler EditorExited;
+        public event EditorExitedHandler? EditorExited;
 
         /// <summary>
         /// Raised when the foreground color changes.
@@ -162,7 +162,7 @@ namespace AeroVim.VimClient
                 return;
             }
 
-            string encoded = EncodeSgrMouse(button, action, modifier, row, col);
+            string? encoded = EncodeSgrMouse(button, action, modifier, row, col);
             if (encoded != null)
             {
                 byte[] bytes = Encoding.UTF8.GetBytes(encoded);
@@ -192,7 +192,7 @@ namespace AeroVim.VimClient
         /// Get the current screen state for rendering.
         /// </summary>
         /// <returns>The current screen state, or null if not yet initialized.</returns>
-        public Screen GetScreen()
+        public Screen? GetScreen()
         {
             lock (this.screenLock)
             {
@@ -212,7 +212,7 @@ namespace AeroVim.VimClient
             }
         }
 
-        private static string EncodeSgrMouse(string button, string action, string modifier, int row, int col)
+        private static string? EncodeSgrMouse(string button, string action, string modifier, int row, int col)
         {
             int cb;
 
@@ -313,7 +313,7 @@ namespace AeroVim.VimClient
                 var env = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
                 {
-                    env[(string)entry.Key] = (string)entry.Value;
+                    env[(string)entry.Key] = (string?)entry.Value ?? string.Empty;
                 }
 
                 env["TERM"] = "xterm-256color";
@@ -369,7 +369,7 @@ namespace AeroVim.VimClient
             {
                 while (!this.disposed)
                 {
-                    int bytesRead = await this.ptyConnection.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length).ConfigureAwait(false);
+                    int bytesRead = await this.ptyConnection!.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length).ConfigureAwait(false);
                     if (bytesRead == 0)
                     {
                         break;
@@ -389,7 +389,7 @@ namespace AeroVim.VimClient
             }
         }
 
-        private void OnProcessExited(object sender, EventArgs e)
+        private void OnProcessExited(object? sender, EventArgs e)
         {
             if (!this.disposed && Interlocked.CompareExchange(ref this.processExitHandled, 1, 0) == 0)
             {

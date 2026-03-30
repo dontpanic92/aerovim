@@ -34,7 +34,7 @@ namespace MsgPack
         /// <param name="key">Key value.</param>
         /// <param name="value">Output value.</param>
         /// <returns><see langword="true"/> when found.</returns>
-        public bool TryGetValue(string key, out MessagePackObject value)
+        public bool TryGetValue(string key, out MessagePackObject? value)
         {
             return this.TryGetValue(new MessagePackObject(key), out value);
         }

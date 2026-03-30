@@ -11,9 +11,16 @@ namespace AeroVim.Editor.Utilities
     public struct FontSettings
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="FontSettings"/> struct.
+        /// </summary>
+        public FontSettings()
+        {
+        }
+
+        /// <summary>
         /// Gets or sets the font name.
         /// </summary>
-        public string FontName { get; set; }
+        public string FontName { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the font point size.

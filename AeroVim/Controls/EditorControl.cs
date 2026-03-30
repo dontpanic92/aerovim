@@ -3,6 +3,8 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
+#pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
+
 namespace AeroVim.Controls
 {
     using System;
@@ -40,9 +42,9 @@ namespace AeroVim.Controls
         private readonly SKPaint cursorPaint = new SKPaint { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
 
         private TextLayoutParameters textParam;
-        private SKTypeface primaryTypeface;
+        private SKTypeface? primaryTypeface;
         private bool isDisposed;
-        private string pressedMouseButton;
+        private string? pressedMouseButton;
         private int redrawQueued;
 
         /// <summary>
@@ -344,7 +346,7 @@ namespace AeroVim.Controls
                 this.DisposeTypefaceCaches();
                 this.codePointTextCache.Clear();
                 this.primaryTypeface = newTypeface;
-                this.typefaceCache[new TypefaceKey(this.primaryTypeface.FamilyName, weight, slant)] = this.primaryTypeface;
+                this.typefaceCache[new TypefaceKey(this.primaryTypeface!.FamilyName, weight, slant)] = this.primaryTypeface;
                 this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
                 this.textPaint.TextSize = this.textParam.SkiaFontSize;
                 this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
@@ -596,11 +598,11 @@ namespace AeroVim.Controls
             var key = new TypefaceKey(this.textParam.FontName, weight, slant);
             if (!this.typefaceCache.TryGetValue(key, out var typeface))
             {
-                typeface = SKTypeface.FromFamilyName(this.textParam.FontName, weight, SKFontStyleWidth.Normal, slant) ?? this.primaryTypeface;
+                typeface = SKTypeface.FromFamilyName(this.textParam.FontName, weight, SKFontStyleWidth.Normal, slant) ?? this.primaryTypeface!;
                 this.typefaceCache[key] = typeface;
             }
 
-            return typeface;
+            return typeface!;
         }
 
         private string GetTextForCodePoint(int codePoint)
@@ -614,7 +616,7 @@ namespace AeroVim.Controls
             return text;
         }
 
-        private SKTypeface GetTypefaceForGlyph(int codePoint, SKFontStyleWeight weight, SKFontStyleSlant slant, SKTypeface styledTypeface, string text)
+        private SKTypeface? GetTypefaceForGlyph(int codePoint, SKFontStyleWeight weight, SKFontStyleSlant slant, SKTypeface styledTypeface, string text)
         {
             var key = new GlyphKey(this.textParam.FontName, weight, slant, codePoint);
             if (!this.glyphTypefaceCache.TryGetValue(key, out var fallbackTypeface))
@@ -622,7 +624,7 @@ namespace AeroVim.Controls
                 fallbackTypeface = styledTypeface != null && styledTypeface.ContainsGlyphs(text)
                     ? styledTypeface
                     : SKFontManager.Default.MatchCharacter(codePoint);
-                this.glyphTypefaceCache[key] = fallbackTypeface ?? styledTypeface;
+                this.glyphTypefaceCache[key] = (fallbackTypeface ?? styledTypeface)!;
             }
 
             return fallbackTypeface ?? styledTypeface;
@@ -650,7 +652,7 @@ namespace AeroVim.Controls
                     && this.Slant == other.Slant;
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return obj is TypefaceKey other && this.Equals(other);
             }
@@ -687,7 +689,7 @@ namespace AeroVim.Controls
                     && this.CodePoint == other.CodePoint;
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return obj is GlyphKey other && this.Equals(other);
             }
@@ -717,7 +719,7 @@ namespace AeroVim.Controls
             {
             }
 
-            public bool Equals(ICustomDrawOperation other) => false;
+            public bool Equals(ICustomDrawOperation? other) => false;
 
             public bool HitTest(Point p) => this.Bounds.Contains(p);
 

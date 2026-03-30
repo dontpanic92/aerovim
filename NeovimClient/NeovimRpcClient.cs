@@ -75,7 +75,7 @@ namespace AeroVim.NeovimClient
         /// <summary>
         /// Gets or sets the callback functions that will be called when Neovim crashs.
         /// </summary>
-        public NeovimExitedEventHandler NeovimExited { get; set; }
+        public NeovimExitedEventHandler? NeovimExited { get; set; }
 
         /// <summary>
         /// Gets the apis of UI part.
@@ -90,7 +90,7 @@ namespace AeroVim.NeovimClient
         /// <summary>
         /// Gets or sets the Redraw handlers.
         /// </summary>
-        public RedrawHandler Redraw { get; set; }
+        public RedrawHandler? Redraw { get; set; }
 
         /// <summary>
         /// Dispose.
@@ -129,7 +129,7 @@ namespace AeroVim.NeovimClient
             this.Redraw?.Invoke(this.redrawEventParser.Parse(rawEvents));
         }
 
-        private void Process_Exited(object sender, EventArgs e)
+        private void Process_Exited(object? sender, EventArgs e)
         {
             this.NeovimExited?.Invoke(this.process.ExitCode);
         }

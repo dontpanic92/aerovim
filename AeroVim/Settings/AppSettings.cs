@@ -38,7 +38,7 @@ namespace AeroVim.Settings
         private int backgroundColor = 0xFFFFFF;
 
         /// <inheritdoc />
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
         /// Gets the default settings instance.
@@ -226,7 +226,7 @@ namespace AeroVim.Settings
             return new AppSettings();
         }
 
-        private void SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (!Equals(field, value))
             {

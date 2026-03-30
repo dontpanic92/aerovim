@@ -114,7 +114,7 @@ namespace AeroVim.VimClient
             }
 
             // Handle modified arrow/special keys with xterm modifier encoding
-            if ((ctrl || shift || alt) && ArrowKeys.TryGetValue(keyName, out string arrowFinal))
+            if ((ctrl || shift || alt) && ArrowKeys.TryGetValue(keyName, out string? arrowFinal))
             {
                 int mod = GetXtermModifier(ctrl, shift, alt);
                 return $"\x1B[1;{mod}{arrowFinal}";
@@ -148,7 +148,7 @@ namespace AeroVim.VimClient
             }
 
             // Look up unmodified special key
-            if (SpecialKeys.TryGetValue(keyName, out string sequence))
+            if (SpecialKeys.TryGetValue(keyName, out string? sequence))
             {
                 return sequence;
             }

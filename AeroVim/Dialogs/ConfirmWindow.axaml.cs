@@ -3,6 +3,8 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
+#pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
+
 namespace AeroVim.Dialogs
 {
     using Avalonia.Controls;
@@ -30,7 +32,7 @@ namespace AeroVim.Dialogs
         {
             this.InitializeComponent();
             this.Title = title;
-            this.FindControl<TextBlock>("MessageTextBlock").Text = message;
+            this.FindControl<TextBlock>("MessageTextBlock")!.Text = message;
         }
 
         /// <summary>
