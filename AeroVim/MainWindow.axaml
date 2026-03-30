@@ -27,11 +27,8 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Spacer for macOS traffic light buttons (width set in code-behind) -->
-            <Border Grid.Column="0" Name="TrafficLightSpacer" Width="0" />
-
             <!-- Logo -->
-            <TextBlock Grid.Column="1"
+            <TextBlock Grid.Column="1" Name="LogoText"
                        Text="AeroVim" VerticalAlignment="Center"
                        Margin="8,0,8,0"
                        Foreground="White" FontSize="12" FontWeight="Bold" />

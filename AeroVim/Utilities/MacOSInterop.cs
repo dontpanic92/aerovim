@@ -28,16 +28,6 @@ namespace AeroVim.Utilities
                 return;
             }
 
-            // [NSColor clearColor]
-            IntPtr nsColorClass = NativeMethods.ObjCGetClass("NSColor");
-            IntPtr clearColor = NativeMethods.ObjCMsgSend(nsColorClass, NativeMethods.SelRegisterName("clearColor"));
-
-            // [window setBackgroundColor:[NSColor clearColor]]
-            NativeMethods.ObjCMsgSendIntPtr(nsWindow, NativeMethods.SelRegisterName("setBackgroundColor:"), clearColor);
-
-            // [window setOpaque:NO]
-            NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setOpaque:"), false);
-
             // [window setTitlebarSeparatorStyle:NSTitlebarSeparatorStyleNone] (0)
             NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitlebarSeparatorStyle:"), 0);
 
@@ -47,45 +37,9 @@ namespace AeroVim.Utilities
             // [window setTitleVisibility:NSWindowTitleHidden] (1)
             NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitleVisibility:"), 1);
 
-            // [window setHasShadow:YES]
-            NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setHasShadow:"), true);
-
             // Ensure native traffic light buttons are visible since we use
             // NoChrome (Avalonia won't manage them for us).
             ShowTrafficLightButtons(nsWindow);
-        }
-
-        /// <summary>
-        /// Restores the NSWindow to its default titlebar configuration.
-        /// Called when switching away from Transparent mode to allow Avalonia's
-        /// blur and vibrancy effects to work correctly.
-        /// </summary>
-        /// <param name="nsWindow">The NSWindow handle.</param>
-        public static void RestoreDefaultTitlebar(IntPtr nsWindow)
-        {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || nsWindow == IntPtr.Zero)
-            {
-                return;
-            }
-
-            // [NSColor windowBackgroundColor]
-            IntPtr nsColorClass = NativeMethods.ObjCGetClass("NSColor");
-            IntPtr windowBgColor = NativeMethods.ObjCMsgSend(nsColorClass, NativeMethods.SelRegisterName("windowBackgroundColor"));
-
-            // [window setBackgroundColor:[NSColor windowBackgroundColor]]
-            NativeMethods.ObjCMsgSendIntPtr(nsWindow, NativeMethods.SelRegisterName("setBackgroundColor:"), windowBgColor);
-
-            // [window setOpaque:YES]
-            NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setOpaque:"), true);
-
-            // [window setTitlebarSeparatorStyle:NSTitlebarSeparatorStyleAutomatic] (1)
-            NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitlebarSeparatorStyle:"), 1);
-
-            // [window setTitlebarAppearsTransparent:NO]
-            NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setTitlebarAppearsTransparent:"), false);
-
-            // [window setTitleVisibility:NSWindowTitleVisible] (0)
-            NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitleVisibility:"), 0);
         }
 
         /// <summary>

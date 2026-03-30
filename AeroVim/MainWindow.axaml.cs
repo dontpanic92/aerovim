@@ -28,6 +28,7 @@ namespace AeroVim
     {
         private readonly AppSettings settings = AppSettings.Default;
         private int currentBackgroundColor;
+        private bool isMacFullScreen;
         private IEditorClient editorClient;
         private EditorControl editorControl;
 
@@ -103,28 +104,20 @@ namespace AeroVim
                         var nsWindow = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                         if (newState == WindowState.FullScreen)
                         {
+                            this.isMacFullScreen = true;
+                            this.FindControl<Grid>("TitleBar").IsVisible = false;
                             MacOSInterop.ConfigureForFullScreen(nsWindow);
+                            this.UpdateBackgroundOpacity();
                         }
                         else
                         {
+                            this.isMacFullScreen = false;
+                            this.FindControl<Grid>("TitleBar").IsVisible = true;
                             MacOSInterop.SetTransparentTitlebar(nsWindow);
+                            this.UpdateBackgroundOpacity();
                         }
                     },
                     DispatcherPriority.Background);
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
-        {
-            base.OnApplyTemplate(e);
-
-            // Hide the PART_TransparencyFallback border that Avalonia's Window
-            // template shows when ActualTransparencyLevel falls back to None.
-            // Its default brush (white) appears behind semi-transparent content.
-            if (e.NameScope.Find("PART_TransparencyFallback") is Border fallback)
-            {
-                fallback.IsVisible = false;
             }
         }
 
@@ -282,7 +275,7 @@ namespace AeroVim
                 {
                     this.currentBackgroundColor = intColor;
                     this.settings.BackgroundColor = intColor;
-                    this.SetupBlurBehind();
+                    this.UpdateBackgroundOpacity();
                 });
              };
 
@@ -292,8 +285,11 @@ namespace AeroVim
                 {
                     case nameof(AppSettings.EnableBlurBehind):
                     case nameof(AppSettings.BlurType):
-                    case nameof(AppSettings.BackgroundOpacity):
                         Dispatcher.UIThread.Post(() => this.SetupBlurBehind());
+                        break;
+
+                    case nameof(AppSettings.BackgroundOpacity):
+                        Dispatcher.UIThread.Post(() => this.UpdateBackgroundOpacity());
                         break;
                     case nameof(AppSettings.EnableLigature):
                         this.editorControl.EnableLigature = this.settings.EnableLigature;
@@ -369,7 +365,8 @@ namespace AeroVim
 
         private void UpdateBackgroundOpacity()
         {
-            float opacity = this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
+            float opacity = this.isMacFullScreen ? 1f :
+                this.settings.EnableBlurBehind ? (float)this.settings.BackgroundOpacity : 1f;
             IBrush backgroundBrush = new SolidColorBrush(Helpers.GetAvaloniaColor(this.currentBackgroundColor, opacity));
 
             this.FindControl<Grid>("TitleBar").Background = backgroundBrush;
@@ -387,8 +384,12 @@ namespace AeroVim
             this.FindControl<Button>("MinimizeButton").IsVisible = false;
             this.FindControl<Button>("MaximizeButton").IsVisible = false;
             this.FindControl<Button>("CloseButton").IsVisible = false;
+            this.FindControl<Button>("SettingsButton").IsVisible = false;
+            this.FindControl<TextBlock>("LogoText").IsVisible = false;
 
-            this.FindControl<Border>("TrafficLightSpacer").Width = 78;
+            var titleText = this.FindControl<TextBlock>("TitleText");
+            titleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+            titleText.FontWeight = FontWeight.Bold;
         }
 
         private async void OnWindowActivatedMacOS(object sender, EventArgs e)
