@@ -403,9 +403,25 @@ namespace AeroVim
             MacOSInterop.SetTransparentTitlebar(nsWindow);
         }
 
-        private void OnEditorExited(int exitCode)
+        private async void OnEditorExited(int exitCode)
         {
-            Dispatcher.UIThread.Post(() => this.Close());
+            if (exitCode != 0)
+            {
+                string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
+                string message = exitCode == -1
+                    ? $"{editorName} failed to start. Please check the executable path in Settings."
+                    : $"{editorName} exited unexpectedly (exit code {exitCode}). Please verify the executable path in Settings.";
+
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await this.ShowSettingsDialogAsync(message);
+                    this.Close();
+                });
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => this.Close());
+            }
         }
 
         private async void SettingsButton_Click(object sender, RoutedEventArgs e)

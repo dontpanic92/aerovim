@@ -8,13 +8,13 @@ namespace AeroVim.VimClient
     using System;
     using System.Collections;
     using System.Collections.Generic;
-    using System.Linq;
+    using System.IO;
+    using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using AeroVim.Editor;
     using AeroVim.Editor.Utilities;
-    using Pty.Net;
 
     /// <summary>
     /// A Vim editor client that communicates with Vim through a PTY using
@@ -27,10 +27,12 @@ namespace AeroVim.VimClient
         private readonly TerminalBuffer buffer;
         private readonly VtParser parser;
         private readonly object screenLock = new object();
+        private readonly Queue<string> pendingCommands = new Queue<string>();
 
-        private IPtyConnection ptyConnection;
+        private NativePtyConnection ptyConnection;
         private Task spawnTask;
         private bool disposed;
+        private int processExitHandled;
         private ModeInfo currentModeInfo;
 
         /// <summary>
@@ -156,10 +158,17 @@ namespace AeroVim.VimClient
 
         /// <summary>
         /// Execute a Vim command by entering command-line mode.
+        /// If the PTY is not yet connected, the command is queued for replay.
         /// </summary>
         /// <param name="command">The command string (without leading colon).</param>
         public void Command(string command)
         {
+            if (this.ptyConnection == null && !this.disposed)
+            {
+                this.pendingCommands.Enqueue(command);
+                return;
+            }
+
             this.Input("\x1B");
             this.Input(":" + command + "\r");
         }
@@ -184,11 +193,7 @@ namespace AeroVim.VimClient
             if (!this.disposed)
             {
                 this.disposed = true;
-                this.ptyConnection?.Kill();
-                if (this.ptyConnection is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
+                this.ptyConnection?.Dispose();
             }
         }
 
@@ -271,36 +276,75 @@ namespace AeroVim.VimClient
 
         private async Task SpawnVimAsync(uint cols, uint rows)
         {
-            var env = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
+            try
             {
-                env[(string)entry.Key] = (string)entry.Value;
+                if (string.IsNullOrEmpty(this.vimPath))
+                {
+                    throw new InvalidOperationException("Vim executable path is not configured.");
+                }
+
+                if (this.vimPath.IndexOf(Path.DirectorySeparatorChar) >= 0 && !File.Exists(this.vimPath))
+                {
+                    throw new FileNotFoundException(
+                        $"Vim executable not found at '{this.vimPath}'.");
+                }
+
+                Console.Error.WriteLine(
+                    "VimClient: Spawning Vim at '{0}' ({1}x{2})",
+                    this.vimPath,
+                    cols,
+                    rows);
+
+                var env = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
+                {
+                    env[(string)entry.Key] = (string)entry.Value;
+                }
+
+                env["TERM"] = "xterm-256color";
+                env["COLORTERM"] = "truecolor";
+
+                string cwd = this.workingDirectory
+                    ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+                lock (this.screenLock)
+                {
+                    this.buffer.Resize((int)cols, (int)rows);
+                }
+
+                this.ptyConnection = new NativePtyConnection(
+                    this.vimPath,
+                    Array.Empty<string>(),
+                    env,
+                    cwd,
+                    (int)rows,
+                    (int)cols);
+
+                this.ptyConnection.ProcessExited += this.OnProcessExited;
+
+                // Guard against the process having exited before the handler was attached.
+                if (this.ptyConnection.WaitForExit(0))
+                {
+                    this.OnProcessExited(this.ptyConnection, EventArgs.Empty);
+                    return;
+                }
+
+                _ = Task.Run(() => this.ReadLoopAsync());
+
+                this.ReplayPendingCommands();
+
+                Console.Error.WriteLine(
+                    "VimClient: Vim process started successfully (pid={0})",
+                    this.ptyConnection.Pid);
             }
-
-            env["TERM"] = "xterm-256color";
-            env["COLORTERM"] = "truecolor";
-
-            string cwd = this.workingDirectory
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            lock (this.screenLock)
+            catch (Exception ex)
             {
-                this.buffer.Resize((int)cols, (int)rows);
+                Console.Error.WriteLine(
+                    "VimClient: Failed to spawn Vim at '{0}': {1}",
+                    this.vimPath,
+                    ex.Message);
+                this.EditorExited?.Invoke(-1);
             }
-
-            var options = new PtyOptions
-            {
-                App = this.vimPath,
-                Cols = (int)cols,
-                Rows = (int)rows,
-                Cwd = cwd,
-                Environment = env,
-            };
-
-            this.ptyConnection = await PtyProvider.SpawnAsync(options, CancellationToken.None).ConfigureAwait(false);
-            this.ptyConnection.ProcessExited += this.OnProcessExited;
-
-            _ = Task.Run(() => this.ReadLoopAsync());
         }
 
         private async Task ReadLoopAsync()
@@ -332,9 +376,27 @@ namespace AeroVim.VimClient
 
         private void OnProcessExited(object sender, EventArgs e)
         {
-            if (!this.disposed)
+            if (!this.disposed && Interlocked.CompareExchange(ref this.processExitHandled, 1, 0) == 0)
             {
-                this.EditorExited?.Invoke(this.ptyConnection?.ExitCode ?? 0);
+                int exitCode = this.ptyConnection?.ExitCode ?? 0;
+                int signal = this.ptyConnection?.ExitSignalNumber ?? 0;
+                int pid = this.ptyConnection?.Pid ?? 0;
+                Console.Error.WriteLine(
+                    "VimClient: Vim process exited (pid={0}, code={1}, signal={2})",
+                    pid,
+                    exitCode,
+                    signal);
+                this.EditorExited?.Invoke(exitCode);
+            }
+        }
+
+        private void ReplayPendingCommands()
+        {
+            while (this.pendingCommands.Count > 0)
+            {
+                string command = this.pendingCommands.Dequeue();
+                this.Input("\x1B");
+                this.Input(":" + command + "\r");
             }
         }
 

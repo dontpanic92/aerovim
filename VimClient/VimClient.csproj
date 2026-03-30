@@ -16,7 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="sch.pty.net" Version="0.3.36-pre" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -29,6 +28,32 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\stylecop.json" Link="stylecop.json" />
+  </ItemGroup>
+
+  <!-- Compile native PTY helper and include in output -->
+  <Target Name="BuildNativePty" BeforeTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <MakeDir Directories="$(OutputPath)" />
+    <Exec Command="cc -shared -o $(OutputPath)libaerovim_pty.dylib %(NativePtySources.Identity)"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="BuildNativePtyLinux" BeforeTargets="Build" Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <MakeDir Directories="$(OutputPath)" />
+    <Exec Command="cc -shared -fPIC -o $(OutputPath)libaerovim_pty.so %(NativePtySources.Identity) -lutil"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <ItemGroup>
+    <NativePtySources Include="native_pty.c" />
+  </ItemGroup>
+
+  <!-- Ensure the native library is copied to consuming projects -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <None Include="$(OutputPath)libaerovim_pty.dylib" CopyToOutputDirectory="PreserveNewest" Link="libaerovim_pty.dylib" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <None Include="$(OutputPath)libaerovim_pty.so" CopyToOutputDirectory="PreserveNewest" Link="libaerovim_pty.so" Visible="false" />
   </ItemGroup>
 
 </Project>
