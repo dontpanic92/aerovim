@@ -28,6 +28,7 @@ namespace AeroVim.NeovimClient
         private int foregroundColor = DefaultForegroundColor;
         private int backgroundColor = DefaultBackgroundColor;
         private int specialColor = DefaultSpecialColor;
+        private HighlightSetEvent highlightSetEvent = new ();
 
         private (int Left, int Top, int Right, int Bottom) scrollRegion;
         private bool initialized = false;
@@ -241,7 +242,6 @@ namespace AeroVim.NeovimClient
 
             lock (this.screenLock)
             {
-                HighlightSetEvent highlightSetEvent = new HighlightSetEvent();
                 foreach (var ev in events)
                 {
                     switch (ev)
@@ -268,17 +268,17 @@ namespace AeroVim.NeovimClient
                         case PutEvent e:
                             this.Put(
                                 e.Text,
-                                highlightSetEvent.Foreground ?? this.foregroundColor,
-                                highlightSetEvent.Background ?? this.backgroundColor,
-                                highlightSetEvent.Special ?? this.specialColor,
-                                highlightSetEvent.Reverse,
-                                highlightSetEvent.Italic,
-                                highlightSetEvent.Bold,
-                                highlightSetEvent.Underline,
-                                highlightSetEvent.Undercurl);
+                                this.highlightSetEvent.Foreground ?? this.foregroundColor,
+                                this.highlightSetEvent.Background ?? this.backgroundColor,
+                                this.highlightSetEvent.Special ?? this.specialColor,
+                                this.highlightSetEvent.Reverse,
+                                this.highlightSetEvent.Italic,
+                                this.highlightSetEvent.Bold,
+                                this.highlightSetEvent.Underline,
+                                this.highlightSetEvent.Undercurl);
                             break;
                         case HighlightSetEvent e:
-                            highlightSetEvent = e;
+                            this.highlightSetEvent = e;
                             break;
                         case UpdateFgEvent e:
                             this.foregroundColor = e.Color == -1 ? DefaultForegroundColor : e.Color;
