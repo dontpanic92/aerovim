@@ -60,7 +60,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
     private static IList<MsgPack.MessagePackObject> RequireList(MsgPack.MessagePackObject value, string context)
     {
         var list = value.AsList();
-        if (list == null)
+        if (list is null)
         {
             throw new InvalidDataException($"{context} must be a list.");
         }

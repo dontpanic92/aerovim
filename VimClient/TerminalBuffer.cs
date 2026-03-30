@@ -525,7 +525,7 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
-            if (this.usingAltBuffer && this.altCells != null)
+            if (this.usingAltBuffer && this.altCells is not null)
             {
                 this.cells = this.altCells;
                 this.altCells = null!;
@@ -629,12 +629,12 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
-            if (this.cells == null)
+            if (this.cells is null)
             {
                 return null;
             }
 
-            if (this.screen.Cells == null
+            if (this.screen.Cells is null
                 || this.screen.Cells.GetLength(0) != this.Rows
                 || this.screen.Cells.GetLength(1) != this.Cols)
             {
@@ -650,7 +650,7 @@ public class TerminalBuffer
                     }
                 }
             }
-            else if (this.dirtyRows != null)
+            else if (this.dirtyRows is not null)
             {
                 for (int i = 0; i < this.dirtyRows.Length; i++)
                 {
@@ -665,7 +665,7 @@ public class TerminalBuffer
             }
 
             this.allDirty = false;
-            if (this.dirtyRows != null)
+            if (this.dirtyRows is not null)
             {
                 Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
             }
@@ -684,7 +684,7 @@ public class TerminalBuffer
 
     private void MarkDirty(int row)
     {
-        if (this.dirtyRows != null && row >= 0 && row < this.dirtyRows.Length)
+        if (this.dirtyRows is not null && row >= 0 && row < this.dirtyRows.Length)
         {
             this.dirtyRows[row] = true;
         }

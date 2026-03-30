@@ -82,7 +82,7 @@ public partial class MainWindow : Window
                 await this.ShowTransparencyMismatchDialogAsync();
 
                 // When opened at runtime (not during startup), warn if editor config changed
-                if (promptText == null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
+                if (promptText is null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
                 {
                     var msg = new Dialogs.MessageWindow(
                         "Editor backend changes will take effect the next time AeroVim is started.",
@@ -140,7 +140,7 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (this.editorClient != null && KeyMapping.TryMap(e, out var text) && text != null)
+        if (this.editorClient is not null && KeyMapping.TryMap(e, out var text) && text is not null)
         {
             this.editorClient.Input(text);
             e.Handled = true;
@@ -151,7 +151,7 @@ public partial class MainWindow : Window
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
-        if (this.editorClient != null && !string.IsNullOrEmpty(e.Text))
+        if (this.editorClient is not null && !string.IsNullOrEmpty(e.Text))
         {
             // Only forward printable characters that were not already handled by OnKeyDown
             foreach (var ch in e.Text)
@@ -181,7 +181,7 @@ public partial class MainWindow : Window
         WindowSettingsPersistence.Capture(this, this.settings);
         this.settings.Save();
 
-        if (this.editorClient != null)
+        if (this.editorClient is not null)
         {
             this.editorClient.EditorExited -= this.OnEditorExited;
         }
@@ -237,7 +237,7 @@ public partial class MainWindow : Window
                 var effectiveTitle = string.IsNullOrEmpty(title) ? "AeroVim" : title;
                 this.Title = effectiveTitle;
                 var titleText = this.FindControl<TextBlock>("TitleText");
-                if (titleText != null)
+                if (titleText is not null)
                 {
                     titleText.Text = effectiveTitle;
                 }
@@ -251,7 +251,7 @@ public partial class MainWindow : Window
                 var color = Helpers.GetAvaloniaColor(intColor);
                 var brush = new Avalonia.Media.SolidColorBrush(color);
                 var titleText = this.FindControl<TextBlock>("TitleText");
-                if (titleText != null)
+                if (titleText is not null)
                 {
                     titleText.Foreground = brush;
                 }
@@ -355,7 +355,7 @@ public partial class MainWindow : Window
         this.FindControl<Grid>("TitleBar")!.Background = backgroundBrush;
         this.FindControl<Border>("NeovimBorder")!.Background = backgroundBrush;
 
-        if (this.editorControl != null)
+        if (this.editorControl is not null)
         {
             this.editorControl.BackgroundAlpha = (byte)(opacity * 255);
             this.editorControl.InvalidateVisual();

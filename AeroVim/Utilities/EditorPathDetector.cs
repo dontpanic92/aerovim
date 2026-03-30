@@ -44,7 +44,7 @@ public static class EditorPathDetector
             if (string.IsNullOrEmpty(settings.VimPath))
             {
                 var detectedVimPath = FindVimInPath();
-                if (detectedVimPath != null)
+                if (detectedVimPath is not null)
                 {
                     settings.VimPath = detectedVimPath;
                     settings.Save();
@@ -57,7 +57,7 @@ public static class EditorPathDetector
         if (string.IsNullOrEmpty(settings.NeovimPath))
         {
             var detectedNeovimPath = FindNeovimInPath();
-            if (detectedNeovimPath != null)
+            if (detectedNeovimPath is not null)
             {
                 settings.NeovimPath = detectedNeovimPath;
                 settings.Save();

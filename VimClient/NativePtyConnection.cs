@@ -53,10 +53,10 @@ internal sealed class NativePtyConnection : IDisposable
         {
             appPtr = MarshalString(app, allocations);
             argvPtr = MarshalArgv(app, args, allocations);
-            envpPtr = environment != null
+            envpPtr = environment is not null
                 ? MarshalEnvironment(environment, allocations)
                 : IntPtr.Zero;
-            cwdPtr = cwd != null ? MarshalString(cwd, allocations) : IntPtr.Zero;
+            cwdPtr = cwd is not null ? MarshalString(cwd, allocations) : IntPtr.Zero;
 
             int masterFd = 0;
             int pid = NativeMethods.SpawnInPty(

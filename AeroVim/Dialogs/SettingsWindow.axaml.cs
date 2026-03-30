@@ -202,7 +202,7 @@ public partial class SettingsWindow : Window
     private async void Detect_Click(object sender, RoutedEventArgs e)
     {
         var detected = EditorPathDetector.FindNeovimInPath();
-        if (detected == null)
+        if (detected is null)
         {
             var msg = new MessageWindow("Neovim was not found in PATH.", "Detect Neovim");
             await msg.ShowDialog(this);
@@ -260,7 +260,7 @@ public partial class SettingsWindow : Window
     private async void VimDetect_Click(object sender, RoutedEventArgs e)
     {
         var detected = EditorPathDetector.FindVimInPath();
-        if (detected == null)
+        if (detected is null)
         {
             var msg = new MessageWindow("Vim was not found in PATH.", "Detect Vim");
             await msg.ShowDialog(this);

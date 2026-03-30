@@ -26,7 +26,7 @@ public sealed class MessagePackObject : IEquatable<MessagePackObject>
     /// <summary>
     /// Gets a value indicating whether this instance is nil.
     /// </summary>
-    public bool IsNil => this.value == null;
+    public bool IsNil => this.value is null;
 
     /// <summary>
     /// Convert to unsigned integer.

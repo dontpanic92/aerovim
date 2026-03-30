@@ -72,7 +72,7 @@ public static class KeyMapping
         }
 
         string? baseChar = KeyToBaseCharacter(e.Key);
-        if (baseChar == null)
+        if (baseChar is null)
         {
             text = null;
             return false;
@@ -135,26 +135,26 @@ public static class KeyMapping
             return ((char)('0' + (key - Key.NumPad0))).ToString();
         }
 
-        switch (key)
+        return key switch
         {
-            case Key.Multiply: return "*";
-            case Key.Add: return "+";
-            case Key.Subtract: return "-";
-            case Key.Decimal: return ".";
-            case Key.Divide: return "/";
-            case Key.OemSemicolon: return ";";
-            case Key.OemPlus: return "=";
-            case Key.OemComma: return ",";
-            case Key.OemMinus: return "-";
-            case Key.OemPeriod: return ".";
-            case Key.OemQuestion: return "/";
-            case Key.OemTilde: return "`";
-            case Key.OemOpenBrackets: return "[";
-            case Key.OemPipe: return "\\";
-            case Key.OemBackslash: return "\\";
-            case Key.OemCloseBrackets: return "]";
-            case Key.OemQuotes: return "'";
-            default: return null;
-        }
+            Key.Multiply => "*",
+            Key.Add => "+",
+            Key.Subtract => "-",
+            Key.Decimal => ".",
+            Key.Divide => "/",
+            Key.OemSemicolon => ";",
+            Key.OemPlus => "=",
+            Key.OemComma => ",",
+            Key.OemMinus => "-",
+            Key.OemPeriod => ".",
+            Key.OemQuestion => "/",
+            Key.OemTilde => "`",
+            Key.OemOpenBrackets => "[",
+            Key.OemPipe => "\\",
+            Key.OemBackslash => "\\",
+            Key.OemCloseBrackets => "]",
+            Key.OemQuotes => "'",
+            _ => null,
+        };
     }
 }

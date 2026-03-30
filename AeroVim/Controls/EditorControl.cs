@@ -174,7 +174,7 @@ public class EditorControl : Control, IDisposable
     {
         base.OnPointerMoved(e);
 
-        if (this.pressedMouseButton == null)
+        if (this.pressedMouseButton is null)
         {
             return;
         }
@@ -192,7 +192,7 @@ public class EditorControl : Control, IDisposable
     {
         base.OnPointerReleased(e);
 
-        if (this.pressedMouseButton == null)
+        if (this.pressedMouseButton is null)
         {
             return;
         }
@@ -360,7 +360,7 @@ public class EditorControl : Control, IDisposable
         }
 
         var args = this.editorClient.GetScreen();
-        if (args == null)
+        if (args is null)
         {
             return;
         }
@@ -402,7 +402,7 @@ public class EditorControl : Control, IDisposable
                 while (cellRangeEnd < cols)
                 {
                     Cell cell = args.Cells[i, cellRangeEnd];
-                    if (cell.Character != null
+                    if (cell.Character is not null
                         && (cell.ForegroundColor != startCell.ForegroundColor
                             || cell.BackgroundColor != startCell.BackgroundColor
                             || cell.SpecialColor != startCell.SpecialColor
@@ -453,7 +453,7 @@ public class EditorControl : Control, IDisposable
         while (cellIndex < colEnd)
         {
             var cell = args.Cells[row, cellIndex];
-            if (cell.Character == null)
+            if (cell.Character is null)
             {
                 cellIndex++;
                 continue;
@@ -544,7 +544,7 @@ public class EditorControl : Control, IDisposable
             return 1;
         }
 
-        if (screen[row, col + 1].Character == null)
+        if (screen[row, col + 1].Character is null)
         {
             return 2;
         }
@@ -572,7 +572,7 @@ public class EditorControl : Control, IDisposable
         var disposedFallbacks = new HashSet<SKTypeface>();
         foreach (var typeface in this.glyphTypefaceCache.Values)
         {
-            if (typeface != null)
+            if (typeface is not null)
             {
                 disposedFallbacks.Add(typeface);
             }
@@ -618,7 +618,7 @@ public class EditorControl : Control, IDisposable
         var key = new GlyphKey(this.textParam.FontName, weight, slant, codePoint);
         if (!this.glyphTypefaceCache.TryGetValue(key, out var fallbackTypeface))
         {
-            fallbackTypeface = styledTypeface != null && styledTypeface.ContainsGlyphs(text)
+            fallbackTypeface = styledTypeface is not null && styledTypeface.ContainsGlyphs(text)
                 ? styledTypeface
                 : SKFontManager.Default.MatchCharacter(codePoint);
             this.glyphTypefaceCache[key] = (fallbackTypeface ?? styledTypeface)!;
@@ -723,7 +723,7 @@ public class EditorControl : Control, IDisposable
         public void Render(ImmediateDrawingContext context)
         {
             var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
-            if (leaseFeature == null)
+            if (leaseFeature is null)
             {
                 return;
             }

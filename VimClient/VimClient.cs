@@ -106,9 +106,9 @@ public sealed class VimClient : IEditorClient
     /// <param name="height">Row count.</param>
     public void TryResize(uint width, uint height)
     {
-        if (this.ptyConnection == null)
+        if (this.ptyConnection is null)
         {
-            if (this.spawnTask == null)
+            if (this.spawnTask is null)
             {
                 this.spawnTask = this.SpawnVimAsync(width, height);
             }
@@ -130,7 +130,7 @@ public sealed class VimClient : IEditorClient
     /// <param name="text">The input key sequence in Vim notation.</param>
     public void Input(string text)
     {
-        if (this.ptyConnection == null || this.disposed)
+        if (this.ptyConnection is null || this.disposed)
         {
             return;
         }
@@ -152,13 +152,13 @@ public sealed class VimClient : IEditorClient
     /// <param name="col">Zero-based grid column.</param>
     public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
     {
-        if (this.ptyConnection == null || this.disposed)
+        if (this.ptyConnection is null || this.disposed)
         {
             return;
         }
 
         string? encoded = EncodeSgrMouse(button, action, modifier, row, col);
-        if (encoded != null)
+        if (encoded is not null)
         {
             byte[] bytes = Encoding.UTF8.GetBytes(encoded);
             this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
@@ -173,7 +173,7 @@ public sealed class VimClient : IEditorClient
     /// <param name="command">The command string (without leading colon).</param>
     public void Command(string command)
     {
-        if (this.ptyConnection == null && !this.disposed)
+        if (this.ptyConnection is null && !this.disposed)
         {
             this.pendingCommands.Enqueue(command);
             return;
@@ -263,7 +263,7 @@ public sealed class VimClient : IEditorClient
 
     private static void AddModifierBits(ref int cb, string modifier)
     {
-        if (modifier == null)
+        if (modifier is null)
         {
             return;
         }

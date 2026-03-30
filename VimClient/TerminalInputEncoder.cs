@@ -127,15 +127,16 @@ public static class TerminalInputEncoder
                 return ((char)(ch - 'A' + 1)).ToString();
             }
 
-            switch (ch)
+            return ch switch
             {
-                case '@': return "\x00";
-                case '[': return "\x1B";
-                case '\\': return "\x1C";
-                case ']': return "\x1D";
-                case '^': return "\x1E";
-                case '_': return "\x1F";
-            }
+                '@' => "\x00",
+                '[' => "\x1B",
+                '\\' => "\x1C",
+                ']' => "\x1D",
+                '^' => "\x1E",
+                '_' => "\x1F",
+                _ => keyName,
+            };
         }
 
         // Handle Alt + single character (send ESC + char)

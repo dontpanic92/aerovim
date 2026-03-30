@@ -185,12 +185,12 @@ public sealed class NeovimClient : IEditorClient
     {
         lock (this.screenLock)
         {
-            if (this.cells == null)
+            if (this.cells is null)
             {
                 return null;
             }
 
-            if (this.screen.Cells == null
+            if (this.screen.Cells is null
                 || this.screen.Cells.GetLength(0) != this.cells.GetLength(0)
                 || this.screen.Cells.GetLength(1) != this.cells.GetLength(1))
             {
@@ -201,7 +201,7 @@ public sealed class NeovimClient : IEditorClient
             {
                 this.CopyAllCells(this.screen.Cells, this.cells);
             }
-            else if (this.dirtyRows != null)
+            else if (this.dirtyRows is not null)
             {
                 int cols = this.cells.GetLength(1);
                 for (int i = 0; i < this.dirtyRows.Length; i++)
@@ -217,7 +217,7 @@ public sealed class NeovimClient : IEditorClient
             }
 
             this.allDirty = false;
-            if (this.dirtyRows != null)
+            if (this.dirtyRows is not null)
             {
                 Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
             }
@@ -316,7 +316,7 @@ public sealed class NeovimClient : IEditorClient
     private void Resize(int width, int height)
     {
         var newCells = new Cell[height, width];
-        if (this.cells != null)
+        if (this.cells is not null)
         {
             int copyRows = Math.Min(height, this.cells.GetLength(0));
             int copyCols = Math.Min(width, this.cells.GetLength(1));
@@ -379,7 +379,7 @@ public sealed class NeovimClient : IEditorClient
             this.ClearCell(ref this.cells![row, j]);
         }
 
-        if (this.dirtyRows != null)
+        if (this.dirtyRows is not null)
         {
             this.dirtyRows[row] = true;
         }
@@ -387,7 +387,7 @@ public sealed class NeovimClient : IEditorClient
 
     private void Put(IList<int?> text, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
     {
-        if (this.dirtyRows != null)
+        if (this.dirtyRows is not null)
         {
             this.dirtyRows[this.cursorPosition.Row] = true;
         }
@@ -434,7 +434,7 @@ public sealed class NeovimClient : IEditorClient
             }
         }
 
-        if (this.dirtyRows != null)
+        if (this.dirtyRows is not null)
         {
             for (int row = this.scrollRegion.Top; row <= this.scrollRegion.Bottom; row++)
             {
