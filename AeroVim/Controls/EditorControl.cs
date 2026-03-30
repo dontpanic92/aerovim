@@ -7,6 +7,8 @@ namespace AeroVim.Controls
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Threading;
     using AeroVim.Editor;
     using AeroVim.Editor.Utilities;
     using AeroVim.Utilities;
@@ -28,11 +30,20 @@ namespace AeroVim.Controls
     {
         private readonly IEditorClient editorClient;
         private readonly ConcurrentQueue<Action> pendingActions = new ConcurrentQueue<Action>();
+        private readonly Dictionary<TypefaceKey, SKTypeface> typefaceCache = new Dictionary<TypefaceKey, SKTypeface>();
+        private readonly Dictionary<GlyphKey, SKTypeface> glyphTypefaceCache = new Dictionary<GlyphKey, SKTypeface>();
+        private readonly Dictionary<int, string> codePointTextCache = new Dictionary<int, string>();
+        private readonly SKPaint backgroundPaint = new SKPaint { IsAntialias = false, Style = SKPaintStyle.Fill };
+        private readonly SKPaint textPaint = new SKPaint { IsAntialias = true, IsLinearText = false, SubpixelText = true };
+        private readonly SKPaint underlinePaint = new SKPaint { StrokeWidth = 1, IsAntialias = true };
+        private readonly SKPaint undercurlPaint = new SKPaint { StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke };
+        private readonly SKPaint cursorPaint = new SKPaint { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
 
         private TextLayoutParameters textParam;
         private SKTypeface primaryTypeface;
         private bool isDisposed;
         private string pressedMouseButton;
+        private int redrawQueued;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EditorControl"/> class.
@@ -49,7 +60,9 @@ namespace AeroVim.Controls
 
             var defaultFont = Utilities.Helpers.GetDefaultMonospaceFontName();
             this.primaryTypeface = this.CreateValidatedTypeface(defaultFont);
+            this.typefaceCache[new TypefaceKey(this.primaryTypeface.FamilyName, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright)] = this.primaryTypeface;
             this.textParam = new TextLayoutParameters(this.primaryTypeface.FamilyName, 11);
+            this.textPaint.TextSize = this.textParam.SkiaFontSize;
         }
 
         /// <summary>
@@ -236,7 +249,7 @@ namespace AeroVim.Controls
                 {
                     this.editorClient.Redraw -= this.OnRedraw;
                     this.editorClient.FontChanged -= this.OnFontChanged;
-                    this.primaryTypeface?.Dispose();
+                    this.DisposeCachedResources();
                 }
 
                 this.isDisposed = true;
@@ -300,7 +313,16 @@ namespace AeroVim.Controls
 
         private void OnRedraw()
         {
-            Dispatcher.UIThread.Post(() => this.InvalidateVisual());
+            if (Interlocked.CompareExchange(ref this.redrawQueued, 1, 0) != 0)
+            {
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                this.InvalidateVisual();
+                Interlocked.Exchange(ref this.redrawQueued, 0);
+            });
         }
 
         private void OnFontChanged(FontSettings font)
@@ -309,8 +331,7 @@ namespace AeroVim.Controls
             {
                 var weight = font.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
                 var slant = font.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-                var newTypeface = SKTypeface.FromFamilyName(
-                    font.FontName, weight, SKFontStyleWidth.Normal, slant);
+                var newTypeface = SKTypeface.FromFamilyName(font.FontName, weight, SKFontStyleWidth.Normal, slant);
 
                 if (!string.Equals(newTypeface?.FamilyName, font.FontName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -320,9 +341,12 @@ namespace AeroVim.Controls
                     return;
                 }
 
-                this.primaryTypeface?.Dispose();
+                this.DisposeTypefaceCaches();
+                this.codePointTextCache.Clear();
                 this.primaryTypeface = newTypeface;
+                this.typefaceCache[new TypefaceKey(this.primaryTypeface.FamilyName, weight, slant)] = this.primaryTypeface;
                 this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
+                this.textPaint.TextSize = this.textParam.SkiaFontSize;
                 this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
             });
 
@@ -342,14 +366,11 @@ namespace AeroVim.Controls
                 return;
             }
 
+            Interlocked.Exchange(ref this.redrawQueued, 0);
             canvas.Clear(Helpers.GetSkColor(args.BackgroundColor, this.BackgroundAlpha));
 
             int rows = args.Cells.GetLength(0);
             int cols = args.Cells.GetLength(1);
-
-            using var bgPaint = new SKPaint();
-            bgPaint.IsAntialias = false;
-            bgPaint.Style = SKPaintStyle.Fill;
 
             // Paint backgrounds
             for (int i = 0; i < rows; i++)
@@ -363,19 +384,13 @@ namespace AeroVim.Controls
                         int color = args.Cells[i, j].Reverse
                             ? args.Cells[i, j].ForegroundColor
                             : args.Cells[i, j].BackgroundColor;
-                        bgPaint.Color = Helpers.GetSkColor(color);
-                        canvas.DrawRect(x, y, this.textParam.CharWidth, this.textParam.LineHeight, bgPaint);
+                        this.backgroundPaint.Color = Helpers.GetSkColor(color);
+                        canvas.DrawRect(x, y, this.textParam.CharWidth, this.textParam.LineHeight, this.backgroundPaint);
                     }
                 }
             }
 
             // Paint foreground text
-            using var textPaint = new SKPaint();
-            textPaint.IsAntialias = true;
-            textPaint.TextSize = this.textParam.SkiaFontSize;
-            textPaint.IsLinearText = false;
-            textPaint.SubpixelText = true;
-
             for (int i = 0; i < rows; i++)
             {
                 int j = 0;
@@ -406,7 +421,7 @@ namespace AeroVim.Controls
 
                     j = cellRangeEnd;
 
-                    this.DrawCellRange(canvas, textPaint, args, i, cellRangeStart, cellRangeEnd);
+                    this.DrawCellRange(canvas, args, i, cellRangeStart, cellRangeEnd);
                 }
             }
 
@@ -414,7 +429,7 @@ namespace AeroVim.Controls
             this.DrawCursor(canvas, args);
         }
 
-        private void DrawCellRange(SKCanvas canvas, SKPaint textPaint, EditorScreen args, int row, int colStart, int colEnd)
+        private void DrawCellRange(SKCanvas canvas, EditorScreen args, int row, int colStart, int colEnd)
         {
             bool bold = args.Cells[row, colStart].Bold;
             bool italic = args.Cells[row, colStart].Italic;
@@ -424,14 +439,12 @@ namespace AeroVim.Controls
                 ? args.Cells[row, colStart].BackgroundColor
                 : args.Cells[row, colStart].ForegroundColor;
 
-            textPaint.Color = Helpers.GetSkColor(foregroundColor);
-            textPaint.FakeBoldText = bold;
-
             var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
             var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-            using var styledTypeface = SKTypeface.FromFamilyName(
-                this.textParam.FontName, weight, SKFontStyleWidth.Normal, slant);
-            textPaint.Typeface = styledTypeface ?? this.primaryTypeface;
+            var styledTypeface = this.GetStyledTypeface(weight, slant);
+            this.textPaint.Color = Helpers.GetSkColor(foregroundColor);
+            this.textPaint.FakeBoldText = bold;
+            this.textPaint.Typeface = styledTypeface;
 
             float baselineY = (row * this.textParam.LineHeight) + (this.textParam.LineHeight * 0.8f);
 
@@ -448,23 +461,15 @@ namespace AeroVim.Controls
                 }
 
                 int codePoint = cell.Character.Value;
-                string text = char.ConvertFromUtf32(codePoint);
+                string text = this.GetTextForCodePoint(codePoint);
                 float x = cellIndex * this.textParam.CharWidth;
 
-                // Check if the primary font has the glyph, otherwise use fallback
-                if (textPaint.Typeface != null && !textPaint.ContainsGlyphs(text))
-                {
-                    using var fallback = SKFontManager.Default.MatchCharacter(codePoint);
-                    if (fallback != null)
-                    {
-                        textPaint.Typeface = fallback;
-                    }
-                }
+                this.textPaint.Typeface = this.GetTypefaceForGlyph(codePoint, weight, slant, styledTypeface, text);
 
-                canvas.DrawText(text, x, baselineY, textPaint);
+                canvas.DrawText(text, x, baselineY, this.textPaint);
 
                 // Restore the styled typeface for subsequent characters
-                textPaint.Typeface = styledTypeface ?? this.primaryTypeface;
+                this.textPaint.Typeface = styledTypeface;
 
                 int charWidth = this.GetCharWidth(args.Cells, row, cellIndex);
                 cellIndex += charWidth;
@@ -473,23 +478,16 @@ namespace AeroVim.Controls
             // Draw underline
             if (underline)
             {
-                using var ulPaint = new SKPaint();
-                ulPaint.Color = Helpers.GetSkColor(foregroundColor);
-                ulPaint.StrokeWidth = 1;
-                ulPaint.IsAntialias = true;
+                this.underlinePaint.Color = Helpers.GetSkColor(foregroundColor);
                 float ulY = ((row + 1) * this.textParam.LineHeight) - 1;
-                canvas.DrawLine(colStart * this.textParam.CharWidth, ulY, colEnd * this.textParam.CharWidth, ulY, ulPaint);
+                canvas.DrawLine(colStart * this.textParam.CharWidth, ulY, colEnd * this.textParam.CharWidth, ulY, this.underlinePaint);
             }
 
             // Draw undercurl
             if (undercurl)
             {
                 int specialColor = args.Cells[row, colStart].SpecialColor;
-                using var curlPaint = new SKPaint();
-                curlPaint.Color = Helpers.GetSkColor(specialColor);
-                curlPaint.StrokeWidth = 1;
-                curlPaint.IsAntialias = true;
-                curlPaint.Style = SKPaintStyle.Stroke;
+                this.undercurlPaint.Color = Helpers.GetSkColor(specialColor);
                 float curlY = ((row + 1) * this.textParam.LineHeight) - 2;
                 using var path = new SKPath();
                 float startX = colStart * this.textParam.CharWidth;
@@ -500,7 +498,7 @@ namespace AeroVim.Controls
                     path.QuadTo(cx + 2, curlY - 2, cx + 4, curlY);
                 }
 
-                canvas.DrawPath(path, curlPaint);
+                canvas.DrawPath(path, this.undercurlPaint);
             }
         }
 
@@ -537,10 +535,7 @@ namespace AeroVim.Controls
             var cursorRect = new SKRect(left, top, right, bottom);
 
             // Draw cursor as inverted rectangle
-            using var cursorPaint = new SKPaint();
-            cursorPaint.BlendMode = SKBlendMode.Difference;
-            cursorPaint.Color = SKColors.White;
-            canvas.DrawRect(cursorRect, cursorPaint);
+            canvas.DrawRect(cursorRect, this.cursorPaint);
         }
 
         private int GetCharWidth(Cell[,] screen, int row, int col)
@@ -556,6 +551,151 @@ namespace AeroVim.Controls
             }
 
             return 1;
+        }
+
+        private void DisposeCachedResources()
+        {
+            this.DisposeTypefaceCaches();
+            this.backgroundPaint.Dispose();
+            this.textPaint.Dispose();
+            this.underlinePaint.Dispose();
+            this.undercurlPaint.Dispose();
+            this.cursorPaint.Dispose();
+        }
+
+        private void DisposeTypefaceCaches()
+        {
+            foreach (var typeface in this.typefaceCache.Values)
+            {
+                typeface.Dispose();
+            }
+
+            var disposedFallbacks = new HashSet<SKTypeface>();
+            foreach (var typeface in this.glyphTypefaceCache.Values)
+            {
+                if (typeface != null)
+                {
+                    disposedFallbacks.Add(typeface);
+                }
+            }
+
+            foreach (var typeface in disposedFallbacks)
+            {
+                if (!this.typefaceCache.ContainsValue(typeface))
+                {
+                    typeface.Dispose();
+                }
+            }
+
+            this.typefaceCache.Clear();
+            this.glyphTypefaceCache.Clear();
+        }
+
+        private SKTypeface GetStyledTypeface(SKFontStyleWeight weight, SKFontStyleSlant slant)
+        {
+            var key = new TypefaceKey(this.textParam.FontName, weight, slant);
+            if (!this.typefaceCache.TryGetValue(key, out var typeface))
+            {
+                typeface = SKTypeface.FromFamilyName(this.textParam.FontName, weight, SKFontStyleWidth.Normal, slant) ?? this.primaryTypeface;
+                this.typefaceCache[key] = typeface;
+            }
+
+            return typeface;
+        }
+
+        private string GetTextForCodePoint(int codePoint)
+        {
+            if (!this.codePointTextCache.TryGetValue(codePoint, out var text))
+            {
+                text = char.ConvertFromUtf32(codePoint);
+                this.codePointTextCache[codePoint] = text;
+            }
+
+            return text;
+        }
+
+        private SKTypeface GetTypefaceForGlyph(int codePoint, SKFontStyleWeight weight, SKFontStyleSlant slant, SKTypeface styledTypeface, string text)
+        {
+            var key = new GlyphKey(this.textParam.FontName, weight, slant, codePoint);
+            if (!this.glyphTypefaceCache.TryGetValue(key, out var fallbackTypeface))
+            {
+                fallbackTypeface = styledTypeface != null && styledTypeface.ContainsGlyphs(text)
+                    ? styledTypeface
+                    : SKFontManager.Default.MatchCharacter(codePoint);
+                this.glyphTypefaceCache[key] = fallbackTypeface ?? styledTypeface;
+            }
+
+            return fallbackTypeface ?? styledTypeface;
+        }
+
+        private readonly struct TypefaceKey : IEquatable<TypefaceKey>
+        {
+            public TypefaceKey(string fontName, SKFontStyleWeight weight, SKFontStyleSlant slant)
+            {
+                this.FontName = fontName;
+                this.Weight = weight;
+                this.Slant = slant;
+            }
+
+            public string FontName { get; }
+
+            public SKFontStyleWeight Weight { get; }
+
+            public SKFontStyleSlant Slant { get; }
+
+            public bool Equals(TypefaceKey other)
+            {
+                return string.Equals(this.FontName, other.FontName, StringComparison.Ordinal)
+                    && this.Weight == other.Weight
+                    && this.Slant == other.Slant;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is TypefaceKey other && this.Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(this.FontName, this.Weight, this.Slant);
+            }
+        }
+
+        private readonly struct GlyphKey : IEquatable<GlyphKey>
+        {
+            public GlyphKey(string fontName, SKFontStyleWeight weight, SKFontStyleSlant slant, int codePoint)
+            {
+                this.FontName = fontName;
+                this.Weight = weight;
+                this.Slant = slant;
+                this.CodePoint = codePoint;
+            }
+
+            public string FontName { get; }
+
+            public SKFontStyleWeight Weight { get; }
+
+            public SKFontStyleSlant Slant { get; }
+
+            public int CodePoint { get; }
+
+            public bool Equals(GlyphKey other)
+            {
+                return string.Equals(this.FontName, other.FontName, StringComparison.Ordinal)
+                    && this.Weight == other.Weight
+                    && this.Slant == other.Slant
+                    && this.CodePoint == other.CodePoint;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is GlyphKey other && this.Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(this.FontName, this.Weight, this.Slant, this.CodePoint);
+            }
         }
 
         /// <summary>

@@ -200,7 +200,7 @@ namespace AeroVim.Dialogs
 
         private async void Detect_Click(object sender, RoutedEventArgs e)
         {
-            var detected = NeovimPathDetector.FindNeovimInPath();
+            var detected = EditorPathDetector.FindNeovimInPath();
             if (detected == null)
             {
                 var msg = new MessageWindow("Neovim was not found in PATH.", "Detect Neovim");

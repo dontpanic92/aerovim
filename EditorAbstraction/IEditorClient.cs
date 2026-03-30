@@ -43,34 +43,34 @@ namespace AeroVim.Editor
     public interface IEditorClient : IDisposable
     {
         /// <summary>
-        /// Gets or sets the title changed event handler.
+        /// Raised when the editor title changes.
         /// </summary>
-        TitleChangedHandler TitleChanged { get; set; }
+        event TitleChangedHandler TitleChanged;
 
         /// <summary>
-        /// Gets or sets the redraw event handler.
+        /// Raised when the editor should redraw.
         /// </summary>
-        RedrawHandler Redraw { get; set; }
+        event RedrawHandler Redraw;
 
         /// <summary>
-        /// Gets or sets the editor exited event handler.
+        /// Raised when the editor process exits.
         /// </summary>
-        EditorExitedHandler EditorExited { get; set; }
+        event EditorExitedHandler EditorExited;
 
         /// <summary>
-        /// Gets or sets the foreground color changed event handler.
+        /// Raised when the editor foreground color changes.
         /// </summary>
-        ColorChangedHandler ForegroundColorChanged { get; set; }
+        event ColorChangedHandler ForegroundColorChanged;
 
         /// <summary>
-        /// Gets or sets the background color changed event handler.
+        /// Raised when the editor background color changes.
         /// </summary>
-        ColorChangedHandler BackgroundColorChanged { get; set; }
+        event ColorChangedHandler BackgroundColorChanged;
 
         /// <summary>
-        /// Gets or sets the font changed event handler.
+        /// Raised when the editor font changes.
         /// </summary>
-        FontChangedHandler FontChanged { get; set; }
+        event FontChangedHandler FontChanged;
 
         /// <summary>
         /// Gets the current mode info (cursor shape, size, blink state).

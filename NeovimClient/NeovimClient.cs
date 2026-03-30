@@ -57,34 +57,34 @@ namespace AeroVim.NeovimClient
         }
 
         /// <summary>
-        /// Gets or sets the titleChanged event.
+        /// Raised when the title changes.
         /// </summary>
-        public TitleChangedHandler TitleChanged { get; set; }
+        public event TitleChangedHandler TitleChanged;
 
         /// <summary>
-        /// Gets or sets the Redraw event.
+        /// Raised when the editor should redraw.
         /// </summary>
-        public RedrawHandler Redraw { get; set; }
+        public event RedrawHandler Redraw;
 
         /// <summary>
-        /// Gets or sets the EditorExited event.
+        /// Raised when the editor process exits.
         /// </summary>
-        public EditorExitedHandler EditorExited { get; set; }
+        public event EditorExitedHandler EditorExited;
 
         /// <summary>
-        /// Gets or sets the ForgroundColorChanged event.
+        /// Raised when the foreground color changes.
         /// </summary>
-        public ColorChangedHandler ForegroundColorChanged { get; set; }
+        public event ColorChangedHandler ForegroundColorChanged;
 
         /// <summary>
-        /// Gets or sets the BackgroundColorChanged event.
+        /// Raised when the background color changes.
         /// </summary>
-        public ColorChangedHandler BackgroundColorChanged { get; set; }
+        public event ColorChangedHandler BackgroundColorChanged;
 
         /// <summary>
-        /// Gets or sets the FontChanged event.
+        /// Raised when the font changes.
         /// </summary>
-        public FontChangedHandler FontChanged { get; set; }
+        public event FontChangedHandler FontChanged;
 
         /// <summary>
         /// Gets the Font settings.
@@ -195,17 +195,12 @@ namespace AeroVim.NeovimClient
                     || this.screen.Cells.GetLength(0) != this.cells.GetLength(0)
                     || this.screen.Cells.GetLength(1) != this.cells.GetLength(1))
                 {
-                    this.screen.Cells = (Cell[,])this.cells.Clone();
+                    this.screen.Cells = new Cell[this.cells.GetLength(0), this.cells.GetLength(1)];
+                    this.CopyAllCells(this.screen.Cells, this.cells);
                 }
                 else if (this.allDirty)
                 {
-                    for (int i = 0; i < this.cells.GetLength(0); i++)
-                    {
-                        for (int j = 0; j < this.cells.GetLength(1); j++)
-                        {
-                            this.screen.Cells[i, j] = this.cells[i, j];
-                        }
-                    }
+                    this.CopyAllCells(this.screen.Cells, this.cells);
                 }
                 else if (this.dirtyRows != null)
                 {
@@ -321,9 +316,44 @@ namespace AeroVim.NeovimClient
 
         private void Resize(int width, int height)
         {
-            this.cells = new Cell[height, width];
+            var newCells = new Cell[height, width];
+            if (this.cells != null)
+            {
+                int copyRows = Math.Min(height, this.cells.GetLength(0));
+                int copyCols = Math.Min(width, this.cells.GetLength(1));
+
+                for (int row = 0; row < copyRows; row++)
+                {
+                    for (int col = 0; col < copyCols; col++)
+                    {
+                        newCells[row, col] = this.cells[row, col];
+                    }
+                }
+
+                for (int row = 0; row < height; row++)
+                {
+                    int startCol = row < copyRows ? copyCols : 0;
+                    for (int col = startCol; col < width; col++)
+                    {
+                        this.ClearCell(ref newCells[row, col]);
+                    }
+                }
+            }
+            else
+            {
+                this.cells = newCells;
+                this.dirtyRows = new bool[height];
+                this.Clear();
+                this.scrollRegion = (0, 0, width - 1, height - 1);
+                return;
+            }
+
+            this.cells = newCells;
             this.dirtyRows = new bool[height];
-            this.Clear();
+            this.allDirty = true;
+            this.cursorPosition = (
+                Math.Clamp(this.cursorPosition.Row, 0, height - 1),
+                Math.Clamp(this.cursorPosition.Col, 0, width - 1));
 
             this.scrollRegion = (0, 0, width - 1, height - 1);
         }
@@ -416,7 +446,12 @@ namespace AeroVim.NeovimClient
 
         private void ClearCell(ref Cell cell)
         {
-           cell.Clear(this.foregroundColor, this.backgroundColor, this.specialColor);
+            cell.Clear(this.foregroundColor, this.backgroundColor, this.specialColor);
+        }
+
+        private void CopyAllCells(Cell[,] destination, Cell[,] source)
+        {
+            Array.Copy(source, destination, source.Length);
         }
     }
 }

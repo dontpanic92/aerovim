@@ -10,6 +10,7 @@ namespace AeroVim.NeovimClient
     using System.Collections;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Threading;
@@ -23,8 +24,10 @@ namespace AeroVim.NeovimClient
     {
         private readonly Stream writer;
         private readonly Stream reader;
-        private readonly Thread readTask;
+        private readonly CancellationTokenSource disposeCancellation = new CancellationTokenSource();
+        private readonly Task readTask;
         private uint nextRequestId = 0;
+        private bool disposed;
 
         private ConcurrentDictionary<uint, TaskCompletionSource<(bool, object)>> responseSignals
             = new ConcurrentDictionary<uint, TaskCompletionSource<(bool, object)>>();
@@ -40,9 +43,7 @@ namespace AeroVim.NeovimClient
             this.writer = writer;
             this.reader = reader;
             this.NotificationHandlers += handler;
-            this.readTask = new Thread(this.ReadTask);
-            this.readTask.IsBackground = true;
-            this.readTask.Start();
+            this.readTask = Task.Run(() => this.ReadTaskAsync(this.disposeCancellation.Token));
         }
 
         /// <summary>
@@ -92,22 +93,33 @@ namespace AeroVim.NeovimClient
         /// </returns>
         public Task<(bool, object)> SendRequest(string name, IList<object> args)
         {
+            ObjectDisposedException.ThrowIf(this.disposed, this);
+
             var requestId = this.NextRequestId;
-            var responseSignal = new TaskCompletionSource<(bool, object)>();
+            var responseSignal = new TaskCompletionSource<(bool, object)>(TaskCreationOptions.RunContinuationsAsynchronously);
             this.responseSignals.TryAdd(requestId, responseSignal);
 
-            var buffer = new ArrayBufferWriter<byte>();
-            var packer = new MessagePackWriter(buffer);
-            packer.WriteArrayHeader(4);
-            packer.Write(0);
-            packer.Write(requestId);
-            packer.Write(name);
-            this.WriteObject(ref packer, args);
-            packer.Flush();
+            try
+            {
+                var buffer = new ArrayBufferWriter<byte>();
+                var packer = new MessagePackWriter(buffer);
+                packer.WriteArrayHeader(4);
+                packer.Write(0);
+                packer.Write(requestId);
+                packer.Write(name);
+                this.WriteObject(ref packer, args);
+                packer.Flush();
 
-            this.writer.Write(buffer.WrittenSpan);
-            this.writer.Flush();
-            return responseSignal.Task;
+                this.writer.Write(buffer.WrittenSpan);
+                this.writer.Flush();
+                return responseSignal.Task;
+            }
+            catch (Exception ex)
+            {
+                this.responseSignals.TryRemove(requestId, out _);
+                responseSignal.TrySetException(ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -115,8 +127,32 @@ namespace AeroVim.NeovimClient
         /// </summary>
         public void Dispose()
         {
-            this.reader.Close();
-            this.writer.Close();
+            if (this.disposed)
+            {
+                return;
+            }
+
+            this.disposed = true;
+            this.disposeCancellation.Cancel();
+            this.FailPendingRequests(new ObjectDisposedException(nameof(MsgPackRpc)));
+
+            this.reader.Dispose();
+            this.writer.Dispose();
+
+            try
+            {
+                this.readTask.GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            finally
+            {
+                this.disposeCancellation.Dispose();
+            }
         }
 
         private static IList<MsgPack.MessagePackObject> ReadArray(ref MessagePackReader unpacker)
@@ -183,73 +219,90 @@ namespace AeroVim.NeovimClient
             }
         }
 
-        private void ReadTask()
+        private async Task ReadTaskAsync(CancellationToken cancellationToken)
         {
             var bufferedStream = new BufferedStream(this.reader);
             var streamReader = new MessagePackStreamReader(bufferedStream);
 
-            while (true)
+            try
             {
-                IList<MsgPack.MessagePackObject> list;
-                try
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    var payload = streamReader.ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
-                    if (!payload.HasValue)
+                    IList<MsgPack.MessagePackObject> list;
+                    try
+                    {
+                        var payload = await streamReader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                        if (!payload.HasValue)
+                        {
+                            this.FailPendingRequests(new EndOfStreamException("The msgpack-rpc stream closed before pending responses completed."));
+                            break;
+                        }
+
+                        var unpacker = new MessagePackReader(payload.Value);
+                        list = ReadArray(ref unpacker);
+                    }
+                    catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException or MessagePackSerializationException)
+                    {
+                        var unpackException = new MsgPack.UnpackException("Failed to unpack msgpack-rpc payload.", ex);
+                        this.FailPendingRequests(unpackException);
+                        Trace.TraceError(unpackException.ToString());
+                        break;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
                         break;
                     }
+                    catch (ObjectDisposedException)
+                    {
+                        this.FailPendingRequests(new ObjectDisposedException(nameof(MsgPackRpc)));
+                        break;
+                    }
 
-                    var unpacker = new MessagePackReader(payload.Value);
-                    list = ReadArray(ref unpacker);
+                    this.ProcessMessage(list);
                 }
-                catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException or MessagePackSerializationException)
-                {
-                    throw new MsgPack.UnpackException("Failed to unpack msgpack-rpc payload.", ex);
-                }
-                catch (ObjectDisposedException)
-                {
+            }
+            finally
+            {
+                bufferedStream.Dispose();
+            }
+        }
+
+        private void ProcessMessage(IList<MsgPack.MessagePackObject> list)
+        {
+            var type = list[0].AsUInt32();
+            switch (type)
+            {
+                case 0:
+                    if (list.Count != 4)
+                    {
+                        throw new InvalidDataException("Wrong MsgPackRpc format: Request must have 4 elements but " + list.Count + " received.");
+                    }
+
                     break;
-                }
+                case 1:
+                    if (list.Count != 4)
+                    {
+                        throw new InvalidDataException("Wrong MsgPackRpc format: Response must have 4 elements but " + list.Count + " received.");
+                    }
 
-                var type = list[0].AsUInt32();
-                switch (type)
-                {
-                    case 0:
-                        // Request
-                        if (list.Count != 4)
-                        {
-                            throw new Exception("Wrong MsgPackRpc format: Request must have 4 elements but " + list.Count + "received");
-                        }
+                    this.OnResponse(list[1].AsUInt32(), list[2], list[3]);
+                    break;
+                case 2:
+                    if (list.Count != 3)
+                    {
+                        throw new InvalidDataException("Wrong MsgPackRpc format: Notification must have 3 elements but " + list.Count + " received.");
+                    }
 
-                        break;
-                    case 1:
-                        // Response
-                        if (list.Count != 4)
-                        {
-                            throw new Exception("Wrong MsgPackRpc format: Response must have 3 elements but " + list.Count + "received");
-                        }
-
-                        this.OnResponse(list[1].AsUInt32(), list[2], list[3]);
-                        break;
-                    case 2:
-                        // Notification
-                        if (list.Count != 3)
-                        {
-                            throw new Exception("Wrong MsgPackRpc format: Notification must have 3 elements but " + list.Count + "received");
-                        }
-
-                        this.OnNotification(list[1].AsString(), list[2].AsList());
-
-                        break;
-                    default:
-                        throw new Exception("Unknown type of message received. Type: " + type);
-                }
+                    this.OnNotification(list[1].AsString(), list[2].AsList());
+                    break;
+                default:
+                    throw new InvalidDataException("Unknown type of message received. Type: " + type);
             }
         }
 
         private void OnNotification(string name, IList<MsgPack.MessagePackObject> args)
         {
-            this.NotificationHandlers.Invoke(name, args);
+            this.NotificationHandlers?.Invoke(name, args);
         }
 
         private void OnResponse(uint requestId, MsgPack.MessagePackObject error, MsgPack.MessagePackObject result)
@@ -266,6 +319,17 @@ namespace AeroVim.NeovimClient
             else
             {
                 signal.SetResult((true, result));
+            }
+        }
+
+        private void FailPendingRequests(Exception exception)
+        {
+            foreach (var pair in this.responseSignals)
+            {
+                if (this.responseSignals.TryRemove(pair.Key, out var signal))
+                {
+                    signal.TrySetException(exception);
+                }
             }
         }
 

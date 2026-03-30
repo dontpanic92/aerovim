@@ -49,13 +49,7 @@ namespace AeroVim
             }
 
             this.SetupBlurBehind();
-
-            this.Width = this.settings.WindowWidth;
-            this.Height = this.settings.WindowHeight;
-            if (this.settings.IsMaximized)
-            {
-                this.WindowState = WindowState.Maximized;
-            }
+            WindowSettingsPersistence.Apply(this, this.settings);
 
             this.Opened += this.OnWindowOpened;
         }
@@ -184,18 +178,7 @@ namespace AeroVim
         protected override void OnClosing(WindowClosingEventArgs e)
         {
             base.OnClosing(e);
-
-            if (this.WindowState == WindowState.Maximized)
-            {
-                this.settings.IsMaximized = true;
-            }
-            else
-            {
-                this.settings.IsMaximized = false;
-                this.settings.WindowWidth = (int)this.Width;
-                this.settings.WindowHeight = (int)this.Height;
-            }
-
+            WindowSettingsPersistence.Capture(this, this.settings);
             this.settings.Save();
 
             if (this.editorClient != null)
@@ -218,13 +201,14 @@ namespace AeroVim
 
         private async Task InitializeEditorAsync()
         {
-            this.AutoDetectEditorPath();
+            EditorPathDetector.PopulateUnsetPaths(this.settings);
+            await this.ShowSettingsPersistenceErrorIfNeededAsync();
 
             while (true)
             {
                 try
                 {
-                    this.editorClient = this.CreateEditorClient();
+                    this.editorClient = EditorClientFactory.Create(this.settings);
                     break;
                 }
                 catch (Exception)
@@ -285,9 +269,10 @@ namespace AeroVim
                 {
                     this.currentBackgroundColor = intColor;
                     this.settings.BackgroundColor = intColor;
+                    this.settings.Save();
                     this.UpdateBackgroundOpacity();
                 });
-             };
+              };
 
             this.settings.PropertyChanged += (sender, propChangedArgs) =>
             {
@@ -310,45 +295,7 @@ namespace AeroVim
                         this.editorControl.InvalidateVisual();
                         break;
                 }
-             };
-        }
-
-        private void AutoDetectEditorPath()
-        {
-            if (this.settings.EditorType == EditorType.Vim)
-            {
-                if (string.IsNullOrEmpty(this.settings.VimPath))
-                {
-                    var detected = EditorPathDetector.FindVimInPath();
-                    if (detected != null)
-                    {
-                        this.settings.VimPath = detected;
-                        this.settings.Save();
-                    }
-                }
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(this.settings.NeovimPath))
-                {
-                    var detected = NeovimPathDetector.FindNeovimInPath();
-                    if (detected != null)
-                    {
-                        this.settings.NeovimPath = detected;
-                        this.settings.Save();
-                    }
-                }
-            }
-        }
-
-        private IEditorClient CreateEditorClient()
-        {
-            if (this.settings.EditorType == EditorType.Vim)
-            {
-                return new VimClient.VimClient(this.settings.VimPath);
-            }
-
-            return new NeovimClient.NeovimClient(this.settings.NeovimPath);
+              };
         }
 
         private void SetupBlurBehind()
@@ -544,6 +491,20 @@ namespace AeroVim
                 $"The requested transparency level {requestedLevel} is not supported on your system. Falling back to {actualLevel}",
                 "Transparency Level Fallback");
             await dialog.ShowDialog(this);
+        }
+
+        private async Task ShowSettingsPersistenceErrorIfNeededAsync()
+        {
+            if (string.IsNullOrEmpty(this.settings.LastPersistenceError))
+            {
+                return;
+            }
+
+            var dialog = new Dialogs.MessageWindow(
+                $"Settings could not be fully loaded or saved:\n{this.settings.LastPersistenceError}",
+                "Settings Warning");
+            await dialog.ShowDialog(this);
+            this.settings.ClearLastPersistenceError();
         }
 
         private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)

@@ -7,6 +7,7 @@ namespace AeroVim.Settings
 {
     using System;
     using System.ComponentModel;
+    using System.Diagnostics;
     using System.IO;
     using System.Runtime.CompilerServices;
     using System.Text.Json;
@@ -22,7 +23,7 @@ namespace AeroVim.Settings
 
         private static readonly string SettingsPath = Path.Combine(SettingsDirectory, "settings.json");
 
-        private static AppSettings defaultInstance;
+        private static readonly Lazy<AppSettings> DefaultInstance = new Lazy<AppSettings>(Load);
 
         private string neovimPath = string.Empty;
         private string vimPath = string.Empty;
@@ -44,16 +45,13 @@ namespace AeroVim.Settings
         /// </summary>
         public static AppSettings Default
         {
-            get
-            {
-                if (defaultInstance == null)
-                {
-                    defaultInstance = Load();
-                }
-
-                return defaultInstance;
-            }
+            get => DefaultInstance.Value;
         }
+
+        /// <summary>
+        /// Gets the last persistence error, if any.
+        /// </summary>
+        public string LastPersistenceError { get; private set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the Neovim executable path.
@@ -157,24 +155,30 @@ namespace AeroVim.Settings
         /// <summary>
         /// Save settings to disk.
         /// </summary>
-        public void Save()
+        /// <returns><c>true</c> if the settings were saved successfully; otherwise, <c>false</c>.</returns>
+        public bool Save()
         {
             try
             {
                 Directory.CreateDirectory(SettingsDirectory);
                 var json = JsonSerializer.Serialize(this, AppSettingsJsonContext.Default.AppSettings);
                 File.WriteAllText(SettingsPath, json);
+                this.LastPersistenceError = string.Empty;
+                return true;
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)
             {
-                // Silently ignore save errors
+                this.LastPersistenceError = ex.Message;
+                Trace.TraceError($"AeroVim: Failed to save settings: {ex}");
+                return false;
             }
         }
 
         /// <summary>
         /// Reload settings from disk, discarding in-memory changes.
         /// </summary>
-        public void Reload()
+        /// <returns><c>true</c> if the settings were reloaded successfully; otherwise, <c>false</c>.</returns>
+        public bool Reload()
         {
             var fresh = Load();
             this.NeovimPath = fresh.NeovimPath;
@@ -188,6 +192,16 @@ namespace AeroVim.Settings
             this.WindowWidth = fresh.WindowWidth;
             this.WindowHeight = fresh.WindowHeight;
             this.BackgroundColor = fresh.BackgroundColor;
+            this.LastPersistenceError = fresh.LastPersistenceError;
+            return string.IsNullOrEmpty(this.LastPersistenceError);
+        }
+
+        /// <summary>
+        /// Clears the last recorded persistence error after it has been shown to the user.
+        /// </summary>
+        public void ClearLastPersistenceError()
+        {
+            this.LastPersistenceError = string.Empty;
         }
 
         private static AppSettings Load()
@@ -200,9 +214,13 @@ namespace AeroVim.Settings
                     return JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings) as AppSettings ?? new AppSettings();
                 }
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)
             {
-                // Fall through to default
+                Trace.TraceError($"AeroVim: Failed to load settings: {ex}");
+                return new AppSettings
+                {
+                    LastPersistenceError = ex.Message,
+                };
             }
 
             return new AppSettings();

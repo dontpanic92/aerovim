@@ -8,12 +8,23 @@ namespace AeroVim.Utilities
     using System;
     using System.IO;
     using System.Runtime.InteropServices;
+    using AeroVim.Settings;
 
     /// <summary>
-    /// Detects editor executables (Vim, Neovim) in the system PATH.
+    /// Detects editor executables and populates unset editor paths from the system PATH.
     /// </summary>
     public static class EditorPathDetector
     {
+        /// <summary>
+        /// Searches the system PATH for a Neovim executable.
+        /// </summary>
+        /// <returns>The full absolute path to the nvim executable, or <c>null</c> if not found.</returns>
+        public static string FindNeovimInPath()
+        {
+            var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "nvim.exe" : "nvim";
+            return FindInPath(executableName);
+        }
+
         /// <summary>
         /// Searches the system PATH for a Vim executable.
         /// </summary>
@@ -22,6 +33,38 @@ namespace AeroVim.Utilities
         {
             var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "vim.exe" : "vim";
             return FindInPath(executableName);
+        }
+
+        /// <summary>
+        /// Fill unset editor paths using PATH-based detection.
+        /// </summary>
+        /// <param name="settings">Application settings.</param>
+        public static void PopulateUnsetPaths(AppSettings settings)
+        {
+            if (settings.EditorType == EditorType.Vim)
+            {
+                if (string.IsNullOrEmpty(settings.VimPath))
+                {
+                    var detectedVimPath = FindVimInPath();
+                    if (detectedVimPath != null)
+                    {
+                        settings.VimPath = detectedVimPath;
+                        settings.Save();
+                    }
+                }
+
+                return;
+            }
+
+            if (string.IsNullOrEmpty(settings.NeovimPath))
+            {
+                var detectedNeovimPath = FindNeovimInPath();
+                if (detectedNeovimPath != null)
+                {
+                    settings.NeovimPath = detectedNeovimPath;
+                    settings.Save();
+                }
+            }
         }
 
         /// <summary>

@@ -14,7 +14,7 @@ namespace AeroVim
     /// </summary>
     public static class KeyMapping
     {
-        private static Dictionary<Key, string> specialKeys = new Dictionary<Key, string>()
+        private static readonly IReadOnlyDictionary<Key, string> SpecialKeys = new Dictionary<Key, string>()
         {
             { Key.Back, "Bs" },
             { Key.Tab, "Tab" },
@@ -60,7 +60,7 @@ namespace AeroVim
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
             bool alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
 
-            if (specialKeys.TryGetValue(e.Key, out text))
+            if (SpecialKeys.TryGetValue(e.Key, out text))
             {
                 text = DecorateInput(text, control, shift, alt);
                 return true;

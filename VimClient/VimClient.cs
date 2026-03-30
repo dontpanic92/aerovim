@@ -34,6 +34,9 @@ namespace AeroVim.VimClient
         private bool disposed;
         private int processExitHandled;
         private ModeInfo currentModeInfo;
+        private ColorChangedHandler foregroundColorChanged;
+        private ColorChangedHandler backgroundColorChanged;
+        private FontChangedHandler fontChanged;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VimClient"/> class.
@@ -50,34 +53,46 @@ namespace AeroVim.VimClient
         }
 
         /// <summary>
-        /// Gets or sets the title changed event handler.
+        /// Raised when the title changes.
         /// </summary>
-        public TitleChangedHandler TitleChanged { get; set; }
+        public event TitleChangedHandler TitleChanged;
 
         /// <summary>
-        /// Gets or sets the redraw event handler.
+        /// Raised when the editor should redraw.
         /// </summary>
-        public RedrawHandler Redraw { get; set; }
+        public event RedrawHandler Redraw;
 
         /// <summary>
-        /// Gets or sets the editor exited event handler.
+        /// Raised when the editor process exits.
         /// </summary>
-        public EditorExitedHandler EditorExited { get; set; }
+        public event EditorExitedHandler EditorExited;
 
         /// <summary>
-        /// Gets or sets the foreground color changed event handler.
+        /// Raised when the foreground color changes.
         /// </summary>
-        public ColorChangedHandler ForegroundColorChanged { get; set; }
+        public event ColorChangedHandler ForegroundColorChanged
+        {
+            add => this.foregroundColorChanged += value;
+            remove => this.foregroundColorChanged -= value;
+        }
 
         /// <summary>
-        /// Gets or sets the background color changed event handler.
+        /// Raised when the background color changes.
         /// </summary>
-        public ColorChangedHandler BackgroundColorChanged { get; set; }
+        public event ColorChangedHandler BackgroundColorChanged
+        {
+            add => this.backgroundColorChanged += value;
+            remove => this.backgroundColorChanged -= value;
+        }
 
         /// <summary>
-        /// Gets or sets the font changed event handler.
+        /// Raised when the font changes.
         /// </summary>
-        public FontChangedHandler FontChanged { get; set; }
+        public event FontChangedHandler FontChanged
+        {
+            add => this.fontChanged += value;
+            remove => this.fontChanged -= value;
+        }
 
         /// <summary>
         /// Gets the current mode info (cursor shape, size, blink state).
