@@ -12,6 +12,7 @@ using AeroVim.Utilities;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.TextInput;
 using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Rendering.SceneGraph;
@@ -35,6 +36,8 @@ public class EditorControl : Control, IDisposable
     private readonly SKPaint underlinePaint = new() { StrokeWidth = 1, IsAntialias = true };
     private readonly SKPaint undercurlPaint = new() { StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint cursorPaint = new() { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
+    private readonly SKPaint preeditUnderlinePaint = new() { StrokeWidth = 2, IsAntialias = true, Color = SKColors.White };
+    private readonly EditorTextInputMethodClient imeClient;
 
     private TextLayoutParameters textParam;
     private SKTypeface? primaryTypeface;
@@ -55,6 +58,14 @@ public class EditorControl : Control, IDisposable
         this.ClipToBounds = true;
         this.Focusable = true;
 
+        this.imeClient = new EditorTextInputMethodClient(this);
+        this.AddHandler(
+            InputElement.TextInputMethodClientRequestedEvent,
+            (_, e) =>
+            {
+                e.Client = this.imeClient;
+            });
+
         var defaultFont = Utilities.Helpers.GetDefaultMonospaceFontName();
         this.primaryTypeface = this.CreateValidatedTypeface(defaultFont);
         this.typefaceCache[new TypefaceKey(this.primaryTypeface.FamilyName, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright)] = this.primaryTypeface;
@@ -66,6 +77,11 @@ public class EditorControl : Control, IDisposable
     /// Gets or sets a value indicating whether font ligature is enabled.
     /// </summary>
     public bool EnableLigature { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether an IME composition is in progress.
+    /// </summary>
+    public bool IsComposing => this.imeClient.IsComposing;
 
     /// <summary>
     /// Gets or sets the alpha channel used for the default background.
@@ -424,6 +440,12 @@ public class EditorControl : Control, IDisposable
 
         // Draw cursor
         this.DrawCursor(canvas, args);
+
+        // Draw preedit (IME composition) overlay
+        this.DrawPreedit(canvas, args);
+
+        // Report the cursor rectangle to the IME so the candidate window follows the cursor
+        this.UpdateImeCursorRectangle(args);
     }
 
     private void DrawCellRange(SKCanvas canvas, EditorScreen args, int row, int colStart, int colEnd)
@@ -535,6 +557,40 @@ public class EditorControl : Control, IDisposable
         canvas.DrawRect(cursorRect, this.cursorPaint);
     }
 
+    private void DrawPreedit(SKCanvas canvas, EditorScreen args)
+    {
+        string? preedit = this.imeClient.PreeditText;
+        if (preedit is null)
+        {
+            return;
+        }
+
+        float x = args.CursorPosition.Col * this.textParam.CharWidth;
+        float y = args.CursorPosition.Row * this.textParam.LineHeight;
+        float baselineY = y + (this.textParam.LineHeight * 0.8f);
+
+        // Draw a background behind the preedit text
+        float textWidth = this.textPaint.MeasureText(preedit);
+        this.backgroundPaint.Color = Helpers.GetSkColor(args.BackgroundColor);
+        canvas.DrawRect(x, y, textWidth, this.textParam.LineHeight, this.backgroundPaint);
+
+        // Draw the preedit text at the cursor position
+        this.textPaint.Color = Helpers.GetSkColor(args.ForegroundColor);
+        canvas.DrawText(preedit, x, baselineY, this.textPaint);
+
+        // Draw an underline to indicate composition in progress
+        float underlineY = y + this.textParam.LineHeight - 1;
+        this.preeditUnderlinePaint.Color = Helpers.GetSkColor(args.ForegroundColor);
+        canvas.DrawLine(x, underlineY, x + textWidth, underlineY, this.preeditUnderlinePaint);
+    }
+
+    private void UpdateImeCursorRectangle(EditorScreen args)
+    {
+        float x = args.CursorPosition.Col * this.textParam.CharWidth;
+        float y = args.CursorPosition.Row * this.textParam.LineHeight;
+        this.imeClient.UpdateCursorRectangle(new Rect(x, y, this.textParam.CharWidth, this.textParam.LineHeight));
+    }
+
     private int GetCharWidth(Cell[,] screen, int row, int col)
     {
         if (col >= screen.GetLength(1) - 1)
@@ -558,6 +614,7 @@ public class EditorControl : Control, IDisposable
         this.underlinePaint.Dispose();
         this.undercurlPaint.Dispose();
         this.cursorPaint.Dispose();
+        this.preeditUnderlinePaint.Dispose();
     }
 
     private void DisposeTypefaceCaches()

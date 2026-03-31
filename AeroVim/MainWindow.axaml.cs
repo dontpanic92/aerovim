@@ -138,6 +138,14 @@ public partial class MainWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+
+        // During IME composition Avalonia raises KeyDown with Key.ImeProcessed (or Key.None).
+        // These must not be forwarded to the editor; let the IME handle them.
+        if (e.Key is Key.ImeProcessed or Key.None)
+        {
+            return;
+        }
+
         if (this.editorClient is not null && KeyMapping.TryMap(e, out var text) && text is not null)
         {
             this.editorClient.Input(text);
