@@ -333,6 +333,7 @@ public class EditorControl : Control, IDisposable
 
         Dispatcher.UIThread.Post(() =>
         {
+            this.UpdateImeCursorRectangle();
             this.InvalidateVisual();
             Interlocked.Exchange(ref this.redrawQueued, 0);
         });
@@ -443,9 +444,6 @@ public class EditorControl : Control, IDisposable
 
         // Draw preedit (IME composition) overlay
         this.DrawPreedit(canvas, args);
-
-        // Report the cursor rectangle to the IME so the candidate window follows the cursor
-        this.UpdateImeCursorRectangle(args);
     }
 
     private void DrawCellRange(SKCanvas canvas, EditorScreen args, int row, int colStart, int colEnd)
@@ -584,10 +582,16 @@ public class EditorControl : Control, IDisposable
         canvas.DrawLine(x, underlineY, x + textWidth, underlineY, this.preeditUnderlinePaint);
     }
 
-    private void UpdateImeCursorRectangle(EditorScreen args)
+    private void UpdateImeCursorRectangle()
     {
-        float x = args.CursorPosition.Col * this.textParam.CharWidth;
-        float y = args.CursorPosition.Row * this.textParam.LineHeight;
+        var screen = this.editorClient.GetScreen();
+        if (screen is null)
+        {
+            return;
+        }
+
+        float x = screen.CursorPosition.Col * this.textParam.CharWidth;
+        float y = screen.CursorPosition.Row * this.textParam.LineHeight;
         this.imeClient.UpdateCursorRectangle(new Rect(x, y, this.textParam.CharWidth, this.textParam.LineHeight));
     }
 
