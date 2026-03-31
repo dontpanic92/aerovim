@@ -3,7 +3,7 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace AeroVim;
+namespace AeroVim.Utilities;
 
 using Avalonia.Input;
 

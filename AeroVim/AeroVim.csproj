@@ -5,7 +5,7 @@
     <RootNamespace>AeroVim</RootNamespace>
     <AssemblyName>aerovim</AssemblyName>
     <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\neovim_mark_flat.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\aerovim.ico</ApplicationIcon>
     <Platforms>x64;x86;ARM64</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>true</PublishAot>
@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\neovim_mark_flat.ico" />
+    <AvaloniaResource Include="Assets\aerovim.ico" />
   </ItemGroup>
 
 </Project>

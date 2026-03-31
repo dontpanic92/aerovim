@@ -10,7 +10,7 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="28"
         SystemDecorations="Full"
-        Icon="avares://aerovim/Assets/neovim_mark_flat.ico">
+        Icon="avares://aerovim/Assets/aerovim.ico">
 
     <DockPanel LastChildFill="True">
         <!-- Custom Title Bar -->
