@@ -44,9 +44,9 @@ public class VtParser
 
     private readonly TerminalBuffer buffer;
     private readonly Action<string> titleChanged;
-    private readonly List<int> parameters = new List<int>();
-    private readonly List<int> subParameters = new List<int>();
-    private readonly StringBuilder oscString = new StringBuilder();
+    private readonly List<int> parameters = new();
+    private readonly List<int> subParameters = new();
+    private readonly StringBuilder oscString = new();
 
     private VtState state = VtState.Ground;
     private bool privateMarker;

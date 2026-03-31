@@ -12,13 +12,11 @@ using AeroVim.Editor;
 /// </summary>
 public class TerminalBuffer
 {
-    private readonly object screenLock = new object();
-    private readonly Screen screen = new Screen(new Cell[0, 0]);
+    private readonly object screenLock = new();
+    private readonly Screen screen = new() { Cells = new Cell[0, 0] };
 
     private Cell[,] cells;
-#pragma warning disable SA1011
     private Cell[,]? altCells;
-#pragma warning restore SA1011
     private bool usingAltBuffer;
 
     private int cursorRow;

@@ -21,8 +21,8 @@ public sealed class VimClient : IEditorClient
     private readonly string? workingDirectory;
     private readonly TerminalBuffer buffer;
     private readonly VtParser parser;
-    private readonly object screenLock = new object();
-    private readonly Queue<string> pendingCommands = new Queue<string>();
+    private readonly object screenLock = new();
+    private readonly Queue<string> pendingCommands = new();
 
     private NativePtyConnection? ptyConnection;
     private Task? spawnTask;

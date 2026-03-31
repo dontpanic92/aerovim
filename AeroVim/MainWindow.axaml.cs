@@ -3,8 +3,6 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-#pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
-
 namespace AeroVim;
 
 using System.Diagnostics;
@@ -310,11 +308,11 @@ public partial class MainWindow : Window
     {
         if (this.settings.EnableBlurBehind)
         {
-            this.TransparencyLevelHint = new[] { this.GetRequestedTransparencyLevel() };
+            this.TransparencyLevelHint = [this.GetRequestedTransparencyLevel()];
         }
         else
         {
-            this.TransparencyLevelHint = new[] { WindowTransparencyLevel.None };
+            this.TransparencyLevelHint = [WindowTransparencyLevel.None];
         }
     }
 

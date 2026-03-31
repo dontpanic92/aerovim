@@ -19,13 +19,13 @@ public sealed class NeovimClient : IEditorClient
     private const int DefaultSpecialColor = 0x000000;
 
     private readonly DefaultNeovimRpcClient neovim;
-    private readonly object screenLock = new object();
-    private readonly Screen screen = new Screen(new Cell[0, 0]);
+    private readonly object screenLock = new();
+    private readonly Screen screen = new() { Cells = new Cell[0, 0] };
 
     private int foregroundColor = DefaultForegroundColor;
     private int backgroundColor = DefaultBackgroundColor;
     private int specialColor = DefaultSpecialColor;
-    private HighlightSetEvent highlightSetEvent = new ();
+    private HighlightSetEvent highlightSetEvent = new();
 
     private (int Left, int Top, int Right, int Bottom) scrollRegion;
     private bool initialized = false;
@@ -34,10 +34,8 @@ public sealed class NeovimClient : IEditorClient
     private int modeIndex = 0;
     private string title = string.Empty;
     private string iconTitle = string.Empty;
-#pragma warning disable SA1011 // Closing square bracket should be followed by a space
     private Cell[,]? cells;
     private bool[]? dirtyRows;
-#pragma warning restore SA1011 // Closing square bracket should be followed by a space
     private bool allDirty;
     private (int Row, int Col) cursorPosition = (0, 0);
 

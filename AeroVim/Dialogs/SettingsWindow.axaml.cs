@@ -3,8 +3,6 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-#pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
-
 namespace AeroVim.Dialogs;
 
 using System.Runtime.InteropServices;
@@ -178,12 +176,12 @@ public partial class SettingsWindow : Window
         var fileTypeFilters = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? new[]
             {
-                new FilePickerFileType("Executable Files") { Patterns = new[] { "*.exe" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } },
+                new FilePickerFileType("Executable Files") { Patterns = ["*.exe"] },
+                new FilePickerFileType("All Files") { Patterns = ["*.*"] },
             }
             : new[]
             {
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                new FilePickerFileType("All Files") { Patterns = ["*"] },
             };
 
         var files = await topLevel!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -236,12 +234,12 @@ public partial class SettingsWindow : Window
         var fileTypeFilters = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? new[]
             {
-                new FilePickerFileType("Executable Files") { Patterns = new[] { "*.exe" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } },
+                new FilePickerFileType("Executable Files") { Patterns = ["*.exe"] },
+                new FilePickerFileType("All Files") { Patterns = ["*.*"] },
             }
             : new[]
             {
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                new FilePickerFileType("All Files") { Patterns = ["*"] },
             };
 
         var files = await topLevel!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions

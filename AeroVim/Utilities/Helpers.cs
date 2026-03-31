@@ -38,15 +38,15 @@ public static class Helpers
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            candidates = new[] { "Consolas", "Courier New", "Lucida Console" };
+            candidates = ["Consolas", "Courier New", "Lucida Console"];
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            candidates = new[] { "Menlo", "SF Mono", "Monaco", "Courier" };
+            candidates = ["Menlo", "SF Mono", "Monaco", "Courier"];
         }
         else
         {
-            candidates = new[] { "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono", "Monospace" };
+            candidates = ["DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono", "Monospace"];
         }
 
         foreach (var name in candidates)

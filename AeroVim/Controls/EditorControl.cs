@@ -3,8 +3,6 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-#pragma warning disable SA1009 // StyleCop 1.1.118 false positive with null-forgiving operator after closing parenthesis
-
 namespace AeroVim.Controls;
 
 using System.Collections.Concurrent;
@@ -28,15 +26,15 @@ using EditorScreen = AeroVim.Editor.Screen;
 public class EditorControl : Control, IDisposable
 {
     private readonly IEditorClient editorClient;
-    private readonly ConcurrentQueue<Action> pendingActions = new ConcurrentQueue<Action>();
-    private readonly Dictionary<TypefaceKey, SKTypeface> typefaceCache = new Dictionary<TypefaceKey, SKTypeface>();
-    private readonly Dictionary<GlyphKey, SKTypeface> glyphTypefaceCache = new Dictionary<GlyphKey, SKTypeface>();
-    private readonly Dictionary<int, string> codePointTextCache = new Dictionary<int, string>();
-    private readonly SKPaint backgroundPaint = new SKPaint { IsAntialias = false, Style = SKPaintStyle.Fill };
-    private readonly SKPaint textPaint = new SKPaint { IsAntialias = true, IsLinearText = false, SubpixelText = true };
-    private readonly SKPaint underlinePaint = new SKPaint { StrokeWidth = 1, IsAntialias = true };
-    private readonly SKPaint undercurlPaint = new SKPaint { StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke };
-    private readonly SKPaint cursorPaint = new SKPaint { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
+    private readonly ConcurrentQueue<Action> pendingActions = new();
+    private readonly Dictionary<TypefaceKey, SKTypeface> typefaceCache = new();
+    private readonly Dictionary<GlyphKey, SKTypeface> glyphTypefaceCache = new();
+    private readonly Dictionary<int, string> codePointTextCache = new();
+    private readonly SKPaint backgroundPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
+    private readonly SKPaint textPaint = new() { IsAntialias = true, IsLinearText = false, SubpixelText = true };
+    private readonly SKPaint underlinePaint = new() { StrokeWidth = 1, IsAntialias = true };
+    private readonly SKPaint undercurlPaint = new() { StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke };
+    private readonly SKPaint cursorPaint = new() { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
 
     private TextLayoutParameters textParam;
     private SKTypeface? primaryTypeface;

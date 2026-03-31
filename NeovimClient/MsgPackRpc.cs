@@ -18,13 +18,13 @@ public sealed class MsgPackRpc : IDisposable
 {
     private readonly Stream writer;
     private readonly Stream reader;
-    private readonly CancellationTokenSource disposeCancellation = new CancellationTokenSource();
+    private readonly CancellationTokenSource disposeCancellation = new();
     private readonly Task readTask;
     private uint nextRequestId = 0;
     private bool disposed;
 
-    private ConcurrentDictionary<uint, TaskCompletionSource<(bool, object)>> responseSignals
-        = new ConcurrentDictionary<uint, TaskCompletionSource<(bool, object)>>();
+    private ConcurrentDictionary<uint, TaskCompletionSource<(bool Success, object Value)>> responseSignals
+        = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MsgPackRpc"/> class.
@@ -85,12 +85,12 @@ public sealed class MsgPackRpc : IDisposable
     /// the request is successfully completed. If true, the object is the return value;
     /// otherwise the object represents the error that returns from remote.
     /// </returns>
-    public Task<(bool, object)> SendRequest(string name, IList<object> args)
+    public Task<(bool Success, object Value)> SendRequest(string name, IList<object> args)
     {
         ObjectDisposedException.ThrowIf(this.disposed, this);
 
         var requestId = this.NextRequestId;
-        var responseSignal = new TaskCompletionSource<(bool, object)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var responseSignal = new TaskCompletionSource<(bool Success, object Value)>(TaskCreationOptions.RunContinuationsAsynchronously);
         this.responseSignals.TryAdd(requestId, responseSignal);
 
         try

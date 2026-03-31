@@ -10,7 +10,7 @@ namespace AeroVim.VimClient;
 /// </summary>
 public static class TerminalInputEncoder
 {
-    private static readonly Dictionary<string, string> SpecialKeys = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> SpecialKeys = new()
     {
         { "Esc", "\x1B" },
         { "CR", "\r" },
@@ -47,7 +47,7 @@ public static class TerminalInputEncoder
     };
 
     // Modifier codes for xterm-style modified keys: 2=Shift, 3=Alt, 5=Ctrl, etc.
-    private static readonly Dictionary<string, string> ArrowKeys = new Dictionary<string, string>
+    private static readonly Dictionary<string, string> ArrowKeys = new()
     {
         { "Up", "A" },
         { "Down", "B" },
