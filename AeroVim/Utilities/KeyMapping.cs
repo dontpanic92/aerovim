@@ -14,7 +14,7 @@ public static class KeyMapping
 {
     private static readonly IReadOnlyDictionary<Key, string> SpecialKeys = new Dictionary<Key, string>()
     {
-        { Key.Back, "Bs" },
+        { Key.Back, "BS" },
         { Key.Tab, "Tab" },
         { Key.LineFeed, "NL" },
         { Key.Return, "CR" },

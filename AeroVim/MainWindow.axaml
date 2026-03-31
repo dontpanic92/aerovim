@@ -3,7 +3,7 @@
         x:Class="AeroVim.MainWindow"
         Title="AeroVim"
         RequestedThemeVariant="Light"
-        TransparencyLevelHint="Transparent"
+        TransparencyLevelHint="None"
         Background="Transparent"
         TransparencyBackgroundFallback="Transparent"
         ExtendClientAreaToDecorationsHint="True"

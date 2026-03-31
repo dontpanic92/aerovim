@@ -48,7 +48,6 @@ public partial class MainWindow : Window
 
         this.SetupBlurBehind();
         WindowSettingsPersistence.Apply(this, this.settings);
-
         this.Opened += this.OnWindowOpened;
     }
 
@@ -77,10 +76,9 @@ public partial class MainWindow : Window
 
             if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
             {
-                await this.ShowTransparencyMismatchDialogAsync();
-
                 // When opened at runtime (not during startup), warn if editor config changed
-                if (promptText is null && this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
+                if (promptText is null &&
+                    this.HasEditorConfigChanged(previousEditorType, previousNeovimPath, previousVimPath))
                 {
                     var msg = new Dialogs.MessageWindow(
                         "Editor backend changes will take effect the next time AeroVim is started.",
@@ -201,7 +199,6 @@ public partial class MainWindow : Window
         this.Opened -= this.OnWindowOpened;
 
         this.DeferMacOSNativeTransparency();
-
         await this.InitializeEditorAsync();
     }
 
@@ -220,7 +217,8 @@ public partial class MainWindow : Window
             catch (Exception)
             {
                 string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
-                if (await this.ShowSettingsDialogAsync($"Please specify the path to {editorName}") == Dialogs.SettingsWindow.Result.Cancel)
+                if (await this.ShowSettingsDialogAsync($"Please specify the path to {editorName}") ==
+                    Dialogs.SettingsWindow.Result.Cancel)
                 {
                     this.Close();
                     return;
@@ -248,7 +246,7 @@ public partial class MainWindow : Window
                     titleText.Text = effectiveTitle;
                 }
             });
-         };
+        };
 
         this.editorClient.ForegroundColorChanged += (int intColor) =>
         {
@@ -267,7 +265,7 @@ public partial class MainWindow : Window
                 this.FindControl<Button>("MaximizeButton")!.Foreground = brush;
                 this.FindControl<Button>("CloseButton")!.Foreground = brush;
             });
-         };
+        };
 
         this.editorClient.BackgroundColorChanged += (int intColor) =>
         {
@@ -278,7 +276,7 @@ public partial class MainWindow : Window
                 this.settings.Save();
                 this.UpdateBackgroundOpacity();
             });
-          };
+        };
 
         this.settings.PropertyChanged += (sender, propChangedArgs) =>
         {
@@ -290,6 +288,8 @@ public partial class MainWindow : Window
                     {
                         this.SetupBlurBehind();
                         this.DeferMacOSNativeTransparency();
+                        Dispatcher.UIThread.InvokeAsync(async Task () =>
+                            await this.TestAndShowTransparencyMismatchDialogAsync());
                     });
                     break;
 
@@ -301,7 +301,7 @@ public partial class MainWindow : Window
                     this.editorControl.InvalidateVisual();
                     break;
             }
-          };
+        };
     }
 
     private void SetupBlurBehind()
@@ -463,7 +463,7 @@ public partial class MainWindow : Window
         };
     }
 
-    private async Task ShowTransparencyMismatchDialogAsync()
+    private async Task TestAndShowTransparencyMismatchDialogAsync()
     {
         if (!this.settings.EnableBlurBehind)
         {
