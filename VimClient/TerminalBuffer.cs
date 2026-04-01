@@ -41,6 +41,7 @@ public class TerminalBuffer
 
     private int defaultFg = 0x000000;
     private int defaultBg = 0xFFFFFF;
+    private int detectedBg = 0xFFFFFF;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TerminalBuffer"/> class.
@@ -629,12 +630,24 @@ public class TerminalBuffer
     }
 
     /// <summary>
-    /// Set the terminal default background color (e.g. from OSC 11 or screen analysis).
+    /// Set the terminal default background color (e.g. from OSC 11).
+    /// This affects how SGR 49 (default background) resolves.
     /// </summary>
     /// <param name="color">Color value in RGB format.</param>
     public void SetTerminalDefaultBackground(int color)
     {
         this.defaultBg = color;
+    }
+
+    /// <summary>
+    /// Set the initial detected background color hint (e.g. from saved settings).
+    /// Used as the starting value for <see cref="Screen.BackgroundColor"/> before
+    /// screen analysis detects the actual predominant color.
+    /// </summary>
+    /// <param name="color">Color value in RGB format.</param>
+    public void SetDetectedBackground(int color)
+    {
+        this.detectedBg = color;
     }
 
     /// <summary>
@@ -689,7 +702,7 @@ public class TerminalBuffer
             this.DetectPredominantBackground();
             this.screen.CursorPosition = (this.cursorRow, this.cursorCol);
             this.screen.ForegroundColor = this.defaultFg;
-            this.screen.BackgroundColor = this.defaultBg;
+            this.screen.BackgroundColor = this.detectedBg;
         }
 
         return this.screen;
@@ -742,9 +755,9 @@ public class TerminalBuffer
             }
         }
 
-        if (bestCount > totalCells / 2 && bestColor != this.defaultBg)
+        if (bestCount > totalCells / 2 && bestColor != this.detectedBg)
         {
-            this.defaultBg = bestColor;
+            this.detectedBg = bestColor;
         }
     }
 

@@ -47,7 +47,7 @@ public sealed class VimClient : IEditorClient
         this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));
         this.workingDirectory = workingDirectory;
         this.buffer = new TerminalBuffer(80, 24);
-        this.buffer.SetTerminalDefaultBackground(initialBackgroundColor);
+        this.buffer.SetDetectedBackground(initialBackgroundColor);
         this.lastReportedBg = initialBackgroundColor;
         this.parser = new VtParser(this.buffer, this.OnTitleChanged, this.WriteToPty);
         this.currentModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff);
