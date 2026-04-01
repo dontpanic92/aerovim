@@ -41,6 +41,7 @@ public class TerminalBuffer
 
     private int defaultFg = 0x000000;
     private int defaultBg = 0xFFFFFF;
+    private int detectedFg = 0x000000;
     private int detectedBg = 0xFFFFFF;
 
     /// <summary>
@@ -699,9 +700,9 @@ public class TerminalBuffer
                 Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
             }
 
-            this.DetectPredominantBackground();
+            this.DetectPredominantColors();
             this.screen.CursorPosition = (this.cursorRow, this.cursorCol);
-            this.screen.ForegroundColor = this.defaultFg;
+            this.screen.ForegroundColor = this.detectedFg;
             this.screen.BackgroundColor = this.detectedBg;
         }
 
@@ -713,10 +714,10 @@ public class TerminalBuffer
     private int ResolveBg() => this.currentBg == -1 ? this.defaultBg : this.currentBg;
 
     /// <summary>
-    /// Detect the most common background color on screen and update defaultBg
-    /// if a single color dominates (>50% of cells). Called on full redraws.
+    /// Detect the most common foreground and background colors on screen.
+    /// Updates detectedFg/detectedBg when a single color dominates (>50% of cells).
     /// </summary>
-    private void DetectPredominantBackground()
+    private void DetectPredominantColors()
     {
         int totalCells = this.Rows * this.Cols;
         if (totalCells == 0)
@@ -724,40 +725,63 @@ public class TerminalBuffer
             return;
         }
 
-        // Track the top candidate and a runner-up count to avoid allocating a dictionary
-        // in the common case where one color dominates.
-        int bestColor = this.cells[0, 0].BackgroundColor;
-        int bestCount = 0;
+        int bestBgColor = this.cells[0, 0].BackgroundColor;
+        int bestBgCount = 0;
+        int bestFgColor = this.cells[0, 0].ForegroundColor;
+        int bestFgCount = 0;
 
-        // Use a small dictionary since terminal screens rarely have many distinct bg colors.
-        var counts = new Dictionary<int, int>(16);
+        var bgCounts = new Dictionary<int, int>(16);
+        var fgCounts = new Dictionary<int, int>(16);
         for (int i = 0; i < this.Rows; i++)
         {
             for (int j = 0; j < this.Cols; j++)
             {
                 int bg = this.cells[i, j].BackgroundColor;
-                int count;
-                if (counts.TryGetValue(bg, out count))
+                int bgCount;
+                if (bgCounts.TryGetValue(bg, out bgCount))
                 {
-                    count++;
+                    bgCount++;
                 }
                 else
                 {
-                    count = 1;
+                    bgCount = 1;
                 }
 
-                counts[bg] = count;
-                if (count > bestCount)
+                bgCounts[bg] = bgCount;
+                if (bgCount > bestBgCount)
                 {
-                    bestCount = count;
-                    bestColor = bg;
+                    bestBgCount = bgCount;
+                    bestBgColor = bg;
+                }
+
+                int fg = this.cells[i, j].ForegroundColor;
+                int fgCount;
+                if (fgCounts.TryGetValue(fg, out fgCount))
+                {
+                    fgCount++;
+                }
+                else
+                {
+                    fgCount = 1;
+                }
+
+                fgCounts[fg] = fgCount;
+                if (fgCount > bestFgCount)
+                {
+                    bestFgCount = fgCount;
+                    bestFgColor = fg;
                 }
             }
         }
 
-        if (bestCount > totalCells / 2 && bestColor != this.detectedBg)
+        if (bestBgCount > totalCells / 2 && bestBgColor != this.detectedBg)
         {
-            this.detectedBg = bestColor;
+            this.detectedBg = bestBgColor;
+        }
+
+        if (bestFgCount > totalCells / 2 && bestFgColor != this.detectedFg)
+        {
+            this.detectedFg = bestFgColor;
         }
     }
 
