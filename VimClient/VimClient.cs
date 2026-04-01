@@ -22,6 +22,7 @@ public sealed class VimClient : IEditorClient
     private readonly TerminalBuffer buffer;
     private readonly VtParser parser;
     private readonly object screenLock = new();
+    private readonly object writeLock = new();
     private readonly Queue<string> pendingCommands = new();
 
     private NativePtyConnection? ptyConnection;
@@ -32,18 +33,23 @@ public sealed class VimClient : IEditorClient
     private ColorChangedHandler? foregroundColorChanged;
     private ColorChangedHandler? backgroundColorChanged;
     private FontChangedHandler? fontChanged;
+    private int lastReportedFg = 0x000000;
+    private int lastReportedBg = 0xFFFFFF;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VimClient"/> class.
     /// </summary>
     /// <param name="vimPath">Path to the Vim executable.</param>
     /// <param name="workingDirectory">Optional working directory for Vim.</param>
-    public VimClient(string vimPath, string? workingDirectory = null)
+    /// <param name="initialBackgroundColor">Initial default background color in BGR format, e.g. from saved settings.</param>
+    public VimClient(string vimPath, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
     {
         this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));
         this.workingDirectory = workingDirectory;
         this.buffer = new TerminalBuffer(80, 24);
-        this.parser = new VtParser(this.buffer, this.OnTitleChanged);
+        this.buffer.SetTerminalDefaultBackground(initialBackgroundColor);
+        this.lastReportedBg = initialBackgroundColor;
+        this.parser = new VtParser(this.buffer, this.OnTitleChanged, this.WriteToPty);
         this.currentModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff);
     }
 
@@ -137,8 +143,11 @@ public sealed class VimClient : IEditorClient
 
         string encoded = TerminalInputEncoder.Encode(text);
         byte[] bytes = Encoding.UTF8.GetBytes(encoded);
-        this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
-        this.ptyConnection.WriterStream.Flush();
+        lock (this.writeLock)
+        {
+            this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
+            this.ptyConnection.WriterStream.Flush();
+        }
     }
 
     /// <summary>
@@ -161,8 +170,11 @@ public sealed class VimClient : IEditorClient
         if (encoded is not null)
         {
             byte[] bytes = Encoding.UTF8.GetBytes(encoded);
-            this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
-            this.ptyConnection.WriterStream.Flush();
+            lock (this.writeLock)
+            {
+                this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
+                this.ptyConnection.WriterStream.Flush();
+            }
         }
     }
 
@@ -189,10 +201,37 @@ public sealed class VimClient : IEditorClient
     /// <returns>The current screen state, or null if not yet initialized.</returns>
     public Screen? GetScreen()
     {
+        Screen? screen;
+        ColorChangedHandler? fireFg = null;
+        ColorChangedHandler? fireBg = null;
+        int newFg = 0;
+        int newBg = 0;
+
         lock (this.screenLock)
         {
-            return this.buffer.GetScreen();
+            screen = this.buffer.GetScreen();
+            if (screen is not null)
+            {
+                if (screen.ForegroundColor != this.lastReportedFg)
+                {
+                    this.lastReportedFg = screen.ForegroundColor;
+                    newFg = screen.ForegroundColor;
+                    fireFg = this.foregroundColorChanged;
+                }
+
+                if (screen.BackgroundColor != this.lastReportedBg)
+                {
+                    this.lastReportedBg = screen.BackgroundColor;
+                    newBg = screen.BackgroundColor;
+                    fireBg = this.backgroundColorChanged;
+                }
+            }
         }
+
+        fireFg?.Invoke(newFg);
+        fireBg?.Invoke(newBg);
+
+        return screen;
     }
 
     /// <summary>
@@ -281,6 +320,18 @@ public sealed class VimClient : IEditorClient
         if (modifier.Contains('C'))
         {
             cb += 16;
+        }
+    }
+
+    private void WriteToPty(byte[] data)
+    {
+        if (this.ptyConnection is not null && !this.disposed)
+        {
+            lock (this.writeLock)
+            {
+                this.ptyConnection.WriterStream.Write(data, 0, data.Length);
+                this.ptyConnection.WriterStream.Flush();
+            }
         }
     }
 

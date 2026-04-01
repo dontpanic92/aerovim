@@ -44,6 +44,7 @@ public class VtParser
 
     private readonly TerminalBuffer buffer;
     private readonly Action<string> titleChanged;
+    private readonly Action<byte[]>? writeBack;
     private readonly List<int> parameters = new();
     private readonly List<int> subParameters = new();
     private readonly StringBuilder oscString = new();
@@ -65,10 +66,12 @@ public class VtParser
     /// </summary>
     /// <param name="buffer">The terminal buffer to update.</param>
     /// <param name="titleChanged">Callback invoked when the window title changes.</param>
-    public VtParser(TerminalBuffer buffer, Action<string> titleChanged)
+    /// <param name="writeBack">Optional callback to write response bytes back to the PTY.</param>
+    public VtParser(TerminalBuffer buffer, Action<string> titleChanged, Action<byte[]>? writeBack = null)
     {
         this.buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
         this.titleChanged = titleChanged;
+        this.writeBack = writeBack;
     }
 
     private enum VtState
@@ -144,6 +147,70 @@ public class VtParser
         int level = 8 + (10 * (index - 232));
         level = Math.Clamp(level, 0, 255);
         return RgbToBgr(level, level, level);
+    }
+
+    private static int ParseOscColorSpec(string spec)
+    {
+        if (spec.StartsWith("rgb:", StringComparison.OrdinalIgnoreCase))
+        {
+            string[] parts = spec.Substring(4).Split('/');
+            if (parts.Length == 3)
+            {
+                int r = ParseColorComponent(parts[0]);
+                int g = ParseColorComponent(parts[1]);
+                int b = ParseColorComponent(parts[2]);
+                if (r >= 0 && g >= 0 && b >= 0)
+                {
+                    return RgbToBgr(r, g, b);
+                }
+            }
+        }
+        else if (spec.StartsWith("#", StringComparison.Ordinal))
+        {
+            string hex = spec.Substring(1);
+            if (hex.Length == 6)
+            {
+                if (int.TryParse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out int r)
+                    && int.TryParse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out int g)
+                    && int.TryParse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out int b))
+                {
+                    return RgbToBgr(r, g, b);
+                }
+            }
+            else if (hex.Length == 3)
+            {
+                if (int.TryParse(hex.Substring(0, 1), System.Globalization.NumberStyles.HexNumber, null, out int r)
+                    && int.TryParse(hex.Substring(1, 1), System.Globalization.NumberStyles.HexNumber, null, out int g)
+                    && int.TryParse(hex.Substring(2, 1), System.Globalization.NumberStyles.HexNumber, null, out int b))
+                {
+                    return RgbToBgr(r * 17, g * 17, b * 17);
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    private static int ParseColorComponent(string hex)
+    {
+        if (hex.Length < 1 || hex.Length > 4)
+        {
+            return -1;
+        }
+
+        if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out int value))
+        {
+            return hex.Length switch
+            {
+                1 => value * 17,          // 0-F → 0-255
+                2 => value,               // 00-FF → 0-255
+                3 => value >> 4,          // 000-FFF → 0-255
+                4 => value >> 8,          // 0000-FFFF → 0-255
+                _ => -1,
+            };
+        }
+
+        return -1;
     }
 
     private void ProcessGround(byte b)
@@ -658,6 +725,43 @@ public class VtParser
                 case 2: // Set window title
                     this.titleChanged?.Invoke(payload);
                     break;
+
+                case 10: // Set/query foreground color
+                    this.HandleOscColor(payload, isForeground: true);
+                    break;
+
+                case 11: // Set/query background color
+                    this.HandleOscColor(payload, isForeground: false);
+                    break;
+            }
+        }
+    }
+
+    private void HandleOscColor(string payload, bool isForeground)
+    {
+        if (payload == "?")
+        {
+            // Query: respond with current default color.
+            int color = isForeground ? this.buffer.DefaultForeground : this.buffer.DefaultBackground;
+            byte r = (byte)(color & 0xFF);
+            byte g = (byte)((color >> 8) & 0xFF);
+            byte b = (byte)((color >> 16) & 0xFF);
+            int oscCommand = isForeground ? 10 : 11;
+            string response = $"\x1B]{oscCommand};rgb:{r:x2}{r:x2}/{g:x2}{g:x2}/{b:x2}{b:x2}\x1B\\";
+            this.writeBack?.Invoke(Encoding.ASCII.GetBytes(response));
+            return;
+        }
+
+        int parsed = ParseOscColorSpec(payload);
+        if (parsed >= 0)
+        {
+            if (isForeground)
+            {
+                this.buffer.SetTerminalDefaultForeground(parsed);
+            }
+            else
+            {
+                this.buffer.SetTerminalDefaultBackground(parsed);
             }
         }
     }

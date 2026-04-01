@@ -229,6 +229,7 @@ public partial class MainWindow : Window
         this.editorControl = new EditorControl(this.editorClient);
         var editorBorder = this.FindControl<Border>("NeovimBorder")!;
         editorBorder.Child = this.editorControl;
+        this.UpdateBackgroundOpacity();
 
         this.editorClient.EditorExited += this.OnEditorExited;
 

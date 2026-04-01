@@ -620,6 +620,24 @@ public class TerminalBuffer
     public void SetDefaultBackground() => this.currentBg = -1;
 
     /// <summary>
+    /// Set the terminal default foreground color (e.g. from OSC 10).
+    /// </summary>
+    /// <param name="color">Color value in BGR format.</param>
+    public void SetTerminalDefaultForeground(int color)
+    {
+        this.defaultFg = color;
+    }
+
+    /// <summary>
+    /// Set the terminal default background color (e.g. from OSC 11 or screen analysis).
+    /// </summary>
+    /// <param name="color">Color value in BGR format.</param>
+    public void SetTerminalDefaultBackground(int color)
+    {
+        this.defaultBg = color;
+    }
+
+    /// <summary>
     /// Get the current screen state for rendering.
     /// </summary>
     /// <returns>A screen snapshot.</returns>
@@ -668,6 +686,7 @@ public class TerminalBuffer
                 Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
             }
 
+            this.DetectPredominantBackground();
             this.screen.CursorPosition = (this.cursorRow, this.cursorCol);
             this.screen.ForegroundColor = this.defaultFg;
             this.screen.BackgroundColor = this.defaultBg;
@@ -679,6 +698,55 @@ public class TerminalBuffer
     private int ResolveFg() => this.currentFg == -1 ? this.defaultFg : this.currentFg;
 
     private int ResolveBg() => this.currentBg == -1 ? this.defaultBg : this.currentBg;
+
+    /// <summary>
+    /// Detect the most common background color on screen and update defaultBg
+    /// if a single color dominates (>50% of cells). Called on full redraws.
+    /// </summary>
+    private void DetectPredominantBackground()
+    {
+        int totalCells = this.Rows * this.Cols;
+        if (totalCells == 0)
+        {
+            return;
+        }
+
+        // Track the top candidate and a runner-up count to avoid allocating a dictionary
+        // in the common case where one color dominates.
+        int bestColor = this.cells[0, 0].BackgroundColor;
+        int bestCount = 0;
+
+        // Use a small dictionary since terminal screens rarely have many distinct bg colors.
+        var counts = new Dictionary<int, int>(16);
+        for (int i = 0; i < this.Rows; i++)
+        {
+            for (int j = 0; j < this.Cols; j++)
+            {
+                int bg = this.cells[i, j].BackgroundColor;
+                int count;
+                if (counts.TryGetValue(bg, out count))
+                {
+                    count++;
+                }
+                else
+                {
+                    count = 1;
+                }
+
+                counts[bg] = count;
+                if (count > bestCount)
+                {
+                    bestCount = count;
+                    bestColor = bg;
+                }
+            }
+        }
+
+        if (bestCount > totalCells / 2 && bestColor != this.defaultBg)
+        {
+            this.defaultBg = bestColor;
+        }
+    }
 
     private void MarkDirty(int row)
     {
