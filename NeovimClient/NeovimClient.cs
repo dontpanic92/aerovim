@@ -383,7 +383,7 @@ public sealed class NeovimClient : IEditorClient
         }
     }
 
-    private void Put(IList<int?> text, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
+    private void Put(IList<string?> text, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
     {
         if (this.dirtyRows is not null)
         {

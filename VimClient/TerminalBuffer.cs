@@ -179,7 +179,7 @@ public class TerminalBuffer
             if (this.cursorCol > 0 && this.cells[this.cursorRow, this.cursorCol].Character is null)
             {
                 this.cells[this.cursorRow, this.cursorCol - 1].Set(
-                    ' ',
+                    " ",
                     this.ResolveFg(),
                     this.ResolveBg(),
                     this.currentSpecial,
@@ -196,7 +196,7 @@ public class TerminalBuffer
                 && this.cells[this.cursorRow, this.cursorCol + 1].Character is null)
             {
                 this.cells[this.cursorRow, this.cursorCol + 1].Set(
-                    ' ',
+                    " ",
                     this.ResolveFg(),
                     this.ResolveBg(),
                     this.currentSpecial,
@@ -208,7 +208,7 @@ public class TerminalBuffer
             }
 
             this.cells[this.cursorRow, this.cursorCol].Set(
-                codePoint,
+                char.ConvertFromUtf32(codePoint),
                 this.ResolveFg(),
                 this.ResolveBg(),
                 this.currentSpecial,

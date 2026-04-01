@@ -14,7 +14,7 @@ public class PutEvent : IRedrawEvent
     /// Initializes a new instance of the <see cref="PutEvent"/> class.
     /// </summary>
     /// <param name="text">The text to be rendered.</param>
-    public PutEvent(IList<int?> text)
+    public PutEvent(IList<string?> text)
     {
         this.Text = text;
     }
@@ -22,5 +22,5 @@ public class PutEvent : IRedrawEvent
     /// <summary>
     /// Gets the text.
     /// </summary>
-    public IList<int?> Text { get; }
+    public IList<string?> Text { get; }
 }

@@ -27,9 +27,9 @@ public class TerminalBufferTests
         buffer.Resize(4, 3);
 
         var screen = buffer.GetScreen();
-        Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo((int?)'A'));
-        Assert.That(screen.Cells[1, 1].Character, Is.EqualTo((int?)'Z'));
-        Assert.That(screen.Cells[2, 3].Character, Is.EqualTo((int?)' '));
+        Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo("A"));
+        Assert.That(screen.Cells[1, 1].Character, Is.EqualTo("Z"));
+        Assert.That(screen.Cells[2, 3].Character, Is.EqualTo(" "));
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public class TerminalBufferTests
         buffer.ScrollUp(1);
 
         var screen = buffer.GetScreen();
-        Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo((int?)'B'));
-        Assert.That(screen.Cells[1, 0].Character, Is.EqualTo((int?)' '));
+        Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo("B"));
+        Assert.That(screen.Cells[1, 0].Character, Is.EqualTo(" "));
     }
 }

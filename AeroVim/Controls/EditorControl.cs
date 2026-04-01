@@ -6,6 +6,7 @@
 namespace AeroVim.Controls;
 
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using AeroVim.Editor;
 using AeroVim.Editor.Utilities;
 using AeroVim.Utilities;
@@ -30,7 +31,6 @@ public class EditorControl : Control, IDisposable
     private readonly ConcurrentQueue<Action> pendingActions = new();
     private readonly Dictionary<TypefaceKey, SKTypeface> typefaceCache = new();
     private readonly Dictionary<GlyphKey, SKTypeface> glyphTypefaceCache = new();
-    private readonly Dictionary<int, string> codePointTextCache = new();
     private readonly SKPaint backgroundPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
     private readonly SKPaint textPaint = new() { IsAntialias = true, IsLinearText = false, SubpixelText = true };
     private readonly SKPaint underlinePaint = new() { StrokeWidth = 1, IsAntialias = true };
@@ -41,6 +41,7 @@ public class EditorControl : Control, IDisposable
 
     private TextLayoutParameters textParam;
     private SKTypeface? primaryTypeface;
+    private SKTypeface? emojiTypeface;
     private bool isDisposed;
     private string? pressedMouseButton;
     private int redrawQueued;
@@ -269,6 +270,16 @@ public class EditorControl : Control, IDisposable
         }
     }
 
+    private static bool IsEmojiCodePoint(int codePoint)
+    {
+        return (codePoint >= 0x2600 && codePoint <= 0x27BF)
+            || (codePoint >= 0x2B05 && codePoint <= 0x2B55)
+            || (codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
+            || (codePoint >= 0x1F1E0 && codePoint <= 0x1F1FF)
+            || codePoint == 0x200D
+            || codePoint == 0xFE0F;
+    }
+
     /// <summary>
     /// Creates a typeface and validates it resolved to the requested font family.
     /// Falls back to the SkiaSharp default typeface when the font cannot be found.
@@ -356,7 +367,6 @@ public class EditorControl : Control, IDisposable
             }
 
             this.DisposeTypefaceCaches();
-            this.codePointTextCache.Clear();
             this.primaryTypeface = newTypeface;
             this.typefaceCache[new TypefaceKey(this.primaryTypeface!.FamilyName, weight, slant)] = this.primaryTypeface;
             this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
@@ -477,8 +487,8 @@ public class EditorControl : Control, IDisposable
                 continue;
             }
 
-            int codePoint = cell.Character.Value;
-            string text = this.GetTextForCodePoint(codePoint);
+            string text = cell.Character;
+            int codePoint = char.ConvertToUtf32(text, 0);
             float x = cellIndex * this.textParam.CharWidth;
 
             this.textPaint.Typeface = this.GetTypefaceForGlyph(codePoint, weight, slant, styledTypeface, text);
@@ -647,6 +657,9 @@ public class EditorControl : Control, IDisposable
 
         this.typefaceCache.Clear();
         this.glyphTypefaceCache.Clear();
+
+        this.emojiTypeface?.Dispose();
+        this.emojiTypeface = null;
     }
 
     private SKTypeface GetStyledTypeface(SKFontStyleWeight weight, SKFontStyleSlant slant)
@@ -661,29 +674,71 @@ public class EditorControl : Control, IDisposable
         return typeface!;
     }
 
-    private string GetTextForCodePoint(int codePoint)
-    {
-        if (!this.codePointTextCache.TryGetValue(codePoint, out var text))
-        {
-            text = char.ConvertFromUtf32(codePoint);
-            this.codePointTextCache[codePoint] = text;
-        }
-
-        return text;
-    }
-
     private SKTypeface? GetTypefaceForGlyph(int codePoint, SKFontStyleWeight weight, SKFontStyleSlant slant, SKTypeface styledTypeface, string text)
     {
         var key = new GlyphKey(this.textParam.FontName, weight, slant, codePoint);
         if (!this.glyphTypefaceCache.TryGetValue(key, out var fallbackTypeface))
         {
-            fallbackTypeface = styledTypeface is not null && styledTypeface.ContainsGlyphs(text)
-                ? styledTypeface
-                : SKFontManager.Default.MatchCharacter(codePoint);
+            if (styledTypeface is not null && styledTypeface.ContainsGlyphs(text))
+            {
+                fallbackTypeface = styledTypeface;
+            }
+            else
+            {
+                // For emoji codepoints, try the platform emoji font first since
+                // SKFontManager.MatchCharacter may not reliably select a color emoji font.
+                if (IsEmojiCodePoint(codePoint))
+                {
+                    fallbackTypeface = this.GetEmojiTypeface();
+                    if (fallbackTypeface is not null && !fallbackTypeface.ContainsGlyphs(text))
+                    {
+                        fallbackTypeface = null;
+                    }
+                }
+
+                fallbackTypeface ??= SKFontManager.Default.MatchCharacter(codePoint);
+            }
+
             this.glyphTypefaceCache[key] = (fallbackTypeface ?? styledTypeface)!;
         }
 
         return fallbackTypeface ?? styledTypeface;
+    }
+
+    private SKTypeface? GetEmojiTypeface()
+    {
+        if (this.emojiTypeface is not null)
+        {
+            return this.emojiTypeface;
+        }
+
+        string[] candidates;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            candidates = ["Segoe UI Emoji", "Segoe UI Symbol"];
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            candidates = ["Apple Color Emoji"];
+        }
+        else
+        {
+            candidates = ["Noto Color Emoji", "Noto Emoji", "Emoji One"];
+        }
+
+        foreach (var name in candidates)
+        {
+            var typeface = SKTypeface.FromFamilyName(name);
+            if (typeface is not null && typeface.FamilyName.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                this.emojiTypeface = typeface;
+                return this.emojiTypeface;
+            }
+
+            typeface?.Dispose();
+        }
+
+        return null;
     }
 
     private readonly struct TypefaceKey : IEquatable<TypefaceKey>

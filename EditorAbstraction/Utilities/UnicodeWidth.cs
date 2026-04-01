@@ -181,6 +181,92 @@ public static class UnicodeWidth
             return true;
         }
 
+        // Emoji and symbol ranges that are rendered as wide (double-width) characters.
+
+        // Miscellaneous Symbols (subset commonly rendered wide)
+        if (codePoint >= 0x2600 && codePoint <= 0x26FF)
+        {
+            return true;
+        }
+
+        // Dingbats (subset commonly rendered wide)
+        if (codePoint >= 0x2700 && codePoint <= 0x27BF)
+        {
+            return true;
+        }
+
+        // Supplemental Arrows-B / Misc Symbols and Arrows (some wide)
+        if (codePoint >= 0x2B05 && codePoint <= 0x2B55)
+        {
+            return true;
+        }
+
+        // Regional Indicator Symbols
+        if (codePoint >= 0x1F1E0 && codePoint <= 0x1F1FF)
+        {
+            return true;
+        }
+
+        // Miscellaneous Symbols and Pictographs
+        if (codePoint >= 0x1F300 && codePoint <= 0x1F5FF)
+        {
+            return true;
+        }
+
+        // Emoticons
+        if (codePoint >= 0x1F600 && codePoint <= 0x1F64F)
+        {
+            return true;
+        }
+
+        // Transport and Map Symbols
+        if (codePoint >= 0x1F680 && codePoint <= 0x1F6FF)
+        {
+            return true;
+        }
+
+        // Geometric Shapes Extended
+        if (codePoint >= 0x1F780 && codePoint <= 0x1F7FF)
+        {
+            return true;
+        }
+
+        // Supplemental Symbols and Pictographs
+        if (codePoint >= 0x1F900 && codePoint <= 0x1F9FF)
+        {
+            return true;
+        }
+
+        // Symbols and Pictographs Extended-A
+        if (codePoint >= 0x1FA00 && codePoint <= 0x1FA6F)
+        {
+            return true;
+        }
+
+        // Symbols and Pictographs Extended-B
+        if (codePoint >= 0x1FA70 && codePoint <= 0x1FAFF)
+        {
+            return true;
+        }
+
+        // Mahjong Tiles
+        if (codePoint >= 0x1F000 && codePoint <= 0x1F02F)
+        {
+            return true;
+        }
+
+        // Domino Tiles
+        if (codePoint >= 0x1F030 && codePoint <= 0x1F09F)
+        {
+            return true;
+        }
+
+        // Playing Cards
+        if (codePoint >= 0x1F0A0 && codePoint <= 0x1F0FF)
+        {
+            return true;
+        }
+
         return false;
     }
 }

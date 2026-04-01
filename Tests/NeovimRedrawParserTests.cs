@@ -33,8 +33,8 @@ public class NeovimRedrawParserTests
 
         Assert.That(events, Has.Count.EqualTo(2));
         Assert.That(events[0], Is.TypeOf<PutEvent>());
-        Assert.That(((PutEvent)events[0]).Text, Is.EqualTo(new int?[] { 'a' }));
-        Assert.That(((PutEvent)events[1]).Text, Is.EqualTo(new int?[] { 'b', 'c' }));
+        Assert.That(((PutEvent)events[0]).Text, Is.EqualTo(new string?[] { "a" }));
+        Assert.That(((PutEvent)events[1]).Text, Is.EqualTo(new string?[] { "b", "c" }));
     }
 
     /// <summary>

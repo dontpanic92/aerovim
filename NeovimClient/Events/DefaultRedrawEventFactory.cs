@@ -50,7 +50,7 @@ public class DefaultRedrawEventFactory : IRedrawEventFactory<IRedrawEvent>
     }
 
     /// <inheritdoc />
-    public IRedrawEvent CreatePutEvent(IList<int?> text)
+    public IRedrawEvent CreatePutEvent(IList<string?> text)
     {
         return new PutEvent(text);
     }

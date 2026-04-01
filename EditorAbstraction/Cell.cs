@@ -22,7 +22,7 @@ public struct Cell
     /// <param name="bold">IsBold.</param>
     /// <param name="underline">IsUnderline.</param>
     /// <param name="undercurl">IsUnderCurl.</param>
-    public Cell(int? character, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
+    public Cell(string? character, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
     {
         this.ForegroundColor = foreground;
         this.BackgroundColor = background;
@@ -53,7 +53,7 @@ public struct Cell
     /// <summary>
     /// Gets the character in the cell.
     /// </summary>
-    public int? Character { get; private set; }
+    public string? Character { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether foreground color and background color need to reverse.
@@ -92,7 +92,7 @@ public struct Cell
     /// <param name="bold">IsBold.</param>
     /// <param name="underline">IsUnderline.</param>
     /// <param name="undercurl">IsUnderCurl.</param>
-    public void Set(int? character, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
+    public void Set(string? character, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
     {
         this.ForegroundColor = foreground;
         this.BackgroundColor = background;
@@ -113,6 +113,6 @@ public struct Cell
     /// <param name="special">special color.</param>
     public void Clear(int foreground, int background, int special)
     {
-        this.Set(' ', foreground, background, special, false, false, false, false, false);
+        this.Set(" ", foreground, background, special, false, false, false, false, false);
     }
 }

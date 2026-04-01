@@ -203,17 +203,12 @@ public sealed class RedrawEventParser<TRedrawEvent>
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireList(command[i], $"put[{i}]");
-            IList<int?> result = new List<int?>(args.Count);
+            IList<string?> result = new List<string?>(args.Count);
             foreach (var item in args)
             {
                 var ch = item.AsString();
-                int? codepoint = null;
-                if (ch != string.Empty)
-                {
-                    codepoint = char.ConvertToUtf32(ch, 0);
-                }
-
-                result.Add(codepoint);
+                string? text = ch.Length > 0 ? ch : null;
+                result.Add(text);
             }
 
             events.Add(this.factory.CreatePutEvent(result));

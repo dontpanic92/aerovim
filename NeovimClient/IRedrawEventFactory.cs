@@ -66,7 +66,7 @@ public interface IRedrawEventFactory<TRedrawEvent>
     /// </summary>
     /// <param name="text">Text.</param>
     /// <returns>The created redraw event.</returns>
-    TRedrawEvent CreatePutEvent(IList<int?> text);
+    TRedrawEvent CreatePutEvent(IList<string?> text);
 
     /// <summary>
     /// Create CursorGoto event.

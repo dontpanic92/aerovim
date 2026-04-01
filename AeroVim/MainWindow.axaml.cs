@@ -156,20 +156,40 @@ public partial class MainWindow : Window
         base.OnTextInput(e);
         if (this.editorClient is not null && !string.IsNullOrEmpty(e.Text))
         {
-            // Only forward printable characters that were not already handled by OnKeyDown
-            foreach (var ch in e.Text)
+            // Iterate over Unicode codepoints (not UTF-16 code units) so that
+            // surrogate pairs such as emoji are sent as a single character.
+            var text = e.Text;
+            int i = 0;
+            while (i < text.Length)
             {
-                if (!char.IsControl(ch))
+                int codepoint;
+                string grapheme;
+                if (char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
                 {
-                    // Escape '<' so Neovim doesn't interpret it as a special key sequence
-                    if (ch == '<')
-                    {
-                        this.editorClient.Input("<lt>");
-                    }
-                    else
-                    {
-                        this.editorClient.Input(ch.ToString());
-                    }
+                    codepoint = char.ConvertToUtf32(text[i], text[i + 1]);
+                    grapheme = text.Substring(i, 2);
+                    i += 2;
+                }
+                else
+                {
+                    codepoint = text[i];
+                    grapheme = text[i].ToString();
+                    i++;
+                }
+
+                if (char.IsControl((char)codepoint) && codepoint < 0x10000)
+                {
+                    continue;
+                }
+
+                // Escape '<' so Neovim doesn't interpret it as a special key sequence
+                if (codepoint == '<')
+                {
+                    this.editorClient.Input("<lt>");
+                }
+                else
+                {
+                    this.editorClient.Input(grapheme);
                 }
             }
 
