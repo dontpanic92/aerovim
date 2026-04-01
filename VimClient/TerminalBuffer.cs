@@ -6,6 +6,7 @@
 namespace AeroVim.VimClient;
 
 using AeroVim.Editor;
+using AeroVim.Editor.Utilities;
 
 /// <summary>
 /// Maintains the terminal cell grid state that the VT parser modifies.
@@ -159,10 +160,51 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
-            if (this.cursorCol >= this.Cols)
+            bool wide = UnicodeWidth.IsWideCharacter(codePoint);
+
+            // Wide char needs 2 columns; if it won't fit, wrap to next line.
+            if (wide && this.cursorCol >= this.Cols - 1)
             {
                 this.cursorCol = 0;
                 this.LineFeed();
+            }
+            else if (this.cursorCol >= this.Cols)
+            {
+                this.cursorCol = 0;
+                this.LineFeed();
+            }
+
+            // If we're overwriting the second half of an existing wide char,
+            // clear the orphaned first half.
+            if (this.cursorCol > 0 && this.cells[this.cursorRow, this.cursorCol].Character is null)
+            {
+                this.cells[this.cursorRow, this.cursorCol - 1].Set(
+                    ' ',
+                    this.ResolveFg(),
+                    this.ResolveBg(),
+                    this.currentSpecial,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false);
+            }
+
+            // If we're overwriting the first half of an existing wide char,
+            // clear the orphaned continuation cell.
+            if (this.cursorCol < this.Cols - 1
+                && this.cells[this.cursorRow, this.cursorCol + 1].Character is null)
+            {
+                this.cells[this.cursorRow, this.cursorCol + 1].Set(
+                    ' ',
+                    this.ResolveFg(),
+                    this.ResolveBg(),
+                    this.currentSpecial,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false);
             }
 
             this.cells[this.cursorRow, this.cursorCol].Set(
@@ -177,6 +219,21 @@ public class TerminalBuffer
                 this.undercurl);
             this.MarkDirty(this.cursorRow);
             this.cursorCol++;
+
+            if (wide && this.cursorCol < this.Cols)
+            {
+                this.cells[this.cursorRow, this.cursorCol].Set(
+                    null,
+                    this.ResolveFg(),
+                    this.ResolveBg(),
+                    this.currentSpecial,
+                    this.reverse,
+                    this.italic,
+                    this.bold,
+                    this.underline,
+                    this.undercurl);
+                this.cursorCol++;
+            }
         }
     }
 

@@ -11,6 +11,6 @@
         </NativeMenu>
     </NativeMenu.Menu>
     <Application.Styles>
-        <ClassicTheme />
+        <ClassicTheme FontAliasing="False" />
     </Application.Styles>
 </Application>

@@ -12,10 +12,42 @@
         SystemDecorations="Full"
         Icon="avares://aerovim/Assets/aerovim.ico">
 
+    <!--
+        Custom Window template that replaces Classic.Avalonia's default.
+        Classic.Avalonia's template uses FontUtils.FontAliasing which forces
+        SubpixelAntialias on the root Panel. Avalonia's RenderOptions.MergeWith
+        gives ancestors priority, so no child can override it. This template
+        sets Antialias on the root Panel directly, giving the titlebar
+        grayscale antialiasing. The editor content is unaffected because
+        EditorControl uses ICustomDrawOperation with its own SkiaSharp paints.
+    -->
+    <Window.Template>
+        <ControlTemplate TargetType="Window">
+            <Panel RenderOptions.TextRenderingMode="Antialias">
+                <Border Name="PART_TransparencyFallback"
+                        IsHitTestVisible="False" />
+                <Border Background="{TemplateBinding Background}"
+                        IsHitTestVisible="False" />
+                <Panel Margin="{TemplateBinding WindowDecorationMargin}"
+                       Background="Transparent" />
+                <VisualLayerManager>
+                    <VisualLayerManager.ChromeOverlayLayer>
+                        <TitleBar />
+                    </VisualLayerManager.ChromeOverlayLayer>
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Margin="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}" />
+                </VisualLayerManager>
+            </Panel>
+        </ControlTemplate>
+    </Window.Template>
+
     <DockPanel LastChildFill="True">
         <!-- Custom Title Bar -->
         <Grid DockPanel.Dock="Top" Height="28" Name="TitleBar" IsHitTestVisible="True"
-              RenderOptions.TextRenderingMode="Antialias"
               PointerPressed="TitleBar_PointerPressed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
