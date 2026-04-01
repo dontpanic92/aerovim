@@ -18,10 +18,12 @@ public class GuiFontEvent : IRedrawEvent
     /// <param name="rawValue">The option value.</param>
     public GuiFontEvent(string rawValue)
     {
-        var values = rawValue.Split(':');
+        // Neovim guifont supports comma-separated font names where style
+        // modifiers after the last colon-separated segment apply to all fonts.
+        // Example: "Cascadia Code,Fira Code:h12:b"
+        var fontEntries = rawValue.Split(',');
         var font = new FontSettings()
         {
-            FontName = values[0],
             FontPointSize = 11,
             Bold = false,
             Italic = false,
@@ -29,35 +31,47 @@ public class GuiFontEvent : IRedrawEvent
             Underline = false,
         };
 
-        foreach (var value in values.Skip(1))
+        foreach (var entry in fontEntries)
         {
-            if (string.IsNullOrEmpty(value))
+            var values = entry.Trim().Split(':');
+            if (!string.IsNullOrWhiteSpace(values[0]))
             {
-                continue;
+                // Neovim uses underscores as space substitutes in guifont names.
+                font.FontNames.Add(values[0].Replace('_', ' '));
             }
 
-            switch (value[0])
+            // Parse style modifiers from each entry (last entry's modifiers win,
+            // which matches Neovim behavior where modifiers trail the list).
+            foreach (var value in values.Skip(1))
             {
-                case 'h':
-                    if (!float.TryParse(value.Substring(1), out var heightPoint))
-                    {
-                        continue;
-                    }
+                if (string.IsNullOrEmpty(value))
+                {
+                    continue;
+                }
 
-                    font.FontPointSize = heightPoint;
-                    break;
-                case 'b':
-                    font.Bold = true;
-                    break;
-                case 'i':
-                    font.Italic = true;
-                    break;
-                case 'u':
-                    font.Underline = true;
-                    break;
-                case 's':
-                    font.StrikeOut = true;
-                    break;
+                switch (value[0])
+                {
+                    case 'h':
+                        if (!float.TryParse(value.Substring(1), out var heightPoint))
+                        {
+                            continue;
+                        }
+
+                        font.FontPointSize = heightPoint;
+                        break;
+                    case 'b':
+                        font.Bold = true;
+                        break;
+                    case 'i':
+                        font.Italic = true;
+                        break;
+                    case 'u':
+                        font.Underline = true;
+                        break;
+                    case 's':
+                        font.StrikeOut = true;
+                        break;
+                }
             }
         }
 

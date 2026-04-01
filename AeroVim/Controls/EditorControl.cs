@@ -6,7 +6,6 @@
 namespace AeroVim.Controls;
 
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using AeroVim.Editor;
 using AeroVim.Editor.Utilities;
 using AeroVim.Utilities;
@@ -29,8 +28,6 @@ public class EditorControl : Control, IDisposable
 {
     private readonly IEditorClient editorClient;
     private readonly ConcurrentQueue<Action> pendingActions = new();
-    private readonly Dictionary<TypefaceKey, SKTypeface> typefaceCache = new();
-    private readonly Dictionary<GlyphKey, SKTypeface> glyphTypefaceCache = new();
     private readonly SKPaint backgroundPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
     private readonly SKPaint textPaint = new() { IsAntialias = true, IsLinearText = false, SubpixelText = true };
     private readonly SKPaint underlinePaint = new() { StrokeWidth = 1, IsAntialias = true };
@@ -38,10 +35,11 @@ public class EditorControl : Control, IDisposable
     private readonly SKPaint cursorPaint = new() { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
     private readonly SKPaint preeditUnderlinePaint = new() { StrokeWidth = 2, IsAntialias = true, Color = SKColors.White };
     private readonly EditorTextInputMethodClient imeClient;
+    private readonly FontFallbackChain fontChain = new FontFallbackChain();
 
     private TextLayoutParameters textParam;
-    private SKTypeface? primaryTypeface;
-    private SKTypeface? emojiTypeface;
+    private List<string> currentGuiFontNames = new List<string>();
+    private List<string> currentUserFallbackFonts = new List<string>();
     private bool isDisposed;
     private string? pressedMouseButton;
     private int redrawQueued;
@@ -67,10 +65,8 @@ public class EditorControl : Control, IDisposable
                 e.Client = this.imeClient;
             });
 
-        var defaultFont = Utilities.Helpers.GetDefaultMonospaceFontName();
-        this.primaryTypeface = this.CreateValidatedTypeface(defaultFont);
-        this.typefaceCache[new TypefaceKey(this.primaryTypeface.FamilyName, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright)] = this.primaryTypeface;
-        this.textParam = new TextLayoutParameters(this.primaryTypeface.FamilyName, 11);
+        this.RebuildFontChain([]);
+        this.textParam = new TextLayoutParameters(this.fontChain.PrimaryFontName, 11);
         this.textPaint.TextSize = this.textParam.SkiaFontSize;
     }
 
@@ -111,6 +107,31 @@ public class EditorControl : Control, IDisposable
             var c = (uint)(this.Bounds.Width / this.textParam.CharWidth);
             return c == 0 ? 1 : c;
         }
+    }
+
+    /// <summary>
+    /// Sets the user-configured fallback font list and rebuilds the font chain.
+    /// </summary>
+    /// <param name="fonts">Ordered list of user fallback font names.</param>
+    public void SetFallbackFonts(List<string> fonts)
+    {
+        this.currentUserFallbackFonts = fonts;
+        this.pendingActions.Enqueue(() =>
+        {
+            this.fontChain.Rebuild(
+                this.currentGuiFontNames,
+                this.currentUserFallbackFonts,
+                Utilities.Helpers.GetDefaultFallbackFontNames());
+
+            if (this.fontChain.PrimaryFontName.Length > 0)
+            {
+                this.textParam = new TextLayoutParameters(this.fontChain.PrimaryFontName, this.textParam.PointSize);
+                this.textPaint.TextSize = this.textParam.SkiaFontSize;
+                this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
+            }
+        });
+
+        Dispatcher.UIThread.Post(() => this.InvalidateVisual());
     }
 
     /// <summary>
@@ -270,35 +291,6 @@ public class EditorControl : Control, IDisposable
         }
     }
 
-    private static bool IsEmojiCodePoint(int codePoint)
-    {
-        return (codePoint >= 0x2600 && codePoint <= 0x27BF)
-            || (codePoint >= 0x2B05 && codePoint <= 0x2B55)
-            || (codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
-            || (codePoint >= 0x1F1E0 && codePoint <= 0x1F1FF)
-            || codePoint == 0x200D
-            || codePoint == 0xFE0F;
-    }
-
-    /// <summary>
-    /// Creates a typeface and validates it resolved to the requested font family.
-    /// Falls back to the SkiaSharp default typeface when the font cannot be found.
-    /// </summary>
-    private SKTypeface CreateValidatedTypeface(string fontName)
-    {
-        var typeface = SKTypeface.FromFamilyName(fontName);
-        if (string.Equals(typeface.FamilyName, fontName, StringComparison.OrdinalIgnoreCase))
-        {
-            return typeface;
-        }
-
-        // The requested font wasn't found; SkiaSharp silently substituted another.
-        System.Diagnostics.Trace.TraceWarning(
-            $"AeroVim: Font \"{fontName}\" not found (resolved to \"{typeface.FamilyName}\"). Using SkiaSharp default.");
-        typeface.Dispose();
-        return SKTypeface.Default;
-    }
-
     private (int Row, int Col) PixelToGridPosition(Point pixel)
     {
         int row = (int)(pixel.Y / this.textParam.LineHeight);
@@ -354,22 +346,17 @@ public class EditorControl : Control, IDisposable
     {
         this.pendingActions.Enqueue(() =>
         {
-            var weight = font.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
-            var slant = font.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-            var newTypeface = SKTypeface.FromFamilyName(font.FontName, weight, SKFontStyleWidth.Normal, slant);
+            this.currentGuiFontNames = font.FontNames;
+            this.RebuildFontChain(font.FontNames);
 
-            if (!string.Equals(newTypeface?.FamilyName, font.FontName, StringComparison.OrdinalIgnoreCase))
+            if (this.fontChain.PrimaryFontName.Length == 0)
             {
-                newTypeface?.Dispose();
                 System.Diagnostics.Trace.TraceWarning(
-                    $"AeroVim: Font \"{font.FontName}\" not found (resolved to \"{newTypeface?.FamilyName}\"). Keeping current font.");
+                    $"AeroVim: None of the guifont names resolved to a valid font. Keeping current font.");
                 return;
             }
 
-            this.DisposeTypefaceCaches();
-            this.primaryTypeface = newTypeface;
-            this.typefaceCache[new TypefaceKey(this.primaryTypeface!.FamilyName, weight, slant)] = this.primaryTypeface;
-            this.textParam = new TextLayoutParameters(font.FontName, font.FontPointSize);
+            this.textParam = new TextLayoutParameters(this.fontChain.PrimaryFontName, font.FontPointSize);
             this.textPaint.TextSize = this.textParam.SkiaFontSize;
             this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
         });
@@ -468,7 +455,7 @@ public class EditorControl : Control, IDisposable
 
         var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
         var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-        var styledTypeface = this.GetStyledTypeface(weight, slant);
+        var styledTypeface = this.fontChain.GetStyledTypeface(weight, slant);
         this.textPaint.Color = Helpers.GetSkColor(foregroundColor);
         this.textPaint.FakeBoldText = bold;
         this.textPaint.Typeface = styledTypeface;
@@ -491,7 +478,7 @@ public class EditorControl : Control, IDisposable
             int codePoint = char.ConvertToUtf32(text, 0);
             float x = cellIndex * this.textParam.CharWidth;
 
-            this.textPaint.Typeface = this.GetTypefaceForGlyph(codePoint, weight, slant, styledTypeface, text);
+            this.textPaint.Typeface = this.fontChain.GetTypefaceForGlyph(codePoint, text, weight, slant);
 
             canvas.DrawText(text, x, baselineY, this.textPaint);
 
@@ -622,7 +609,7 @@ public class EditorControl : Control, IDisposable
 
     private void DisposeCachedResources()
     {
-        this.DisposeTypefaceCaches();
+        this.fontChain.Dispose();
         this.backgroundPaint.Dispose();
         this.textPaint.Dispose();
         this.underlinePaint.Dispose();
@@ -631,184 +618,12 @@ public class EditorControl : Control, IDisposable
         this.preeditUnderlinePaint.Dispose();
     }
 
-    private void DisposeTypefaceCaches()
+    private void RebuildFontChain(IReadOnlyList<string>? guiFontNames = null)
     {
-        foreach (var typeface in this.typefaceCache.Values)
-        {
-            typeface.Dispose();
-        }
-
-        var disposedFallbacks = new HashSet<SKTypeface>();
-        foreach (var typeface in this.glyphTypefaceCache.Values)
-        {
-            if (typeface is not null)
-            {
-                disposedFallbacks.Add(typeface);
-            }
-        }
-
-        foreach (var typeface in disposedFallbacks)
-        {
-            if (!this.typefaceCache.ContainsValue(typeface))
-            {
-                typeface.Dispose();
-            }
-        }
-
-        this.typefaceCache.Clear();
-        this.glyphTypefaceCache.Clear();
-
-        this.emojiTypeface?.Dispose();
-        this.emojiTypeface = null;
-    }
-
-    private SKTypeface GetStyledTypeface(SKFontStyleWeight weight, SKFontStyleSlant slant)
-    {
-        var key = new TypefaceKey(this.textParam.FontName, weight, slant);
-        if (!this.typefaceCache.TryGetValue(key, out var typeface))
-        {
-            typeface = SKTypeface.FromFamilyName(this.textParam.FontName, weight, SKFontStyleWidth.Normal, slant) ?? this.primaryTypeface!;
-            this.typefaceCache[key] = typeface;
-        }
-
-        return typeface!;
-    }
-
-    private SKTypeface? GetTypefaceForGlyph(int codePoint, SKFontStyleWeight weight, SKFontStyleSlant slant, SKTypeface styledTypeface, string text)
-    {
-        var key = new GlyphKey(this.textParam.FontName, weight, slant, codePoint);
-        if (!this.glyphTypefaceCache.TryGetValue(key, out var fallbackTypeface))
-        {
-            if (styledTypeface is not null && styledTypeface.ContainsGlyphs(text))
-            {
-                fallbackTypeface = styledTypeface;
-            }
-            else
-            {
-                // For emoji codepoints, try the platform emoji font first since
-                // SKFontManager.MatchCharacter may not reliably select a color emoji font.
-                if (IsEmojiCodePoint(codePoint))
-                {
-                    fallbackTypeface = this.GetEmojiTypeface();
-                    if (fallbackTypeface is not null && !fallbackTypeface.ContainsGlyphs(text))
-                    {
-                        fallbackTypeface = null;
-                    }
-                }
-
-                fallbackTypeface ??= SKFontManager.Default.MatchCharacter(codePoint);
-            }
-
-            this.glyphTypefaceCache[key] = (fallbackTypeface ?? styledTypeface)!;
-        }
-
-        return fallbackTypeface ?? styledTypeface;
-    }
-
-    private SKTypeface? GetEmojiTypeface()
-    {
-        if (this.emojiTypeface is not null)
-        {
-            return this.emojiTypeface;
-        }
-
-        string[] candidates;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            candidates = ["Segoe UI Emoji", "Segoe UI Symbol"];
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            candidates = ["Apple Color Emoji"];
-        }
-        else
-        {
-            candidates = ["Noto Color Emoji", "Noto Emoji", "Emoji One"];
-        }
-
-        foreach (var name in candidates)
-        {
-            var typeface = SKTypeface.FromFamilyName(name);
-            if (typeface is not null && typeface.FamilyName.Equals(name, StringComparison.OrdinalIgnoreCase))
-            {
-                this.emojiTypeface = typeface;
-                return this.emojiTypeface;
-            }
-
-            typeface?.Dispose();
-        }
-
-        return null;
-    }
-
-    private readonly struct TypefaceKey : IEquatable<TypefaceKey>
-    {
-        public TypefaceKey(string fontName, SKFontStyleWeight weight, SKFontStyleSlant slant)
-        {
-            this.FontName = fontName;
-            this.Weight = weight;
-            this.Slant = slant;
-        }
-
-        public string FontName { get; }
-
-        public SKFontStyleWeight Weight { get; }
-
-        public SKFontStyleSlant Slant { get; }
-
-        public bool Equals(TypefaceKey other)
-        {
-            return string.Equals(this.FontName, other.FontName, StringComparison.Ordinal)
-                && this.Weight == other.Weight
-                && this.Slant == other.Slant;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is TypefaceKey other && this.Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(this.FontName, this.Weight, this.Slant);
-        }
-    }
-
-    private readonly struct GlyphKey : IEquatable<GlyphKey>
-    {
-        public GlyphKey(string fontName, SKFontStyleWeight weight, SKFontStyleSlant slant, int codePoint)
-        {
-            this.FontName = fontName;
-            this.Weight = weight;
-            this.Slant = slant;
-            this.CodePoint = codePoint;
-        }
-
-        public string FontName { get; }
-
-        public SKFontStyleWeight Weight { get; }
-
-        public SKFontStyleSlant Slant { get; }
-
-        public int CodePoint { get; }
-
-        public bool Equals(GlyphKey other)
-        {
-            return string.Equals(this.FontName, other.FontName, StringComparison.Ordinal)
-                && this.Weight == other.Weight
-                && this.Slant == other.Slant
-                && this.CodePoint == other.CodePoint;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is GlyphKey other && this.Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(this.FontName, this.Weight, this.Slant, this.CodePoint);
-        }
+        this.fontChain.Rebuild(
+            guiFontNames ?? this.currentGuiFontNames,
+            this.currentUserFallbackFonts,
+            Utilities.Helpers.GetDefaultFallbackFontNames());
     }
 
     /// <summary>

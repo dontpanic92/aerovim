@@ -26,39 +26,31 @@ public static class Helpers
     }
 
     /// <summary>
-    /// Gets the platform-appropriate default monospace font name.
-    /// Tries a sequence of known monospace fonts and returns the first one
-    /// that is actually available through SkiaSharp, so the caller never
-    /// receives a name that would silently fall back to a proportional font.
+    /// Gets the combined list of platform default font names for the fallback chain.
+    /// This includes monospace text fonts and emoji fonts, in priority order.
     /// </summary>
-    /// <returns>The default monospace font name for the current platform.</returns>
-    public static string GetDefaultMonospaceFontName()
+    /// <returns>An ordered list of platform default font names.</returns>
+    public static IReadOnlyList<string> GetDefaultFallbackFontNames()
     {
-        string[] candidates;
+        var result = new List<string>();
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            candidates = ["Consolas", "Courier New", "Lucida Console"];
+            result.AddRange(new[] { "Consolas", "Courier New", "Lucida Console" });
+            result.AddRange(new[] { "Segoe UI Emoji", "Segoe UI Symbol" });
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            candidates = ["Menlo", "SF Mono", "Monaco", "Courier"];
+            result.AddRange(new[] { "Menlo", "SF Mono", "Monaco", "Courier" });
+            result.AddRange(new[] { "Apple Color Emoji" });
         }
         else
         {
-            candidates = ["DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono", "Monospace"];
+            result.AddRange(new[] { "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono", "Monospace" });
+            result.AddRange(new[] { "Noto Color Emoji", "Noto Emoji", "Emoji One" });
         }
 
-        foreach (var name in candidates)
-        {
-            if (IsFontAvailable(name))
-            {
-                return name;
-            }
-        }
-
-        // Last resort: return the platform's first choice and let SkiaSharp resolve it.
-        return candidates[0];
+        return result;
     }
 
     /// <summary>

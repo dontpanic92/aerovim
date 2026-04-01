@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AeroVim.Dialogs.FontPickerWindow"
+        Title="Add Font" Height="400" Width="400"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBox Name="FilterTextBox" Grid.Row="0" Watermark="Type to filter..."
+                 Margin="0,0,0,5" />
+
+        <ListBox Name="FontListBox" Grid.Row="1" Margin="0,0,0,10" />
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="OK" Width="76" Margin="0,0,5,0" Click="Ok_Click" />
+            <Button Content="Cancel" Width="76" Click="Cancel_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

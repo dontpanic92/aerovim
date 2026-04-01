@@ -34,6 +34,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     private int windowWidth = 800;
     private int windowHeight = 600;
     private int backgroundColor = 0xFFFFFF;
+    private List<string> fallbackFonts = new List<string>();
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -151,6 +152,17 @@ public sealed class AppSettings : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Gets or sets the user-configured fallback font list.
+    /// These fonts are searched (in order) after the guifont fonts
+    /// and before platform defaults when looking for glyph coverage.
+    /// </summary>
+    public List<string> FallbackFonts
+    {
+        get => this.fallbackFonts;
+        set => this.SetField(ref this.fallbackFonts, value);
+    }
+
+    /// <summary>
     /// Save settings to disk.
     /// </summary>
     /// <returns><c>true</c> if the settings were saved successfully; otherwise, <c>false</c>.</returns>
@@ -190,6 +202,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         this.WindowWidth = fresh.WindowWidth;
         this.WindowHeight = fresh.WindowHeight;
         this.BackgroundColor = fresh.BackgroundColor;
+        this.FallbackFonts = fresh.FallbackFonts;
         this.LastPersistenceError = fresh.LastPersistenceError;
         return string.IsNullOrEmpty(this.LastPersistenceError);
     }

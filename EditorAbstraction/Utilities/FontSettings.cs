@@ -18,9 +18,27 @@ public struct FontSettings
     }
 
     /// <summary>
-    /// Gets or sets the font name.
+    /// Gets or sets the ordered list of font names from guifont.
+    /// The first entry is the primary font; subsequent entries are fallbacks.
     /// </summary>
-    public string FontName { get; set; } = string.Empty;
+    public List<string> FontNames { get; set; } = new List<string>();
+
+    /// <summary>
+    /// Gets or sets the primary font name (convenience accessor for <see cref="FontNames"/>[0]).
+    /// Setting this replaces the entire list with a single entry.
+    /// </summary>
+    public string FontName
+    {
+        readonly get => this.FontNames.Count > 0 ? this.FontNames[0] : string.Empty;
+        set
+        {
+            this.FontNames.Clear();
+            if (!string.IsNullOrEmpty(value))
+            {
+                this.FontNames.Add(value);
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets the font point size.

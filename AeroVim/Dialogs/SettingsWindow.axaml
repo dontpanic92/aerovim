@@ -1,11 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="AeroVim.Dialogs.SettingsWindow"
-        Title="Settings" Height="440" Width="600"
+        Title="Settings" Height="560" Width="600"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -39,8 +40,33 @@
             <Button Name="VimDetectButton" Width="76" Content="Detect" Margin="5,0,0,0" Click="VimDetect_Click" />
         </StackPanel>
 
-        <!-- Appearance Group -->
+        <!-- Fallback Fonts -->
         <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="Fallback Fonts" FontWeight="Bold" Margin="0,0,0,3" />
+                <TextBlock Text="Searched in order after guifont, before platform defaults."
+                           FontSize="11" Foreground="Gray" Margin="0,0,0,5" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox Name="FontListBox" Grid.Column="0" Height="90" Margin="0,0,5,0" />
+
+                    <StackPanel Grid.Column="1" Spacing="3">
+                        <Button Name="FontAddButton" Content="Add..." Width="76" Click="FontAdd_Click" />
+                        <Button Name="FontRemoveButton" Content="Remove" Width="76" Click="FontRemove_Click" />
+                        <Button Name="FontMoveUpButton" Content="Move Up" Width="76" Click="FontMoveUp_Click" />
+                        <Button Name="FontMoveDownButton" Content="Move Down" Width="76" Click="FontMoveDown_Click" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Appearance Group -->
+        <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,0,0,10">
             <StackPanel>
                 <TextBlock Text="Appearance" FontWeight="Bold" Margin="0,0,0,5" />
 
@@ -70,11 +96,11 @@
         </Border>
 
         <!-- Prompt Label -->
-        <TextBlock Grid.Row="4" Name="PromptLabel" IsVisible="False"
+        <TextBlock Grid.Row="5" Name="PromptLabel" IsVisible="False"
                    Background="Yellow" Padding="25,5" Margin="0,0,0,5" />
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="OK" Width="76" Margin="0,0,5,0" Click="Ok_Click" />
             <Button Content="Cancel" Width="76" Click="Cancel_Click" />
         </StackPanel>

@@ -93,6 +93,13 @@ public partial class SettingsWindow : Window
 
         editorTypeCombo.SelectionChanged += (s, e) => this.UpdatePathPanelVisibility();
 
+        // Fallback fonts
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        foreach (var font in this.settings.FallbackFonts)
+        {
+            fontListBox.Items.Add(font);
+        }
+
         this.FindControl<CheckBox>("LigatureCheckBox")!.IsChecked = this.settings.EnableLigature;
 
         var blurBehindCheckBox = this.FindControl<CheckBox>("BlurBehindCheckBox")!;
@@ -139,6 +146,19 @@ public partial class SettingsWindow : Window
         this.settings.EnableLigature = this.FindControl<CheckBox>("LigatureCheckBox")!.IsChecked == true;
         this.settings.EnableBlurBehind = this.FindControl<CheckBox>("BlurBehindCheckBox")!.IsChecked == true;
         this.settings.BackgroundOpacity = this.FindControl<Slider>("OpacitySlider")!.Value;
+
+        // Fallback fonts
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        var fonts = new List<string>();
+        foreach (var item in fontListBox.Items)
+        {
+            if (item is string fontName)
+            {
+                fonts.Add(fontName);
+            }
+        }
+
+        this.settings.FallbackFonts = fonts;
 
         if (this.FindControl<RadioButton>("TransparentRadio")!.IsChecked == true)
         {
@@ -283,6 +303,53 @@ public partial class SettingsWindow : Window
             {
                 pathBox.Text = detected;
             }
+        }
+    }
+
+    private async void FontAdd_Click(object? sender, RoutedEventArgs e)
+    {
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        var dialog = new FontPickerWindow();
+        await dialog.ShowDialog(this);
+
+        if (!string.IsNullOrWhiteSpace(dialog.SelectedFontName))
+        {
+            fontListBox.Items.Add(dialog.SelectedFontName);
+        }
+    }
+
+    private void FontRemove_Click(object? sender, RoutedEventArgs e)
+    {
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        if (fontListBox.SelectedIndex >= 0)
+        {
+            fontListBox.Items.RemoveAt(fontListBox.SelectedIndex);
+        }
+    }
+
+    private void FontMoveUp_Click(object? sender, RoutedEventArgs e)
+    {
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        int index = fontListBox.SelectedIndex;
+        if (index > 0)
+        {
+            var item = fontListBox.Items[index]!;
+            fontListBox.Items.RemoveAt(index);
+            fontListBox.Items.Insert(index - 1, item);
+            fontListBox.SelectedIndex = index - 1;
+        }
+    }
+
+    private void FontMoveDown_Click(object? sender, RoutedEventArgs e)
+    {
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        int index = fontListBox.SelectedIndex;
+        if (index >= 0 && index < fontListBox.Items.Count - 1)
+        {
+            var item = fontListBox.Items[index]!;
+            fontListBox.Items.RemoveAt(index);
+            fontListBox.Items.Insert(index + 1, item);
+            fontListBox.SelectedIndex = index + 1;
         }
     }
 

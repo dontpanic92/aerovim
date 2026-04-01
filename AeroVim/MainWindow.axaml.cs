@@ -246,6 +246,12 @@ public partial class MainWindow : Window
         }
 
         this.editorControl = new EditorControl(this.editorClient);
+        this.editorControl.EnableLigature = this.settings.EnableLigature;
+        if (this.settings.FallbackFonts.Count > 0)
+        {
+            this.editorControl.SetFallbackFonts(this.settings.FallbackFonts);
+        }
+
         var editorBorder = this.FindControl<Border>("NeovimBorder")!;
         editorBorder.Child = this.editorControl;
         this.UpdateBackgroundOpacity();
@@ -319,6 +325,9 @@ public partial class MainWindow : Window
                 case nameof(AppSettings.EnableLigature):
                     this.editorControl.EnableLigature = this.settings.EnableLigature;
                     this.editorControl.InvalidateVisual();
+                    break;
+                case nameof(AppSettings.FallbackFonts):
+                    this.editorControl.SetFallbackFonts(this.settings.FallbackFonts);
                     break;
             }
         };
