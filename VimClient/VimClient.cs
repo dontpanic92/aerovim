@@ -41,7 +41,7 @@ public sealed class VimClient : IEditorClient
     /// </summary>
     /// <param name="vimPath">Path to the Vim executable.</param>
     /// <param name="workingDirectory">Optional working directory for Vim.</param>
-    /// <param name="initialBackgroundColor">Initial default background color in BGR format, e.g. from saved settings.</param>
+    /// <param name="initialBackgroundColor">Initial default background color in RGB format, e.g. from saved settings.</param>
     public VimClient(string vimPath, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
     {
         this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));

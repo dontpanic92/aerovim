@@ -598,15 +598,15 @@ public class TerminalBuffer
     public void SetReverse(bool on) => this.reverse = on;
 
     /// <summary>
-    /// Set foreground color (BGR format).
+    /// Set foreground color (RGB format).
     /// </summary>
-    /// <param name="color">Color value in BGR format.</param>
+    /// <param name="color">Color value in RGB format.</param>
     public void SetForegroundColor(int color) => this.currentFg = color;
 
     /// <summary>
-    /// Set background color (BGR format).
+    /// Set background color (RGB format).
     /// </summary>
-    /// <param name="color">Color value in BGR format.</param>
+    /// <param name="color">Color value in RGB format.</param>
     public void SetBackgroundColor(int color) => this.currentBg = color;
 
     /// <summary>
@@ -622,7 +622,7 @@ public class TerminalBuffer
     /// <summary>
     /// Set the terminal default foreground color (e.g. from OSC 10).
     /// </summary>
-    /// <param name="color">Color value in BGR format.</param>
+    /// <param name="color">Color value in RGB format.</param>
     public void SetTerminalDefaultForeground(int color)
     {
         this.defaultFg = color;
@@ -631,7 +631,7 @@ public class TerminalBuffer
     /// <summary>
     /// Set the terminal default background color (e.g. from OSC 11 or screen analysis).
     /// </summary>
-    /// <param name="color">Color value in BGR format.</param>
+    /// <param name="color">Color value in RGB format.</param>
     public void SetTerminalDefaultBackground(int color)
     {
         this.defaultBg = color;

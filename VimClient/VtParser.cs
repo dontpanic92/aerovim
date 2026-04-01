@@ -13,29 +13,29 @@ using System.Text;
 /// </summary>
 public class VtParser
 {
-    // Standard ANSI colors in BGR format (blue high, red low).
+    // Standard ANSI colors in RGB format (red high, blue low).
     private static readonly int[] StandardColors =
     {
         0x000000, // 0 black
-        0x0000CC, // 1 red     (RGB CC0000 → BGR 0000CC)
+        0xCC0000, // 1 red
         0x00CC00, // 2 green
-        0x00CCCC, // 3 yellow  (RGB CCCC00 → BGR 00CCCC)
-        0xCC0000, // 4 blue    (RGB 0000CC → BGR CC0000)
+        0xCCCC00, // 3 yellow
+        0x0000CC, // 4 blue
         0xCC00CC, // 5 magenta
-        0xCCCC00, // 6 cyan    (RGB 00CCCC → BGR CCCC00)
+        0x00CCCC, // 6 cyan
         0xCCCCCC, // 7 white
     };
 
-    // Bright ANSI colors in BGR format.
+    // Bright ANSI colors in RGB format.
     private static readonly int[] BrightColors =
     {
         0x555555, // 0 bright black
-        0x5555FF, // 1 bright red
+        0xFF5555, // 1 bright red
         0x55FF55, // 2 bright green
-        0x55FFFF, // 3 bright yellow
-        0xFF5555, // 4 bright blue
+        0xFFFF55, // 3 bright yellow
+        0x5555FF, // 4 bright blue
         0xFF55FF, // 5 bright magenta
-        0xFFFF55, // 6 bright cyan
+        0x55FFFF, // 6 bright cyan
         0xFFFFFF, // 7 bright white
     };
 
@@ -117,12 +117,12 @@ public class VtParser
         }
     }
 
-    private static int RgbToBgr(int r, int g, int b)
+    private static int PackRgb(int r, int g, int b)
     {
-        return (b << 16) | (g << 8) | r;
+        return (r << 16) | (g << 8) | b;
     }
 
-    private static int Convert256ColorToBgr(int index)
+    private static int Convert256Color(int index)
     {
         if (index < 8)
         {
@@ -140,13 +140,13 @@ public class VtParser
             int ri = n / 36;
             int gi = (n / 6) % 6;
             int bi = n % 6;
-            return RgbToBgr(CubeValues[ri], CubeValues[gi], CubeValues[bi]);
+            return PackRgb(CubeValues[ri], CubeValues[gi], CubeValues[bi]);
         }
 
         // Grayscale: 232-255
         int level = 8 + (10 * (index - 232));
         level = Math.Clamp(level, 0, 255);
-        return RgbToBgr(level, level, level);
+        return PackRgb(level, level, level);
     }
 
     private static int ParseOscColorSpec(string spec)
@@ -161,7 +161,7 @@ public class VtParser
                 int b = ParseColorComponent(parts[2]);
                 if (r >= 0 && g >= 0 && b >= 0)
                 {
-                    return RgbToBgr(r, g, b);
+                    return PackRgb(r, g, b);
                 }
             }
         }
@@ -174,7 +174,7 @@ public class VtParser
                     && int.TryParse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out int g)
                     && int.TryParse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out int b))
                 {
-                    return RgbToBgr(r, g, b);
+                    return PackRgb(r, g, b);
                 }
             }
             else if (hex.Length == 3)
@@ -183,7 +183,7 @@ public class VtParser
                     && int.TryParse(hex.Substring(1, 1), System.Globalization.NumberStyles.HexNumber, null, out int g)
                     && int.TryParse(hex.Substring(2, 1), System.Globalization.NumberStyles.HexNumber, null, out int b))
                 {
-                    return RgbToBgr(r * 17, g * 17, b * 17);
+                    return PackRgb(r * 17, g * 17, b * 17);
                 }
             }
         }
@@ -670,7 +670,7 @@ public class VtParser
         {
             // 256-color: 38;5;N
             int colorIndex = Math.Clamp(this.parameters[index + 2], 0, 255);
-            int color = Convert256ColorToBgr(colorIndex);
+            int color = Convert256Color(colorIndex);
             if (isForeground)
             {
                 this.buffer.SetForegroundColor(color);
@@ -685,11 +685,11 @@ public class VtParser
 
         if (mode == 2 && index + 4 < this.parameters.Count)
         {
-            // Truecolor: 38;2;R;G;B — convert to BGR
+            // Truecolor: 38;2;R;G;B — pack as RGB
             int r = Math.Clamp(this.parameters[index + 2], 0, 255);
             int g = Math.Clamp(this.parameters[index + 3], 0, 255);
             int b = Math.Clamp(this.parameters[index + 4], 0, 255);
-            int color = RgbToBgr(r, g, b);
+            int color = PackRgb(r, g, b);
             if (isForeground)
             {
                 this.buffer.SetForegroundColor(color);
@@ -741,11 +741,11 @@ public class VtParser
     {
         if (payload == "?")
         {
-            // Query: respond with current default color.
+            // Query: respond with current default color (stored as RGB).
             int color = isForeground ? this.buffer.DefaultForeground : this.buffer.DefaultBackground;
-            byte r = (byte)(color & 0xFF);
+            byte r = (byte)((color >> 16) & 0xFF);
             byte g = (byte)((color >> 8) & 0xFF);
-            byte b = (byte)((color >> 16) & 0xFF);
+            byte b = (byte)(color & 0xFF);
             int oscCommand = isForeground ? 10 : 11;
             string response = $"\x1B]{oscCommand};rgb:{r:x2}{r:x2}/{g:x2}{g:x2}/{b:x2}{b:x2}\x1B\\";
             this.writeBack?.Invoke(Encoding.ASCII.GetBytes(response));
