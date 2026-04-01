@@ -25,7 +25,7 @@ public sealed class VimClient : IEditorClient
     private readonly object writeLock = new();
     private readonly Queue<string> pendingCommands = new();
 
-    private NativePtyConnection? ptyConnection;
+    private IPtyConnection? ptyConnection;
     private Task? spawnTask;
     private bool disposed;
     private int processExitHandled;
@@ -373,7 +373,7 @@ public sealed class VimClient : IEditorClient
                 this.buffer.Resize((int)cols, (int)rows);
             }
 
-            this.ptyConnection = new NativePtyConnection(
+            this.ptyConnection = PtyConnectionFactory.Create(
                 this.vimPath,
                 Array.Empty<string>(),
                 env,

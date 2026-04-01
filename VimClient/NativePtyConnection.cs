@@ -13,10 +13,10 @@ using System.Runtime.InteropServices;
 /// <c>forkpty</c> + <c>execve</c> entirely in native code,
 /// avoiding the .NET runtime's fork-safety issues.
 /// </summary>
-internal sealed class NativePtyConnection : IDisposable
+internal sealed class NativePtyConnection : IPtyConnection
 {
     private const string LibName = "libaerovim_pty";
-    private const string LibSystem = "libSystem.dylib";
+    private const string LibC = "libc";
 
     private readonly int masterFd;
     private readonly Thread watcherThread;
@@ -295,13 +295,13 @@ internal sealed class NativePtyConnection : IDisposable
             ushort cols,
             ref int masterFd);
 
-        [DllImport(LibSystem, EntryPoint = "waitpid", SetLastError = true)]
+        [DllImport(LibC, EntryPoint = "waitpid", SetLastError = true)]
         public static extern int WaitPidBlocking(int pid, ref int status, int options);
 
-        [DllImport(LibSystem, EntryPoint = "kill")]
+        [DllImport(LibC, EntryPoint = "kill")]
         public static extern int KillProcess(int pid, int sig);
 
-        [DllImport(LibSystem, EntryPoint = "close")]
+        [DllImport(LibC, EntryPoint = "close")]
         public static extern int Close(int fd);
 
         public static void SetWinSize(int fd, ushort rows, ushort cols)
@@ -313,7 +313,7 @@ internal sealed class NativePtyConnection : IDisposable
             Ioctl(fd, tiocswinsz, ref ws);
         }
 
-        [DllImport(LibSystem, EntryPoint = "ioctl")]
+        [DllImport(LibC, EntryPoint = "ioctl")]
         private static extern int Ioctl(int fd, ulong request, ref WinSize ws);
 
         [StructLayout(LayoutKind.Sequential)]
