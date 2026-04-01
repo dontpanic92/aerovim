@@ -5,10 +5,13 @@
 
 namespace AeroVim.Dialogs;
 
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using AeroVim.Settings;
 using AeroVim.Utilities;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 
@@ -43,6 +46,7 @@ public partial class SettingsWindow : Window
         }
 
         this.LoadSettingsToUi();
+        this.LoadAboutInfo();
 
         var opacitySlider = this.FindControl<Slider>("OpacitySlider")!;
         opacitySlider.PropertyChanged += (s, e) =>
@@ -52,6 +56,9 @@ public partial class SettingsWindow : Window
                 this.FindControl<TextBlock>("OpacityLabel")!.Text = opacitySlider.Value.ToString("F2");
             }
         };
+
+        // Default to General page
+        this.FindControl<ListBox>("PageListBox")!.SelectedIndex = 0;
 
         this.Closing += this.OnWindowClosing;
     }
@@ -81,6 +88,49 @@ public partial class SettingsWindow : Window
     /// Gets the reason of closing the window.
     /// </summary>
     public Result CloseReason { get; private set; } = Result.NotClosed;
+
+    private static void OpenUrl(string url)
+    {
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
+    private void ShowPage(int index)
+    {
+        this.FindControl<StackPanel>("GeneralPage")!.IsVisible = index == 0;
+        this.FindControl<StackPanel>("AppearancePage")!.IsVisible = index == 1;
+        this.FindControl<StackPanel>("AboutPage")!.IsVisible = index == 2;
+    }
+
+    private void PageListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var listBox = sender as ListBox;
+        if (listBox is not null)
+        {
+            this.ShowPage(listBox.SelectedIndex);
+        }
+    }
+
+    private void LoadAboutInfo()
+    {
+        var informationalVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var versionText = informationalVersion ?? "Version unknown";
+        if (versionText.Split('+') is [var version, var build])
+        {
+            versionText = $"{version.Trim()} build {build[..7]}";
+        }
+
+        this.FindControl<TextBlock>("VersionLabel")!.Text = versionText;
+    }
+
+    private void GitHubLink_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        OpenUrl("https://github.com/dontpanic92/aerovim");
+    }
+
+    private void IssuesLink_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        OpenUrl("https://github.com/dontpanic92/aerovim/issues");
+    }
 
     private void LoadSettingsToUi()
     {
@@ -357,7 +407,11 @@ public partial class SettingsWindow : Window
     {
         var editorTypeCombo = this.FindControl<ComboBox>("EditorTypeCombo")!;
         bool isVim = editorTypeCombo.SelectedIndex == 1;
+        this.FindControl<TextBlock>("NeovimPathLabel")!.IsVisible = !isVim;
+        this.FindControl<TextBox>("NeovimPathBox")!.IsVisible = !isVim;
         this.FindControl<StackPanel>("NeovimPathPanel")!.IsVisible = !isVim;
+        this.FindControl<TextBlock>("VimPathLabel")!.IsVisible = isVim;
+        this.FindControl<TextBox>("VimPathBox")!.IsVisible = isVim;
         this.FindControl<StackPanel>("VimPathPanel")!.IsVisible = isVim;
     }
 
