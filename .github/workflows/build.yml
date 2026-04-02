@@ -40,7 +40,15 @@ jobs:
     - name: Publish
       run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
 
+    - name: Upload artifact (macOS .app bundle)
+      if: startsWith(matrix.rid, 'osx-')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app/
+
     - name: Upload artifact
+      if: ${{ !startsWith(matrix.rid, 'osx-') }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact }}

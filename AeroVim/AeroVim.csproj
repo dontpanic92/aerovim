@@ -28,4 +28,21 @@
     <AvaloniaResource Include="Assets\aerovim.ico" />
   </ItemGroup>
 
+  <!-- macOS .app bundle creation (runs only when publishing for osx-*) -->
+  <Target Name="CreateMacOSBundle" AfterTargets="Publish"
+          Condition="$(RuntimeIdentifier.StartsWith('osx-'))">
+    <PropertyGroup>
+      <_PublishParent>$([System.IO.Path]::GetDirectoryName('$(PublishDir.TrimEnd('/\'))'))</_PublishParent>
+      <BundleDir>$(_PublishParent)/AeroVim.app</BundleDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(BundleDir)" />
+    <MakeDir Directories="$(BundleDir)/Contents/MacOS" />
+    <MakeDir Directories="$(BundleDir)/Contents/Resources" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../Packaging/macOS/Info.plist" DestinationFolder="$(BundleDir)/Contents/" />
+    <Copy SourceFiles="$(PublishDir)aerovim" DestinationFolder="$(BundleDir)/Contents/MacOS/" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)../Packaging/macOS/aerovim.icns" DestinationFolder="$(BundleDir)/Contents/Resources/" />
+    <Exec Command="chmod +x '$(BundleDir)/Contents/MacOS/aerovim'" />
+    <Message Importance="high" Text="macOS app bundle created at $(BundleDir)" />
+  </Target>
+
 </Project>

@@ -43,3 +43,15 @@ dotnet publish AeroVim/AeroVim.csproj -c Release -r osx-x64
 # Linux
 dotnet publish AeroVim/AeroVim.csproj -c Release -r linux-x64
 ```
+
+### macOS Installation
+
+Publishing for macOS automatically creates an `AeroVim.app` bundle at
+`AeroVim/bin/Release/net10.0/<rid>/AeroVim.app`. Copy it to `/Applications/`:
+
+```bash
+cp -R AeroVim/bin/Release/net10.0/osx-arm64/AeroVim.app /Applications/
+```
+
+> **Note:** Unsigned builds may be blocked by Gatekeeper. To allow the app to
+> run, execute `xattr -cr /Applications/AeroVim.app` before the first launch.
