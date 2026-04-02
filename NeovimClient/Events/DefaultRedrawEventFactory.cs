@@ -120,4 +120,16 @@ public class DefaultRedrawEventFactory : IRedrawEventFactory<IRedrawEvent>
 
         return new NopEvent();
     }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateMouseOnEvent()
+    {
+        return new MouseOnEvent();
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateMouseOffEvent()
+    {
+        return new MouseOffEvent();
+    }
 }

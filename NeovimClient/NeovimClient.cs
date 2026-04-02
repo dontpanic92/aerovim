@@ -93,6 +93,11 @@ public sealed class NeovimClient : IEditorClient
     /// </summary>
     public ModeInfo? ModeInfo => this.modeInfo?.Count > this.modeIndex ? this.modeInfo[this.modeIndex] : null;
 
+    /// <summary>
+    /// Gets a value indicating whether mouse input is enabled by the editor.
+    /// </summary>
+    public bool MouseEnabled { get; private set; } = true;
+
     private int Height => this.cells!.GetLength(0);
 
     private int Width => this.cells!.GetLength(1);
@@ -298,6 +303,12 @@ public sealed class NeovimClient : IEditorClient
                         break;
                     case ModeChangeEvent e:
                         this.modeIndex = e.Index;
+                        break;
+                    case MouseOnEvent:
+                        this.MouseEnabled = true;
+                        break;
+                    case MouseOffEvent:
+                        this.MouseEnabled = false;
                         break;
                 }
             }

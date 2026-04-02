@@ -77,6 +77,11 @@ public interface IEditorClient : IDisposable
     ModeInfo? ModeInfo { get; }
 
     /// <summary>
+    /// Gets a value indicating whether mouse input is enabled by the editor.
+    /// </summary>
+    bool MouseEnabled { get; }
+
+    /// <summary>
     /// Gets the current font settings.
     /// </summary>
     FontSettings FontSettings { get; }

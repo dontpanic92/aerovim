@@ -135,4 +135,16 @@ public interface IRedrawEventFactory<TRedrawEvent>
     /// <param name="value">The option value.</param>
     /// <returns>The created redraw event.</returns>
     TRedrawEvent CreateOptionSetEvent(string name, string value);
+
+    /// <summary>
+    /// Create MouseOn event.
+    /// </summary>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateMouseOnEvent();
+
+    /// <summary>
+    /// Create MouseOff event.
+    /// </summary>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateMouseOffEvent();
 }

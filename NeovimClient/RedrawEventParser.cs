@@ -143,6 +143,12 @@ public sealed class RedrawEventParser<TRedrawEvent>
             case "option_set":
                 this.ParseOptionSet(command, events);
                 break;
+            case "mouse_on":
+                this.ParseNoArgRepeating(command, events, this.factory.CreateMouseOnEvent, eventName);
+                break;
+            case "mouse_off":
+                this.ParseNoArgRepeating(command, events, this.factory.CreateMouseOffEvent, eventName);
+                break;
             default:
                 Trace.TraceWarning($"AeroVim: Unsupported redraw event '{eventName}' was ignored.");
                 break;

@@ -63,6 +63,12 @@ public class ModeInfoSetEvent : IRedrawEvent
             cursorBlinking = CursorBlinking.BlinkOn;
         }
 
-        return new ModeInfo(cursorShape, cellPercentage, cursorBlinking);
+        string? mouseShape = null;
+        if (info.TryGetValue("mouse_shape", out var mouseShapeStr) && !string.IsNullOrEmpty(mouseShapeStr))
+        {
+            mouseShape = mouseShapeStr;
+        }
+
+        return new ModeInfo(cursorShape, cellPercentage, cursorBlinking, mouseShape);
     }
 }

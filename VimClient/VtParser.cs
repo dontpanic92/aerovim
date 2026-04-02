@@ -6,6 +6,7 @@
 namespace AeroVim.VimClient;
 
 using System.Text;
+using AeroVim.Editor.Utilities;
 
 /// <summary>
 /// State-machine based ANSI/VT escape sequence parser that processes byte
@@ -51,6 +52,8 @@ public class VtParser
 
     private VtState state = VtState.Ground;
     private bool privateMarker;
+    private bool greaterThanMarker;
+    private byte intermediateChar;
 
     private int currentParam;
     private bool hasCurrentParam;
@@ -356,9 +359,14 @@ public class VtParser
         {
             this.privateMarker = true;
         }
+        else if (b == (byte)'>')
+        {
+            this.greaterThanMarker = true;
+        }
         else if (b >= 0x20 && b <= 0x2F)
         {
             this.FinalizeParam();
+            this.intermediateChar = b;
             this.state = VtState.CsiIntermediate;
         }
         else if (b >= 0x40 && b <= 0x7E)
@@ -382,7 +390,8 @@ public class VtParser
         }
         else if (b >= 0x40 && b <= 0x7E)
         {
-            // Final byte — ignore sequences with intermediates we don't handle
+            // Final byte — dispatch known sequences with intermediates
+            this.DispatchCsiIntermediate((char)b);
             this.state = VtState.Ground;
         }
         else if (b == 0x1B)
@@ -438,6 +447,8 @@ public class VtParser
         this.currentSubParam = -1;
         this.inSubParam = false;
         this.privateMarker = false;
+        this.greaterThanMarker = false;
+        this.intermediateChar = 0;
         this.state = VtState.CsiParam;
     }
 
@@ -528,6 +539,9 @@ public class VtParser
             case 'l': // RM / DECRST — reset mode
                 this.DispatchSetMode(false);
                 break;
+            case 'p' when this.greaterThanMarker: // XTSMPOINTER — set pointer mode
+                this.buffer.PointerMode = this.GetParam(0, 1);
+                break;
             case 't': // Window manipulation — ignore
             case 'n': // DSR — device status report — ignore
                 break;
@@ -561,6 +575,33 @@ public class VtParser
                         this.buffer.SwitchToMainBuffer();
                     }
 
+                    break;
+            }
+        }
+    }
+
+    private void DispatchCsiIntermediate(char final)
+    {
+        // DECSCUSR — CSI Ps SP q — set cursor style
+        if (this.intermediateChar == 0x20 && final == 'q')
+        {
+            int ps = this.GetParam(0, 0);
+            switch (ps)
+            {
+                case 0: // Default — reset to terminal's default cursor
+                    this.buffer.RequestedCursorShape = null;
+                    break;
+                case 1: // Blinking block
+                case 2: // Steady block
+                    this.buffer.RequestedCursorShape = CursorShape.Block;
+                    break;
+                case 3: // Blinking underline
+                case 4: // Steady underline
+                    this.buffer.RequestedCursorShape = CursorShape.Horizontal;
+                    break;
+                case 5: // Blinking bar (vertical)
+                case 6: // Steady bar (vertical)
+                    this.buffer.RequestedCursorShape = CursorShape.Vertical;
                     break;
             }
         }
@@ -732,6 +773,10 @@ public class VtParser
 
                 case 11: // Set/query background color
                     this.HandleOscColor(payload, isForeground: false);
+                    break;
+
+                case 22: // Set pointer cursor shape
+                    this.buffer.PointerShape = payload;
                     break;
             }
         }

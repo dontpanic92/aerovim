@@ -92,6 +92,24 @@ public class TerminalBuffer
     public bool SgrMouseEnabled { get; set; }
 
     /// <summary>
+    /// Gets or sets the mouse pointer shape name requested via OSC 22.
+    /// Null means no shape was requested (use default).
+    /// </summary>
+    public string? PointerShape { get; set; }
+
+    /// <summary>
+    /// Gets or sets the text cursor shape requested via DECSCUSR.
+    /// Null means no shape was requested (use default).
+    /// </summary>
+    public CursorShape? RequestedCursorShape { get; set; }
+
+    /// <summary>
+    /// Gets or sets the pointer auto-hide mode set via XTSMPOINTER (CSI > Ps p).
+    /// 0 = never hide, 1 = hide when tracking not enabled (default), 2 = always hide, 3 = always hide even on leave.
+    /// </summary>
+    public int PointerMode { get; set; } = 1;
+
+    /// <summary>
     /// Gets the default foreground color.
     /// </summary>
     public int DefaultForeground => this.defaultFg;

@@ -97,8 +97,27 @@ public sealed class VimClient : IEditorClient
 
     /// <summary>
     /// Gets the current mode info (cursor shape, size, blink state).
+    /// When DECSCUSR has been received, the requested cursor shape overrides the default.
     /// </summary>
-    public ModeInfo ModeInfo => this.currentModeInfo;
+    public ModeInfo ModeInfo
+    {
+        get
+        {
+            var shape = this.buffer.RequestedCursorShape ?? this.currentModeInfo.CursorShape;
+            if (shape != this.currentModeInfo.CursorShape)
+            {
+                return new ModeInfo(shape, this.currentModeInfo.CellPercentage, this.currentModeInfo.CursorBlinking);
+            }
+
+            return this.currentModeInfo;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether mouse input is enabled by the editor.
+    /// For the Vim backend, mouse mode is tracked via the SGR mouse mode escape sequence.
+    /// </summary>
+    public bool MouseEnabled => this.buffer.SgrMouseEnabled;
 
     /// <summary>
     /// Gets the current font settings.
