@@ -54,6 +54,7 @@ public partial class SettingsWindow : Window
             if (e.Property == Slider.ValueProperty)
             {
                 this.FindControl<TextBlock>("OpacityLabel")!.Text = opacitySlider.Value.ToString("F2");
+                this.settings.BackgroundOpacity = opacitySlider.Value;
             }
         };
 
@@ -185,6 +186,44 @@ public partial class SettingsWindow : Window
             acrylicRadio.IsEnabled = isChecked && Helpers.AcrylicBlurAvailable();
             micaRadio.IsEnabled = isChecked && Helpers.MicaAvailable();
             opacitySlider.IsEnabled = isChecked;
+            this.settings.EnableBlurBehind = isChecked;
+        };
+
+        // Live preview: apply blur type changes immediately.
+        transparentRadio.IsCheckedChanged += (s, e) =>
+        {
+            if (transparentRadio.IsChecked == true)
+            {
+                this.settings.BlurType = 3;
+            }
+        };
+        gaussianRadio.IsCheckedChanged += (s, e) =>
+        {
+            if (gaussianRadio.IsChecked == true)
+            {
+                this.settings.BlurType = 0;
+            }
+        };
+        acrylicRadio.IsCheckedChanged += (s, e) =>
+        {
+            if (acrylicRadio.IsChecked == true)
+            {
+                this.settings.BlurType = 1;
+            }
+        };
+        micaRadio.IsCheckedChanged += (s, e) =>
+        {
+            if (micaRadio.IsChecked == true)
+            {
+                this.settings.BlurType = 2;
+            }
+        };
+
+        // Live preview: apply ligature changes immediately.
+        var ligatureCheckBox = this.FindControl<CheckBox>("LigatureCheckBox")!;
+        ligatureCheckBox.IsCheckedChanged += (s, e) =>
+        {
+            this.settings.EnableLigature = ligatureCheckBox.IsChecked == true;
         };
     }
 
@@ -365,6 +404,7 @@ public partial class SettingsWindow : Window
         if (!string.IsNullOrWhiteSpace(dialog.SelectedFontName))
         {
             fontListBox.Items.Add(dialog.SelectedFontName);
+            this.UpdateFallbackFontsLive();
         }
     }
 
@@ -374,6 +414,7 @@ public partial class SettingsWindow : Window
         if (fontListBox.SelectedIndex >= 0)
         {
             fontListBox.Items.RemoveAt(fontListBox.SelectedIndex);
+            this.UpdateFallbackFontsLive();
         }
     }
 
@@ -387,6 +428,7 @@ public partial class SettingsWindow : Window
             fontListBox.Items.RemoveAt(index);
             fontListBox.Items.Insert(index - 1, item);
             fontListBox.SelectedIndex = index - 1;
+            this.UpdateFallbackFontsLive();
         }
     }
 
@@ -400,7 +442,23 @@ public partial class SettingsWindow : Window
             fontListBox.Items.RemoveAt(index);
             fontListBox.Items.Insert(index + 1, item);
             fontListBox.SelectedIndex = index + 1;
+            this.UpdateFallbackFontsLive();
         }
+    }
+
+    private void UpdateFallbackFontsLive()
+    {
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        var fonts = new List<string>();
+        foreach (var item in fontListBox.Items)
+        {
+            if (item is string fontName)
+            {
+                fonts.Add(fontName);
+            }
+        }
+
+        this.settings.FallbackFonts = fonts;
     }
 
     private void UpdatePathPanelVisibility()

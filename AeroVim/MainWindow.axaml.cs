@@ -63,12 +63,20 @@ public partial class MainWindow : Window
         }
 
         this.isSettingsDialogOpen = true;
+        IntPtr blurHandle = IntPtr.Zero;
         try
         {
             // Capture current editor settings before opening the dialog
             var previousEditorType = this.settings.EditorType;
             var previousNeovimPath = this.settings.NeovimPath;
             var previousVimPath = this.settings.VimPath;
+
+            // Preserve blur/acrylic/mica effect while the dialog steals focus.
+            if (this.settings.EnableBlurBehind)
+            {
+                blurHandle = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+                this.BeginBlurPreservation(blurHandle);
+            }
 
             var dialog = new Dialogs.SettingsWindow(promptText);
             await dialog.ShowDialog(this);
@@ -90,6 +98,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            this.EndBlurPreservation(blurHandle);
             this.isSettingsDialogOpen = false;
         }
     }
@@ -314,8 +323,11 @@ public partial class MainWindow : Window
                     {
                         this.SetupBlurBehind();
                         this.DeferMacOSNativeTransparency();
-                        Dispatcher.UIThread.InvokeAsync(async Task () =>
-                            await this.TestAndShowTransparencyMismatchDialogAsync());
+                        if (!this.isSettingsDialogOpen)
+                        {
+                            Dispatcher.UIThread.InvokeAsync(async Task () =>
+                                await this.TestAndShowTransparencyMismatchDialogAsync());
+                        }
                     });
                     break;
 
@@ -490,6 +502,64 @@ public partial class MainWindow : Window
             3 => WindowTransparencyLevel.Transparent,
             _ => WindowTransparencyLevel.None,
         };
+    }
+
+    /// <summary>
+    /// Activates platform-specific blur preservation so the window's
+    /// acrylic/mica/blur effect stays fully active while a child dialog
+    /// has focus.
+    /// </summary>
+    /// <param name="nativeHandle">
+    /// The native window handle (NSWindow on macOS, HWND on Windows).
+    /// Pass <see cref="IntPtr.Zero"/> to skip.
+    /// </param>
+    private void BeginBlurPreservation(IntPtr nativeHandle)
+    {
+        if (nativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            MacOSInterop.ForceBlurActive(nativeHandle);
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // Map BlurType to the DWM DWMWA_SYSTEMBACKDROP_TYPE value.
+            int dwmBackdropType = this.settings.BlurType switch
+            {
+                1 => 3, // AcrylicBlur → DWMSBT_TRANSIENTWINDOW
+                2 => 2, // Mica → DWMSBT_MAINWINDOW
+                _ => 0,
+            };
+            WindowsInterop.EnableBlurPreservation(nativeHandle, dwmBackdropType);
+        }
+    }
+
+    /// <summary>
+    /// Deactivates platform-specific blur preservation, restoring normal
+    /// window activation behavior.
+    /// </summary>
+    /// <param name="nativeHandle">
+    /// The native window handle used in <see cref="BeginBlurPreservation"/>.
+    /// Pass <see cref="IntPtr.Zero"/> to skip.
+    /// </param>
+    private void EndBlurPreservation(IntPtr nativeHandle)
+    {
+        if (nativeHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            MacOSInterop.ResetBlurState(nativeHandle);
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            WindowsInterop.DisableBlurPreservation(nativeHandle);
+        }
     }
 
     private async Task TestAndShowTransparencyMismatchDialogAsync()

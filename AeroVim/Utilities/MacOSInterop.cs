@@ -68,6 +68,134 @@ public static class MacOSInterop
     }
 
     /// <summary>
+    /// Forces the window's blur effect to render in its active (vibrant)
+    /// state regardless of window activation. Call before showing a child
+    /// dialog so that the main window's blur stays fully active while
+    /// focus is on the dialog.
+    /// </summary>
+    /// <param name="nsWindow">The NSWindow handle.</param>
+    public static void ForceBlurActive(IntPtr nsWindow)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || nsWindow == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // NSVisualEffectStateActive = 1
+        SetVisualEffectViewState(nsWindow, 1);
+    }
+
+    /// <summary>
+    /// Resets the window's blur effect to follow the window's active state,
+    /// restoring the default macOS behavior. Call after a child dialog closes.
+    /// </summary>
+    /// <param name="nsWindow">The NSWindow handle.</param>
+    public static void ResetBlurState(IntPtr nsWindow)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || nsWindow == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // NSVisualEffectStateFollowsActiveState = 0
+        SetVisualEffectViewState(nsWindow, 0);
+    }
+
+    /// <summary>
+    /// Walks the NSView hierarchy from the window's content view and sets
+    /// the <c>state</c> property on every <c>NSVisualEffectView</c> found.
+    /// </summary>
+    /// <param name="nsWindow">The NSWindow handle.</param>
+    /// <param name="state">
+    /// 0 = followsWindowActiveState, 1 = active, 2 = inactive.
+    /// </param>
+    private static void SetVisualEffectViewState(IntPtr nsWindow, long state)
+    {
+        IntPtr contentView = NativeMethods.ObjCMsgSend(
+            nsWindow,
+            NativeMethods.SelRegisterName("contentView"));
+        if (contentView == IntPtr.Zero)
+        {
+            return;
+        }
+
+        IntPtr effectViewClass = NativeMethods.ObjCGetClass("NSVisualEffectView");
+        if (effectViewClass == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // Cache selectors used during the recursive walk.
+        IntPtr isKindOfClassSel = NativeMethods.SelRegisterName("isKindOfClass:");
+        IntPtr setStateSel = NativeMethods.SelRegisterName("setState:");
+        IntPtr subviewsSel = NativeMethods.SelRegisterName("subviews");
+        IntPtr countSel = NativeMethods.SelRegisterName("count");
+        IntPtr objectAtIndexSel = NativeMethods.SelRegisterName("objectAtIndex:");
+
+        ApplyVisualEffectState(
+            contentView,
+            effectViewClass,
+            isKindOfClassSel,
+            setStateSel,
+            subviewsSel,
+            countSel,
+            objectAtIndexSel,
+            state);
+    }
+
+    /// <summary>
+    /// Recursively walks the NSView tree starting from <paramref name="view"/>
+    /// and sets the <c>state</c> property on any <c>NSVisualEffectView</c>.
+    /// </summary>
+    /// <param name="view">The current NSView to inspect.</param>
+    /// <param name="effectViewClass">The NSVisualEffectView class pointer.</param>
+    /// <param name="isKindOfClassSel">Cached <c>isKindOfClass:</c> selector.</param>
+    /// <param name="setStateSel">Cached <c>setState:</c> selector.</param>
+    /// <param name="subviewsSel">Cached <c>subviews</c> selector.</param>
+    /// <param name="countSel">Cached <c>count</c> selector.</param>
+    /// <param name="objectAtIndexSel">Cached <c>objectAtIndex:</c> selector.</param>
+    /// <param name="state">The visual effect state value to apply.</param>
+    private static void ApplyVisualEffectState(
+        IntPtr view,
+        IntPtr effectViewClass,
+        IntPtr isKindOfClassSel,
+        IntPtr setStateSel,
+        IntPtr subviewsSel,
+        IntPtr countSel,
+        IntPtr objectAtIndexSel,
+        long state)
+    {
+        if (NativeMethods.ObjCMsgSendPtrRetBool(view, isKindOfClassSel, effectViewClass))
+        {
+            NativeMethods.ObjCMsgSendLong(view, setStateSel, state);
+        }
+
+        IntPtr subviews = NativeMethods.ObjCMsgSend(view, subviewsSel);
+        if (subviews == IntPtr.Zero)
+        {
+            return;
+        }
+
+        long count = (long)(nint)NativeMethods.ObjCMsgSend(subviews, countSel);
+        for (long i = 0; i < count; i++)
+        {
+            IntPtr subview = NativeMethods.ObjCMsgSendLongRetPtr(subviews, objectAtIndexSel, i);
+            if (subview != IntPtr.Zero)
+            {
+                ApplyVisualEffectState(
+                    subview,
+                    effectViewClass,
+                    isKindOfClassSel,
+                    setStateSel,
+                    subviewsSel,
+                    countSel,
+                    objectAtIndexSel,
+                    state);
+            }
+        }
+    }
+
+    /// <summary>
     /// Ensures the native macOS traffic light buttons (close, miniaturize,
     /// zoom) are visible. Called when using NoChrome so Avalonia does not
     /// manage them, but the NSWindow still owns the standard button instances.
