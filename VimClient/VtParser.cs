@@ -526,7 +526,11 @@ public class VtParser
                 this.buffer.SetCursorPosition(this.GetParam(0, 1) - 1, this.buffer.CursorCol);
                 break;
             case 'm': // SGR — select graphic rendition
-                this.DispatchSgr();
+                if (!this.privateMarker && !this.greaterThanMarker)
+                {
+                    this.DispatchSgr();
+                }
+
                 break;
             case 'r': // DECSTBM — set scrolling region
                 int top = this.GetParam(0, 1) - 1;
@@ -630,13 +634,21 @@ public class VtParser
                     this.buffer.SetItalic(true);
                     break;
                 case 4:
-                    if (i < this.subParameters.Count && this.subParameters[i] == 3)
+                    int sub4 = (i < this.subParameters.Count) ? this.subParameters[i] : -1;
+                    switch (sub4)
                     {
-                        this.buffer.SetUndercurl(true);
-                    }
-                    else
-                    {
-                        this.buffer.SetUnderline(true);
+                        case 0: // 4:0 — underline/undercurl off
+                            this.buffer.SetUnderline(false);
+                            this.buffer.SetUndercurl(false);
+                            break;
+                        case 3: // 4:3 — curly underline (undercurl)
+                            this.buffer.SetUnderline(false);
+                            this.buffer.SetUndercurl(true);
+                            break;
+                        default: // bare 4, 4:1, 4:2, 4:4, 4:5 — single underline
+                            this.buffer.SetUndercurl(false);
+                            this.buffer.SetUnderline(true);
+                            break;
                     }
 
                     break;
