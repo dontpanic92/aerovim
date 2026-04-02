@@ -80,8 +80,47 @@ public static class WindowsInterop
     }
 
     /// <summary>
+    /// Updates the DWM backdrop type used by the blur preservation subclass
+    /// and immediately applies the new value via <c>DwmSetWindowAttribute</c>.
+    /// Call this when the user changes the blur mode while the settings dialog
+    /// is open so that (a) the subclass re-applies the correct backdrop on
+    /// future <c>WM_NCACTIVATE</c> messages and (b) the window's current
+    /// backdrop effect updates in real time for live preview.
+    /// </summary>
+    /// <param name="hwnd">The main window's native HWND.</param>
+    /// <param name="dwmBackdropType">
+    /// The new DWM <c>DWMWA_SYSTEMBACKDROP_TYPE</c> value (e.g., 2 for Mica,
+    /// 3 for Acrylic, 0 for auto/none).
+    /// </param>
+    public static void UpdateStoredBackdropType(IntPtr hwnd, int dwmBackdropType)
+    {
+        if (!isPreservingBlur)
+        {
+            return;
+        }
+
+        storedBackdropType = dwmBackdropType;
+
+        // Apply the new DWM backdrop type immediately so the effect
+        // updates in real time during live preview. Without this, the
+        // previously-applied attribute (e.g. Mica) stays in effect
+        // until the next WM_NCACTIVATE.
+        if (hwnd != IntPtr.Zero)
+        {
+            int backdropType = dwmBackdropType;
+            NativeMethods.DwmSetWindowAttribute(
+                hwnd,
+                DwmwaSystembackdropType,
+                ref backdropType,
+                sizeof(int));
+        }
+    }
+
+    /// <summary>
     /// Removes the WndProc subclass installed by <see cref="EnableBlurPreservation"/>,
-    /// restoring default <c>WM_NCACTIVATE</c> handling.
+    /// restoring default <c>WM_NCACTIVATE</c> handling. Also resets the DWM
+    /// <c>DWMWA_SYSTEMBACKDROP_TYPE</c> attribute to <c>DWMSBT_AUTO</c> so
+    /// Avalonia can regain control of the backdrop effect.
     /// </summary>
     /// <param name="hwnd">The main window's native HWND.</param>
     public static void DisableBlurPreservation(IntPtr hwnd)
@@ -99,6 +138,17 @@ public static class WindowsInterop
         NativeMethods.RemoveWindowSubclass(hwnd, subclassProcInstance, SubclassId);
         isPreservingBlur = false;
         subclassProcInstance = null;
+
+        // Reset the DWM backdrop attribute to DWMSBT_AUTO (0) so the
+        // manually-applied value from the subclass proc doesn't persist
+        // and conflict with whatever Avalonia sets next.
+        int auto = 0;
+        NativeMethods.DwmSetWindowAttribute(
+            hwnd,
+            DwmwaSystembackdropType,
+            ref auto,
+            sizeof(int));
+
         storedBackdropType = 0;
     }
 

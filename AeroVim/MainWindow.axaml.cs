@@ -100,6 +100,15 @@ public partial class MainWindow : Window
         {
             this.EndBlurPreservation(blurHandle);
             this.isSettingsDialogOpen = false;
+
+            // Force Avalonia to re-negotiate the transparency level with DWM.
+            // During the dialog, the blur-preservation subclass may have set a
+            // stale DWM backdrop attribute. DisableBlurPreservation resets it to
+            // DWMSBT_AUTO, but Avalonia won't re-apply because
+            // TransparencyLevelHint was already set during live preview. Toggle
+            // through None to force a fresh application.
+            this.TransparencyLevelHint = [WindowTransparencyLevel.None];
+            this.SetupBlurBehind();
         }
     }
 
@@ -321,6 +330,7 @@ public partial class MainWindow : Window
                 case nameof(AppSettings.BlurType):
                     Dispatcher.UIThread.Post(() =>
                     {
+                        this.UpdateBlurPreservationForCurrentSettings();
                         this.SetupBlurBehind();
                         this.DeferMacOSNativeTransparency();
                         if (!this.isSettingsDialogOpen)
@@ -560,6 +570,28 @@ public partial class MainWindow : Window
         {
             WindowsInterop.DisableBlurPreservation(nativeHandle);
         }
+    }
+
+    /// <summary>
+    /// Keeps the blur-preservation subclass in sync with the current
+    /// <see cref="AppSettings.BlurType"/> so that live-preview changes
+    /// in the settings dialog do not fight with a stale DWM backdrop value.
+    /// </summary>
+    private void UpdateBlurPreservationForCurrentSettings()
+    {
+        if (!this.isSettingsDialogOpen || !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        int dwmBackdropType = this.settings.BlurType switch
+        {
+            1 => 3, // AcrylicBlur → DWMSBT_TRANSIENTWINDOW
+            2 => 2, // Mica → DWMSBT_MAINWINDOW
+            _ => 0,
+        };
+        IntPtr hwnd = this.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        WindowsInterop.UpdateStoredBackdropType(hwnd, dwmBackdropType);
     }
 
     private async Task TestAndShowTransparencyMismatchDialogAsync()
