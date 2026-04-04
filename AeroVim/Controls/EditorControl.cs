@@ -392,21 +392,26 @@ public class EditorControl : Control, IDisposable
         Interlocked.Exchange(ref this.redrawQueued, 0);
         canvas.Clear(Helpers.GetSkColor(args.BackgroundColor, this.BackgroundAlpha));
 
-        int rows = args.Cells.GetLength(0);
-        int cols = args.Cells.GetLength(1);
+        // Capture the Cells reference once. The Screen object is shared
+        // and its Cells array can be replaced by a concurrent GetScreen()
+        // call on the redraw thread. Using a local prevents the array from
+        // changing size between reading dimensions and accessing elements.
+        var cells = args.Cells;
+        int rows = cells.GetLength(0);
+        int cols = cells.GetLength(1);
 
         // Paint backgrounds
         for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < cols; j++)
             {
-                if (args.Cells[i, j].BackgroundColor != args.BackgroundColor || args.Cells[i, j].Reverse)
+                if (cells[i, j].BackgroundColor != args.BackgroundColor || cells[i, j].Reverse)
                 {
                     float x = j * this.textParam.CharWidth;
                     float y = i * this.textParam.LineHeight;
-                    int color = args.Cells[i, j].Reverse
-                        ? args.Cells[i, j].ForegroundColor
-                        : args.Cells[i, j].BackgroundColor;
+                    int color = cells[i, j].Reverse
+                        ? cells[i, j].ForegroundColor
+                        : cells[i, j].BackgroundColor;
                     this.backgroundPaint.Color = Helpers.GetSkColor(color);
                     canvas.DrawRect(x, y, this.textParam.CharWidth, this.textParam.LineHeight, this.backgroundPaint);
                 }
@@ -422,10 +427,10 @@ public class EditorControl : Control, IDisposable
                 // Group cells with the same style for correct ligature rendering
                 int cellRangeStart = j;
                 int cellRangeEnd = j;
-                Cell startCell = args.Cells[i, cellRangeStart];
+                Cell startCell = cells[i, cellRangeStart];
                 while (cellRangeEnd < cols)
                 {
-                    Cell cell = args.Cells[i, cellRangeEnd];
+                    Cell cell = cells[i, cellRangeEnd];
                     if (cell.Character is not null
                         && (cell.ForegroundColor != startCell.ForegroundColor
                             || cell.BackgroundColor != startCell.BackgroundColor
@@ -444,26 +449,26 @@ public class EditorControl : Control, IDisposable
 
                 j = cellRangeEnd;
 
-                this.DrawCellRange(canvas, args, i, cellRangeStart, cellRangeEnd);
+                this.DrawCellRange(canvas, cells, i, cellRangeStart, cellRangeEnd);
             }
         }
 
         // Draw cursor
-        this.DrawCursor(canvas, args);
+        this.DrawCursor(canvas, cells, args);
 
         // Draw preedit (IME composition) overlay
         this.DrawPreedit(canvas, args);
     }
 
-    private void DrawCellRange(SKCanvas canvas, EditorScreen args, int row, int colStart, int colEnd)
+    private void DrawCellRange(SKCanvas canvas, Cell[,] cells, int row, int colStart, int colEnd)
     {
-        bool bold = args.Cells[row, colStart].Bold;
-        bool italic = args.Cells[row, colStart].Italic;
-        bool underline = args.Cells[row, colStart].Underline;
-        bool undercurl = args.Cells[row, colStart].Undercurl;
-        int foregroundColor = args.Cells[row, colStart].Reverse
-            ? args.Cells[row, colStart].BackgroundColor
-            : args.Cells[row, colStart].ForegroundColor;
+        bool bold = cells[row, colStart].Bold;
+        bool italic = cells[row, colStart].Italic;
+        bool underline = cells[row, colStart].Underline;
+        bool undercurl = cells[row, colStart].Undercurl;
+        int foregroundColor = cells[row, colStart].Reverse
+            ? cells[row, colStart].BackgroundColor
+            : cells[row, colStart].ForegroundColor;
 
         var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
         var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
@@ -479,7 +484,7 @@ public class EditorControl : Control, IDisposable
         int cellIndex = colStart;
         while (cellIndex < colEnd)
         {
-            var cell = args.Cells[row, cellIndex];
+            var cell = cells[row, cellIndex];
             if (cell.Character is null)
             {
                 cellIndex++;
@@ -497,7 +502,7 @@ public class EditorControl : Control, IDisposable
             // Restore the styled typeface for subsequent characters
             this.textPaint.Typeface = styledTypeface;
 
-            int charWidth = this.GetCharWidth(args.Cells, row, cellIndex);
+            int charWidth = this.GetCharWidth(cells, row, cellIndex);
             cellIndex += charWidth;
         }
 
@@ -512,7 +517,7 @@ public class EditorControl : Control, IDisposable
         // Draw undercurl
         if (undercurl)
         {
-            int specialColor = args.Cells[row, colStart].SpecialColor;
+            int specialColor = cells[row, colStart].SpecialColor;
             this.undercurlPaint.Color = Helpers.GetSkColor(specialColor);
             float curlY = ((row + 1) * this.textParam.LineHeight) - 2;
             using var path = new SKPath();
@@ -528,11 +533,11 @@ public class EditorControl : Control, IDisposable
         }
     }
 
-    private void DrawCursor(SKCanvas canvas, EditorScreen args)
+    private void DrawCursor(SKCanvas canvas, Cell[,] cells, EditorScreen args)
     {
         var cursorPercentage = this.editorClient.ModeInfo?.CellPercentage ?? 100;
         var cursorShape = this.editorClient.ModeInfo?.CursorShape ?? CursorShape.Block;
-        int cellWidth = this.GetCharWidth(args.Cells, args.CursorPosition.Row, args.CursorPosition.Col);
+        int cellWidth = this.GetCharWidth(cells, args.CursorPosition.Row, args.CursorPosition.Col);
 
         float left, top, right, bottom;
         switch (cursorShape)
