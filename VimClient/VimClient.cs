@@ -141,12 +141,20 @@ public sealed class VimClient : IEditorClient
             return;
         }
 
+        bool sizeChanged;
         lock (this.screenLock)
         {
-            this.buffer.Resize((int)width, (int)height);
+            sizeChanged = (int)width != this.buffer.Cols || (int)height != this.buffer.Rows;
+            if (sizeChanged)
+            {
+                this.buffer.Resize((int)width, (int)height);
+            }
         }
 
-        this.ptyConnection.Resize((int)width, (int)height);
+        if (sizeChanged)
+        {
+            this.ptyConnection.Resize((int)width, (int)height);
+        }
     }
 
     /// <summary>
@@ -432,9 +440,11 @@ public sealed class VimClient : IEditorClient
         var readBuffer = new byte[4096];
         try
         {
+            var readTask = this.ptyConnection!.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length);
+
             while (!this.disposed)
             {
-                int bytesRead = await this.ptyConnection!.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length).ConfigureAwait(false);
+                int bytesRead = await readTask.ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
                     break;
@@ -445,7 +455,17 @@ public sealed class VimClient : IEditorClient
                     this.parser.Process(readBuffer.AsSpan(0, bytesRead));
                 }
 
-                this.Redraw?.Invoke();
+                // Start the next read immediately. If data is already
+                // buffered the task completes synchronously and we
+                // process it before notifying the renderer. This
+                // coalesces rapid PTY writes into fewer render frames,
+                // preventing partial screen updates such as ghost
+                // status-bar rows during split resize.
+                readTask = this.ptyConnection.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length);
+                if (!readTask.IsCompleted)
+                {
+                    this.Redraw?.Invoke();
+                }
             }
         }
         catch (Exception) when (this.disposed)

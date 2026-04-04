@@ -128,6 +128,11 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
+            if (cols == this.Cols && rows == this.Rows)
+            {
+                return;
+            }
+
             var newCells = new Cell[rows, cols];
             int copyRows = Math.Min(rows, this.Rows);
             int copyCols = Math.Min(cols, this.Cols);
@@ -140,13 +145,15 @@ public class TerminalBuffer
                 }
             }
 
-            // Clear new cells
+            // Clear new cells using the last detected (visual) background
+            // color rather than the VT default, so they blend with the
+            // existing content and don't cause a colour flash during resize.
             for (int i = 0; i < rows; i++)
             {
                 int startCol = i < copyRows ? copyCols : 0;
                 for (int j = startCol; j < cols; j++)
                 {
-                    newCells[i, j].Clear(this.ResolveFg(), this.ResolveBg(), this.currentSpecial);
+                    newCells[i, j].Clear(this.detectedFg, this.detectedBg, this.currentSpecial);
                 }
             }
 
@@ -324,11 +331,11 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
-            if (this.cursorRow >= this.scrollBottom)
+            if (this.cursorRow == this.scrollBottom)
             {
                 this.ScrollUpInternal(1);
             }
-            else
+            else if (this.cursorRow < this.Rows - 1)
             {
                 this.cursorRow++;
             }
@@ -342,11 +349,11 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
-            if (this.cursorRow <= this.scrollTop)
+            if (this.cursorRow == this.scrollTop)
             {
                 this.ScrollDownInternal(1);
             }
-            else
+            else if (this.cursorRow > 0)
             {
                 this.cursorRow--;
             }
@@ -469,6 +476,11 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
+            if (this.cursorRow < this.scrollTop || this.cursorRow > this.scrollBottom)
+            {
+                return;
+            }
+
             for (int i = this.scrollBottom; i >= this.cursorRow + n; i--)
             {
                 for (int j = 0; j < this.Cols; j++)
@@ -494,6 +506,11 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
+            if (this.cursorRow < this.scrollTop || this.cursorRow > this.scrollBottom)
+            {
+                return;
+            }
+
             for (int i = this.cursorRow; i <= this.scrollBottom - n; i++)
             {
                 for (int j = 0; j < this.Cols; j++)
@@ -870,9 +887,11 @@ public class TerminalBuffer
 
     private void ClearRow(int row)
     {
+        int fg = this.currentFg == -1 ? this.detectedFg : this.currentFg;
+        int bg = this.currentBg == -1 ? this.detectedBg : this.currentBg;
         for (int j = 0; j < this.Cols; j++)
         {
-            this.cells[row, j].Clear(this.ResolveFg(), this.ResolveBg(), this.currentSpecial);
+            this.cells[row, j].Clear(fg, bg, this.currentSpecial);
         }
 
         this.MarkDirty(row);
@@ -885,13 +904,15 @@ public class TerminalBuffer
         rowEnd = Math.Min(this.Rows - 1, rowEnd);
         colEnd = Math.Min(this.Cols - 1, colEnd);
 
+        int fg = this.currentFg == -1 ? this.detectedFg : this.currentFg;
+        int bg = this.currentBg == -1 ? this.detectedBg : this.currentBg;
         for (int i = rowStart; i <= rowEnd; i++)
         {
             int jStart = i == rowStart ? colStart : 0;
             int jEnd = i == rowEnd ? colEnd : this.Cols - 1;
             for (int j = jStart; j <= jEnd; j++)
             {
-                this.cells[i, j].Clear(this.ResolveFg(), this.ResolveBg(), this.currentSpecial);
+                this.cells[i, j].Clear(fg, bg, this.currentSpecial);
             }
 
             this.MarkDirty(i);
