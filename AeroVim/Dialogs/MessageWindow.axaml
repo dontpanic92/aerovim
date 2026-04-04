@@ -3,7 +3,7 @@
         x:Class="AeroVim.Dialogs.MessageWindow"
         Title="Message"
         Width="420"
-        Height="160"
+        Height="120"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="24">

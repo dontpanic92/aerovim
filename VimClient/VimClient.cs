@@ -28,6 +28,7 @@ public sealed class VimClient : IEditorClient
     private IPtyConnection? ptyConnection;
     private Task? spawnTask;
     private bool disposed;
+    private bool contentReceived;
     private int processExitHandled;
     private ModeInfo currentModeInfo;
     private ColorChangedHandler? foregroundColorChanged;
@@ -236,6 +237,11 @@ public sealed class VimClient : IEditorClient
 
         lock (this.screenLock)
         {
+            if (!this.contentReceived)
+            {
+                return null;
+            }
+
             screen = this.buffer.GetScreen();
             if (screen is not null)
             {
@@ -453,6 +459,7 @@ public sealed class VimClient : IEditorClient
                 lock (this.screenLock)
                 {
                     this.parser.Process(readBuffer.AsSpan(0, bytesRead));
+                    this.contentReceived = true;
                 }
 
                 // Start the next read immediately. If data is already
