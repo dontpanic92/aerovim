@@ -6,6 +6,7 @@
 namespace AeroVim.Controls;
 
 using System.Collections.Concurrent;
+using System.Text;
 using AeroVim.Editor;
 using AeroVim.Editor.Utilities;
 using AeroVim.Utilities;
@@ -36,6 +37,7 @@ public class EditorControl : Control, IDisposable
     private readonly SKPaint preeditUnderlinePaint = new() { StrokeWidth = 2, IsAntialias = true, Color = SKColors.White };
     private readonly EditorTextInputMethodClient imeClient;
     private readonly FontFallbackChain fontChain = new FontFallbackChain();
+    private readonly LigatureTextShaper ligatureTextShaper = new();
 
     private TextLayoutParameters textParam;
     private List<string> currentGuiFontNames = new List<string>();
@@ -498,31 +500,13 @@ public class EditorControl : Control, IDisposable
 
         float baselineY = (row * this.textParam.LineHeight) + (this.textParam.LineHeight * 0.8f);
 
-        // Draw each cell's character individually at its fixed position
-        // This preserves the terminal grid alignment while still supporting proper glyph rendering
-        int cellIndex = colStart;
-        while (cellIndex < colEnd)
+        if (this.EnableLigature)
         {
-            var cell = cells[row, cellIndex];
-            if (cell.Character is null)
-            {
-                cellIndex++;
-                continue;
-            }
-
-            string text = cell.Character;
-            int codePoint = char.ConvertToUtf32(text, 0);
-            float x = cellIndex * this.textParam.CharWidth;
-
-            this.textPaint.Typeface = this.fontChain.GetTypefaceForGlyph(codePoint, text, weight, slant);
-
-            canvas.DrawText(text, x, baselineY, this.textPaint);
-
-            // Restore the styled typeface for subsequent characters
-            this.textPaint.Typeface = styledTypeface;
-
-            int charWidth = this.GetCharWidth(cells, row, cellIndex);
-            cellIndex += charWidth;
+            this.DrawLigatureTextRange(canvas, cells, row, colStart, colEnd, weight, slant, baselineY);
+        }
+        else
+        {
+            this.DrawPlainTextRange(canvas, cells, row, colStart, colEnd, styledTypeface, weight, slant, baselineY);
         }
 
         // Draw underline
@@ -643,8 +627,189 @@ public class EditorControl : Control, IDisposable
         return 1;
     }
 
+    private void DrawPlainTextRange(
+        SKCanvas canvas,
+        Cell[,] cells,
+        int row,
+        int colStart,
+        int colEnd,
+        SKTypeface styledTypeface,
+        SKFontStyleWeight weight,
+        SKFontStyleSlant slant,
+        float baselineY)
+    {
+        int cellIndex = colStart;
+        while (cellIndex < colEnd)
+        {
+            var cell = cells[row, cellIndex];
+            if (cell.Character is null)
+            {
+                cellIndex++;
+                continue;
+            }
+
+            string text = cell.Character;
+            int codePoint = char.ConvertToUtf32(text, 0);
+            float x = cellIndex * this.textParam.CharWidth;
+
+            this.textPaint.Typeface = this.fontChain.GetTypefaceForGlyph(codePoint, text, weight, slant);
+            canvas.DrawText(text, x, baselineY, this.textPaint);
+
+            // Restore the styled typeface for subsequent characters.
+            this.textPaint.Typeface = styledTypeface;
+
+            int charWidth = this.GetCharWidth(cells, row, cellIndex);
+            cellIndex += charWidth;
+        }
+    }
+
+    private void DrawLigatureTextRange(
+        SKCanvas canvas,
+        Cell[,] cells,
+        int row,
+        int colStart,
+        int colEnd,
+        SKFontStyleWeight weight,
+        SKFontStyleSlant slant,
+        float baselineY)
+    {
+        foreach (var run in this.BuildResolvedTypefaceRuns(cells, row, colStart, colEnd, weight, slant))
+        {
+            var shapedRun = this.ligatureTextShaper.ShapeText(run.Typeface, this.textParam.SkiaFontSize, run.Text);
+            if (shapedRun is null || !this.DrawAnchoredShapedRun(canvas, run, shapedRun, baselineY))
+            {
+                this.textPaint.Typeface = run.Typeface;
+                this.DrawPlainTextRange(canvas, cells, row, run.StartColumn, run.EndColumn, run.Typeface, weight, slant, baselineY);
+            }
+        }
+    }
+
+    private bool DrawAnchoredShapedRun(
+        SKCanvas canvas,
+        ResolvedTypefaceRun run,
+        LigatureTextShaper.ShapedTextRun shapedRun,
+        float baselineY)
+    {
+        int glyphStart = 0;
+        while (glyphStart < shapedRun.GlyphCount)
+        {
+            uint clusterStart = shapedRun.Clusters[glyphStart];
+            int glyphEnd = glyphStart + 1;
+            while (glyphEnd < shapedRun.GlyphCount && shapedRun.Clusters[glyphEnd] == clusterStart)
+            {
+                glyphEnd++;
+            }
+
+            int clusterEnd = glyphEnd < shapedRun.GlyphCount
+                ? checked((int)shapedRun.Clusters[glyphEnd])
+                : run.Text.Length;
+            if (!this.TryGetClusterStartColumn(run.CellSpans, checked((int)clusterStart), clusterEnd, out int startColumn))
+            {
+                return false;
+            }
+
+            ushort[] glyphIds = new ushort[glyphEnd - glyphStart];
+            SKPoint[] points = new SKPoint[glyphIds.Length];
+            float clusterOriginX = shapedRun.Points[glyphStart].X;
+            for (int i = 0; i < glyphIds.Length; i++)
+            {
+                glyphIds[i] = shapedRun.GlyphIds[glyphStart + i];
+                var point = shapedRun.Points[glyphStart + i];
+                points[i] = new SKPoint(point.X - clusterOriginX, point.Y);
+            }
+
+            using var blob = this.ligatureTextShaper.CreateTextBlob(run.Typeface, this.textParam.SkiaFontSize, glyphIds, points);
+            if (blob is null)
+            {
+                return false;
+            }
+
+            canvas.DrawText(blob, startColumn * this.textParam.CharWidth, baselineY, this.textPaint);
+            glyphStart = glyphEnd;
+        }
+
+        return true;
+    }
+
+    private bool TryGetClusterStartColumn(TextCellSpan[] cellSpans, int clusterStart, int clusterEnd, out int startColumn)
+    {
+        foreach (var cellSpan in cellSpans)
+        {
+            bool overlaps = cellSpan.TextStart < clusterEnd && clusterStart < (cellSpan.TextStart + cellSpan.TextLength);
+            if (overlaps)
+            {
+                startColumn = cellSpan.ColumnStart;
+                return true;
+            }
+        }
+
+        startColumn = 0;
+        return false;
+    }
+
+    private List<ResolvedTypefaceRun> BuildResolvedTypefaceRuns(
+        Cell[,] cells,
+        int row,
+        int colStart,
+        int colEnd,
+        SKFontStyleWeight weight,
+        SKFontStyleSlant slant)
+    {
+        List<ResolvedTypefaceRun> runs = new();
+        SKTypeface? currentTypeface = null;
+        StringBuilder? currentText = null;
+        List<TextCellSpan>? currentCellSpans = null;
+        int runStart = colStart;
+        int runEnd = colStart;
+
+        void FlushCurrentRun()
+        {
+            if (currentTypeface is null || currentText is null || currentText.Length == 0 || currentCellSpans is null)
+            {
+                return;
+            }
+
+            runs.Add(new ResolvedTypefaceRun(runStart, runEnd, currentText.ToString(), currentTypeface, currentCellSpans.ToArray()));
+        }
+
+        int cellIndex = colStart;
+        while (cellIndex < colEnd)
+        {
+            var cell = cells[row, cellIndex];
+            if (cell.Character is null)
+            {
+                cellIndex++;
+                continue;
+            }
+
+            string text = cell.Character;
+            int charWidth = this.GetCharWidth(cells, row, cellIndex);
+            int codePoint = char.ConvertToUtf32(text, 0);
+            var typeface = this.fontChain.GetTypefaceForGlyph(codePoint, text, weight, slant);
+
+            if (currentTypeface is null || currentTypeface.Handle != typeface.Handle)
+            {
+                FlushCurrentRun();
+                currentTypeface = typeface;
+                currentText = new StringBuilder();
+                currentCellSpans = new List<TextCellSpan>();
+                runStart = cellIndex;
+            }
+
+            int textStart = currentText!.Length;
+            currentText!.Append(text);
+            currentCellSpans!.Add(new TextCellSpan(textStart, text.Length, cellIndex, charWidth));
+            runEnd = cellIndex + charWidth;
+            cellIndex += charWidth;
+        }
+
+        FlushCurrentRun();
+        return runs;
+    }
+
     private void DisposeCachedResources()
     {
+        this.ligatureTextShaper.Dispose();
         this.fontChain.Dispose();
         this.backgroundPaint.Dispose();
         this.textPaint.Dispose();
@@ -656,10 +821,52 @@ public class EditorControl : Control, IDisposable
 
     private void RebuildFontChain(IReadOnlyList<string>? guiFontNames = null)
     {
+        this.ligatureTextShaper.ClearCache();
         this.fontChain.Rebuild(
             guiFontNames ?? this.currentGuiFontNames,
             this.currentUserFallbackFonts,
             Utilities.Helpers.GetDefaultFallbackFontNames());
+    }
+
+    private readonly struct ResolvedTypefaceRun
+    {
+        public ResolvedTypefaceRun(int startColumn, int endColumn, string text, SKTypeface typeface, TextCellSpan[] cellSpans)
+        {
+            this.StartColumn = startColumn;
+            this.EndColumn = endColumn;
+            this.Text = text;
+            this.Typeface = typeface;
+            this.CellSpans = cellSpans;
+        }
+
+        public int StartColumn { get; }
+
+        public int EndColumn { get; }
+
+        public string Text { get; }
+
+        public SKTypeface Typeface { get; }
+
+        public TextCellSpan[] CellSpans { get; }
+    }
+
+    private readonly struct TextCellSpan
+    {
+        public TextCellSpan(int textStart, int textLength, int columnStart, int columnWidth)
+        {
+            this.TextStart = textStart;
+            this.TextLength = textLength;
+            this.ColumnStart = columnStart;
+            this.ColumnWidth = columnWidth;
+        }
+
+        public int TextStart { get; }
+
+        public int TextLength { get; }
+
+        public int ColumnStart { get; }
+
+        public int ColumnWidth { get; }
     }
 
     /// <summary>
