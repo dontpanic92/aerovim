@@ -56,6 +56,20 @@ public sealed class VimClient : IEditorClient
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="VimClient"/> class with an attached PTY test double.
+    /// </summary>
+    /// <param name="vimPath">Path to the Vim executable.</param>
+    /// <param name="ptyConnection">The PTY connection to attach.</param>
+    /// <param name="workingDirectory">Optional working directory for Vim.</param>
+    /// <param name="initialBackgroundColor">Initial background color in RGB format.</param>
+    internal VimClient(string vimPath, IPtyConnection ptyConnection, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
+        : this(vimPath, workingDirectory, initialBackgroundColor)
+    {
+        ArgumentNullException.ThrowIfNull(ptyConnection);
+        this.AttachPtyConnection(ptyConnection);
+    }
+
+    /// <summary>
     /// Raised when the title changes.
     /// </summary>
     public event TitleChangedHandler? TitleChanged;
@@ -280,6 +294,21 @@ public sealed class VimClient : IEditorClient
         }
     }
 
+    /// <summary>
+    /// Processes PTY output directly and raises redraw for deterministic tests.
+    /// </summary>
+    /// <param name="data">The PTY output bytes to process.</param>
+    internal void ProcessOutputForTesting(ReadOnlySpan<byte> data)
+    {
+        lock (this.screenLock)
+        {
+            this.parser.Process(data);
+            this.contentReceived = true;
+        }
+
+        this.Redraw?.Invoke();
+    }
+
     private static string? EncodeSgrMouse(string button, string action, string modifier, int row, int col)
     {
         int cb;
@@ -415,7 +444,7 @@ public sealed class VimClient : IEditorClient
                 (int)rows,
                 (int)cols);
 
-            this.ptyConnection.ProcessExited += this.OnProcessExited;
+            this.AttachPtyConnection(this.ptyConnection);
 
             // Guard against the process having exited before the handler was attached.
             if (this.ptyConnection.WaitForExit(0))
@@ -480,6 +509,12 @@ public sealed class VimClient : IEditorClient
         {
             // Expected during cleanup
         }
+    }
+
+    private void AttachPtyConnection(IPtyConnection ptyConnection)
+    {
+        this.ptyConnection = ptyConnection;
+        this.ptyConnection.ProcessExited += this.OnProcessExited;
     }
 
     private void OnProcessExited(object? sender, EventArgs e)

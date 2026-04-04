@@ -37,8 +37,17 @@ jobs:
     - name: Restore NuGet packages
       run: dotnet restore aerovim.sln
 
+    - name: Build
+      run: dotnet build aerovim.sln --configuration Debug --no-restore --nologo
+
+    - name: Run tests
+      run: dotnet test Tests/Tests.csproj --configuration Debug --no-build --nologo
+
+    - name: Build release
+      run: dotnet build AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --no-restore --nologo -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
+
     - name: Publish
-      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
+      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --no-build --no-restore --nologo -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
 
     - name: Upload artifact (macOS .app bundle)
       if: startsWith(matrix.rid, 'osx-')

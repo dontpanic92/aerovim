@@ -159,6 +159,25 @@ public class EditorControl : Control, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Renders the control directly to a supplied Skia canvas for tests.
+    /// </summary>
+    /// <param name="canvas">The target Skia canvas.</param>
+    internal void RenderForTesting(SKCanvas canvas)
+    {
+        this.RenderWithSkia(canvas);
+    }
+
+    /// <summary>
+    /// Sets the IME preedit text for renderer tests.
+    /// </summary>
+    /// <param name="preeditText">The preedit text, or <c>null</c> to clear it.</param>
+    /// <param name="cursorPos">The cursor position within the preedit text.</param>
+    internal void SetPreeditTextForTesting(string? preeditText, int? cursorPos)
+    {
+        this.imeClient.SetPreeditText(preeditText, cursorPos);
+    }
+
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {

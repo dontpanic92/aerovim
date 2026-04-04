@@ -11,6 +11,10 @@
     <ProjectReference Include="..\EditorAbstraction\EditorAbstraction.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tests" />
+  </ItemGroup>
+
   <!-- Compile native PTY helper and include in output -->
   <Target Name="BuildNativePty" BeforeTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <MakeDir Directories="$(OutputPath)" />

@@ -14,4 +14,8 @@
     <ProjectReference Include="..\EditorAbstraction\EditorAbstraction.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tests" />
+  </ItemGroup>
+
 </Project>

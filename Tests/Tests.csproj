@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AeroVim\AeroVim.csproj" />
     <ProjectReference Include="..\EditorAbstraction\EditorAbstraction.csproj" />
     <ProjectReference Include="..\NeovimClient\NeovimClient.csproj" />
     <ProjectReference Include="..\VimClient\VimClient.csproj" />

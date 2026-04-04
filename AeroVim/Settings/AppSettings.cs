@@ -15,13 +15,15 @@ using System.Text.Json;
 /// </summary>
 public sealed class AppSettings : INotifyPropertyChanged
 {
-    private static readonly string SettingsDirectory = Path.Combine(
+    private static readonly string DefaultSettingsDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "AeroVim");
 
-    private static readonly string SettingsPath = Path.Combine(SettingsDirectory, "settings.json");
+    private static readonly object DefaultInstanceLock = new();
 
-    private static readonly Lazy<AppSettings> DefaultInstance = new Lazy<AppSettings>(Load);
+    private static string? settingsDirectoryOverride;
+
+    private static Lazy<AppSettings> defaultInstance = CreateDefaultInstance();
 
     private string neovimPath = string.Empty;
     private string vimPath = string.Empty;
@@ -44,7 +46,13 @@ public sealed class AppSettings : INotifyPropertyChanged
     /// </summary>
     public static AppSettings Default
     {
-        get => DefaultInstance.Value;
+        get
+        {
+            lock (DefaultInstanceLock)
+            {
+                return defaultInstance.Value;
+            }
+        }
     }
 
     /// <summary>
@@ -170,9 +178,9 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         try
         {
-            Directory.CreateDirectory(SettingsDirectory);
+            Directory.CreateDirectory(GetSettingsDirectory());
             var json = JsonSerializer.Serialize(this, AppSettingsJsonContext.Default.AppSettings);
-            File.WriteAllText(SettingsPath, json);
+            File.WriteAllText(GetSettingsPath(), json);
             this.LastPersistenceError = string.Empty;
             return true;
         }
@@ -215,13 +223,48 @@ public sealed class AppSettings : INotifyPropertyChanged
         this.LastPersistenceError = string.Empty;
     }
 
+    /// <summary>
+    /// Redirects settings persistence to a test-specific directory.
+    /// </summary>
+    /// <param name="settingsDirectory">The override directory, or <c>null</c> to use the default location.</param>
+    internal static void SetStorageDirectoryForTesting(string? settingsDirectory)
+    {
+        lock (DefaultInstanceLock)
+        {
+            settingsDirectoryOverride = settingsDirectory;
+            defaultInstance = CreateDefaultInstance();
+        }
+    }
+
+    /// <summary>
+    /// Clears any test overrides and recreates the default singleton.
+    /// </summary>
+    internal static void ResetForTesting()
+    {
+        lock (DefaultInstanceLock)
+        {
+            settingsDirectoryOverride = null;
+            defaultInstance = CreateDefaultInstance();
+        }
+    }
+
+    /// <summary>
+    /// Gets the effective settings path used by the current test configuration.
+    /// </summary>
+    /// <returns>The effective settings file path.</returns>
+    internal static string GetSettingsPathForTesting()
+    {
+        return GetSettingsPath();
+    }
+
     private static AppSettings Load()
     {
         try
         {
-            if (File.Exists(SettingsPath))
+            string settingsPath = GetSettingsPath();
+            if (File.Exists(settingsPath))
             {
-                var json = File.ReadAllText(SettingsPath);
+                var json = File.ReadAllText(settingsPath);
                 return JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings) as AppSettings ?? new AppSettings();
             }
         }
@@ -235,6 +278,21 @@ public sealed class AppSettings : INotifyPropertyChanged
         }
 
         return new AppSettings();
+    }
+
+    private static Lazy<AppSettings> CreateDefaultInstance()
+    {
+        return new Lazy<AppSettings>(Load);
+    }
+
+    private static string GetSettingsDirectory()
+    {
+        return settingsDirectoryOverride ?? DefaultSettingsDirectory;
+    }
+
+    private static string GetSettingsPath()
+    {
+        return Path.Combine(GetSettingsDirectory(), "settings.json");
     }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

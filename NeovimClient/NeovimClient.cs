@@ -18,7 +18,7 @@ public sealed class NeovimClient : IEditorClient
     private const int DefaultBackgroundColor = 0xFFFFFF;
     private const int DefaultSpecialColor = 0x000000;
 
-    private readonly DefaultNeovimRpcClient neovim;
+    private readonly DefaultNeovimRpcClient? neovim;
     private readonly object screenLock = new();
     private readonly Screen screen = new() { Cells = new Cell[0, 0] };
 
@@ -54,6 +54,14 @@ public sealed class NeovimClient : IEditorClient
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="NeovimClient"/> class without starting a backend.
+    /// This is used by the test suite to drive redraw state deterministically.
+    /// </summary>
+    internal NeovimClient()
+    {
+    }
+
+    /// <summary>
     /// Raised when the title changes.
     /// </summary>
     public event TitleChangedHandler? TitleChanged;
@@ -86,7 +94,7 @@ public sealed class NeovimClient : IEditorClient
     /// <summary>
     /// Gets the Font settings.
     /// </summary>
-    public FontSettings FontSettings { get; private set; }
+    public FontSettings FontSettings { get; private set; } = new FontSettings();
 
     /// <summary>
     /// Gets the mode info.
@@ -109,6 +117,11 @@ public sealed class NeovimClient : IEditorClient
     /// <param name="height">Row count.</param>
     public void TryResize(uint width, uint height)
     {
+        if (this.neovim is null)
+        {
+            return;
+        }
+
         if (this.initialized)
         {
             this.neovim.UI.TryResize(width, height);
@@ -135,7 +148,7 @@ public sealed class NeovimClient : IEditorClient
     /// <param name="text">input.</param>
     public void Input(string text)
     {
-        this.neovim.Global.Input(text);
+        this.neovim?.Global.Input(text);
     }
 
     /// <summary>
@@ -145,7 +158,7 @@ public sealed class NeovimClient : IEditorClient
     /// <param name="value">Variable value.</param>
     public void SetVariable(string name, string value)
     {
-        this.neovim.Global.SetGlobalVariable(name, value);
+        this.neovim?.Global.SetGlobalVariable(name, value);
     }
 
     /// <summary>
@@ -159,7 +172,7 @@ public sealed class NeovimClient : IEditorClient
     /// <param name="col">Zero-based grid column.</param>
     public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
     {
-        this.neovim.Global.InputMouse(button, action, modifier, grid, row, col);
+        this.neovim?.Global.InputMouse(button, action, modifier, grid, row, col);
     }
 
     /// <summary>
@@ -168,7 +181,7 @@ public sealed class NeovimClient : IEditorClient
     /// <param name="command">The command string.</param>
     public void Command(string command)
     {
-        this.neovim.Global.Command(command);
+        this.neovim?.Global.Command(command);
     }
 
     /// <summary>
@@ -177,7 +190,7 @@ public sealed class NeovimClient : IEditorClient
     /// <param name="message">The message.</param>
     public void WriteErrorMessage(string message)
     {
-        this.neovim.Global.WriteErrorMessage(message);
+        this.neovim?.Global.WriteErrorMessage(message);
     }
 
     /// <summary>
@@ -231,6 +244,15 @@ public sealed class NeovimClient : IEditorClient
         }
 
         return this.screen;
+    }
+
+    /// <summary>
+    /// Applies redraw events directly without requiring a live Neovim process.
+    /// </summary>
+    /// <param name="events">The redraw events to apply.</param>
+    internal void ProcessRedrawForTesting(IList<IRedrawEvent> events)
+    {
+        this.OnNeovimRedraw(events);
     }
 
     private void OnNeovimRedraw(IList<IRedrawEvent> events)
