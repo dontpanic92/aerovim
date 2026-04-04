@@ -49,6 +49,7 @@ public sealed class VimClient : IEditorClient
         this.workingDirectory = workingDirectory;
         this.buffer = new TerminalBuffer(80, 24);
         this.buffer.SetDetectedBackground(initialBackgroundColor);
+        this.buffer.SetTerminalDefaultBackground(initialBackgroundColor);
         this.lastReportedBg = initialBackgroundColor;
         this.parser = new VtParser(this.buffer, this.OnTitleChanged, this.WriteToPty);
         this.currentModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff);

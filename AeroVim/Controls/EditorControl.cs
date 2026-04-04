@@ -40,7 +40,7 @@ public class EditorControl : Control, IDisposable
     private TextLayoutParameters textParam;
     private List<string> currentGuiFontNames = new List<string>();
     private List<string> currentUserFallbackFonts = new List<string>();
-    private bool isDisposed;
+    private volatile bool isDisposed;
     private string? pressedMouseButton;
     private int redrawQueued;
 
@@ -280,14 +280,21 @@ public class EditorControl : Control, IDisposable
     {
         if (!this.isDisposed)
         {
+            // Set the flag BEFORE disposing resources so any concurrent
+            // render (on the composition thread) sees the flag and bails
+            // out before touching disposed Skia objects.
+            this.isDisposed = true;
+
             if (disposing)
             {
                 this.editorClient.Redraw -= this.OnRedraw;
                 this.editorClient.FontChanged -= this.OnFontChanged;
-                this.DisposeCachedResources();
-            }
 
-            this.isDisposed = true;
+                // Defer resource disposal to the next UI-thread cycle so
+                // any in-flight render operation that already passed the
+                // isDisposed check can complete safely.
+                Dispatcher.UIThread.Post(this.DisposeCachedResources, DispatcherPriority.Background);
+            }
         }
     }
 
@@ -366,6 +373,11 @@ public class EditorControl : Control, IDisposable
 
     private void RenderWithSkia(SKCanvas canvas)
     {
+        if (this.isDisposed)
+        {
+            return;
+        }
+
         while (this.pendingActions.TryDequeue(out var action))
         {
             action();

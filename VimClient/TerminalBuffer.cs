@@ -633,6 +633,35 @@ public class TerminalBuffer
         {
             if (this.usingAltBuffer && this.altCells is not null)
             {
+                // The main buffer may have been saved at a different size
+                // if the terminal was resized while the alternate buffer
+                // was active.  Adjust to current dimensions.
+                if (this.altCells.GetLength(0) != this.Rows
+                    || this.altCells.GetLength(1) != this.Cols)
+                {
+                    var resized = new Cell[this.Rows, this.Cols];
+                    int copyRows = Math.Min(this.Rows, this.altCells.GetLength(0));
+                    int copyCols = Math.Min(this.Cols, this.altCells.GetLength(1));
+                    for (int i = 0; i < copyRows; i++)
+                    {
+                        for (int j = 0; j < copyCols; j++)
+                        {
+                            resized[i, j] = this.altCells[i, j];
+                        }
+                    }
+
+                    for (int i = 0; i < this.Rows; i++)
+                    {
+                        int startCol = i < copyRows ? copyCols : 0;
+                        for (int j = startCol; j < this.Cols; j++)
+                        {
+                            resized[i, j].Clear(this.detectedFg, this.detectedBg, 0);
+                        }
+                    }
+
+                    this.altCells = resized;
+                }
+
                 this.cells = this.altCells;
                 this.altCells = null!;
                 this.usingAltBuffer = false;
