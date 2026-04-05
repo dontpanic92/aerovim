@@ -594,18 +594,31 @@ public class VtParser
             {
                 case 0: // Default — reset to terminal's default cursor
                     this.buffer.RequestedCursorShape = null;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOff;
                     break;
                 case 1: // Blinking block
+                    this.buffer.RequestedCursorShape = CursorShape.Block;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOn;
+                    break;
                 case 2: // Steady block
                     this.buffer.RequestedCursorShape = CursorShape.Block;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOff;
                     break;
                 case 3: // Blinking underline
+                    this.buffer.RequestedCursorShape = CursorShape.Horizontal;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOn;
+                    break;
                 case 4: // Steady underline
                     this.buffer.RequestedCursorShape = CursorShape.Horizontal;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOff;
                     break;
                 case 5: // Blinking bar (vertical)
+                    this.buffer.RequestedCursorShape = CursorShape.Vertical;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOn;
+                    break;
                 case 6: // Steady bar (vertical)
                     this.buffer.RequestedCursorShape = CursorShape.Vertical;
+                    this.buffer.RequestedCursorBlinking = CursorBlinking.BlinkOff;
                     break;
             }
         }

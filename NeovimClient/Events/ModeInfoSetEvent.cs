@@ -20,7 +20,7 @@ public class ModeInfoSetEvent : IRedrawEvent
     public ModeInfoSetEvent(bool cursorStyleEnabled, IList<IDictionary<string, string>> modeInfo)
     {
         this.CursorStyleEnabled = cursorStyleEnabled;
-        this.ModeInfo = modeInfo.Select(info => ParseModeInfo(info)).ToList();
+        this.ModeInfo = modeInfo.Select(info => ParseModeInfo(info, cursorStyleEnabled)).ToList();
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public class ModeInfoSetEvent : IRedrawEvent
     /// </summary>
     public IList<ModeInfo> ModeInfo { get; }
 
-    private static ModeInfo ParseModeInfo(IDictionary<string, string> info)
+    private static ModeInfo ParseModeInfo(IDictionary<string, string> info, bool cursorStyleEnabled)
     {
         var cursorShape = CursorShape.Block;
         if (info.TryGetValue("cursor_shape", out var cursorShapeStr))
@@ -54,21 +54,27 @@ public class ModeInfoSetEvent : IRedrawEvent
         }
 
         var cursorBlinking = CursorBlinking.BlinkOff;
-        if (info.TryGetValue("blinkwait", out var wait) && int.TryParse(wait, out var intWait) && intWait == 1)
+        if (info.TryGetValue("blinkwait", out var wait) && int.TryParse(wait, out var intWait) && intWait > 0)
         {
             cursorBlinking = CursorBlinking.BlinkWait;
         }
-        else if (info.TryGetValue("blinkon", out var on) && int.TryParse(on, out var intOn) && intOn == 1)
+        else if ((info.TryGetValue("blinkon", out var on) && int.TryParse(on, out var intOn) && intOn > 0)
+            || (info.TryGetValue("blinkoff", out var off) && int.TryParse(off, out var intOff) && intOff > 0))
         {
             cursorBlinking = CursorBlinking.BlinkOn;
         }
 
-        string? mouseShape = null;
+        string? pointerShape = null;
         if (info.TryGetValue("mouse_shape", out var mouseShapeStr) && !string.IsNullOrEmpty(mouseShapeStr))
         {
-            mouseShape = mouseShapeStr;
+            pointerShape = mouseShapeStr;
         }
 
-        return new ModeInfo(cursorShape, cellPercentage, cursorBlinking, mouseShape);
+        return new ModeInfo(
+            cursorShape,
+            cellPercentage,
+            cursorBlinking,
+            pointerShape: pointerShape,
+            cursorStyleEnabled: cursorStyleEnabled);
     }
 }

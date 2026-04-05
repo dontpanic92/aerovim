@@ -72,7 +72,7 @@ public interface IEditorClient : IDisposable
     event FontChangedHandler FontChanged;
 
     /// <summary>
-    /// Gets the current mode info (cursor shape, size, blink state).
+    /// Gets the current mode info (cursor, pointer, and styling hints).
     /// </summary>
     ModeInfo? ModeInfo { get; }
 

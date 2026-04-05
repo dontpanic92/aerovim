@@ -116,7 +116,7 @@ public class NeovimClientTests
 
         client.ProcessRedrawForTesting(new IRedrawEvent[]
         {
-            new ModeInfoSetEvent(true, new List<IDictionary<string, string>> { modeInfo }),
+            new ModeInfoSetEvent(false, new List<IDictionary<string, string>> { modeInfo }),
             new ModeChangeEvent("insert", 0),
             new MouseOffEvent(),
         });
@@ -126,6 +126,10 @@ public class NeovimClientTests
         Assert.That(client.ModeInfo.CellPercentage, Is.EqualTo(25));
         Assert.That(client.ModeInfo.CursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
         Assert.That(client.ModeInfo.MouseShape, Is.EqualTo("beam"));
+        Assert.That(client.ModeInfo.PointerShape, Is.EqualTo("beam"));
+        Assert.That(client.ModeInfo.CursorStyleEnabled, Is.False);
+        Assert.That(client.ModeInfo.CursorVisible, Is.True);
+        Assert.That(client.ModeInfo.PointerMode, Is.EqualTo(0));
         Assert.That(client.MouseEnabled, Is.False);
 
         client.ProcessRedrawForTesting(new IRedrawEvent[] { new MouseOnEvent() });

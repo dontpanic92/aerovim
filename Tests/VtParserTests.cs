@@ -72,11 +72,14 @@ public class VtParserTests
         var buffer = new TerminalBuffer(4, 2);
         var parser = new VtParser(buffer, _ => { });
 
-        parser.Process(Encoding.UTF8.GetBytes("\x1B[?1006h\x1B[6 q\x1B]22;beam\x1B\\"));
+        parser.Process(Encoding.UTF8.GetBytes("\x1B[?1006h\x1B[>2p\x1B[5 q\x1B]22;beam\x1B\\\x1B[?25l"));
 
         Assert.That(buffer.SgrMouseEnabled, Is.True);
         Assert.That(buffer.RequestedCursorShape, Is.EqualTo(CursorShape.Vertical));
+        Assert.That(buffer.RequestedCursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
         Assert.That(buffer.PointerShape, Is.EqualTo("beam"));
+        Assert.That(buffer.PointerMode, Is.EqualTo(2));
+        Assert.That(buffer.CursorVisible, Is.False);
     }
 
     /// <summary>

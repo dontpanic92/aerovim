@@ -9,6 +9,8 @@ using AeroVim.Controls;
 using AeroVim.Editor;
 using AeroVim.Editor.Utilities;
 using AeroVim.Tests.Helpers;
+using Avalonia;
+using Avalonia.Input;
 using NUnit.Framework;
 using SkiaSharp;
 
@@ -95,6 +97,163 @@ public class EditorControlTests
         byte[] withPreedit = RenderToPng(control, 240, 120);
 
         Assert.That(withPreedit, Is.Not.EqualTo(withoutPreedit));
+    }
+
+    /// <summary>
+    /// Mouse presses should not be forwarded when the backend disables mouse support.
+    /// </summary>
+    [Test]
+    public void HandlePointerPressedForTesting_WhenMouseDisabled_DoesNotForwardInput()
+    {
+        var editorClient = new TestEditorClient
+        {
+            MouseEnabled = false,
+        };
+
+        using var control = new EditorControl(editorClient);
+        bool handled = control.HandlePointerPressedForTesting("left", 1, 2);
+
+        Assert.That(handled, Is.False);
+        Assert.That(editorClient.MouseCalls, Is.Empty);
+    }
+
+    /// <summary>
+    /// Disabling mouse support mid-drag should clear the pending pressed button state.
+    /// </summary>
+    [Test]
+    public void RefreshEditorUiStateForTesting_WhenMouseIsDisabledMidDrag_ClearsPendingRelease()
+    {
+        var editorClient = new TestEditorClient
+        {
+            MouseEnabled = true,
+        };
+
+        using var control = new EditorControl(editorClient);
+        Assert.That(control.HandlePointerPressedForTesting("left", 1, 2), Is.True);
+
+        editorClient.MouseEnabled = false;
+        control.RefreshEditorUiStateForTesting();
+
+        Assert.That(control.HandlePointerMovedForTesting(1, 3), Is.False);
+
+        editorClient.MouseEnabled = true;
+        control.RefreshEditorUiStateForTesting();
+
+        Assert.That(control.HandlePointerReleasedForTesting(1, 3), Is.False);
+        Assert.That(editorClient.MouseCalls, Has.Count.EqualTo(1));
+        Assert.That(editorClient.MouseCalls[0], Is.EqualTo(("left", "press", string.Empty, 0, 1, 2)));
+    }
+
+    /// <summary>
+    /// Wheel input should not be forwarded when mouse support is disabled.
+    /// </summary>
+    [Test]
+    public void HandlePointerWheelForTesting_WhenMouseDisabled_DoesNotForwardInput()
+    {
+        var editorClient = new TestEditorClient
+        {
+            MouseEnabled = false,
+        };
+
+        using var control = new EditorControl(editorClient);
+        bool handled = control.HandlePointerWheelForTesting(0, 0, new Vector(0, 1));
+
+        Assert.That(handled, Is.False);
+        Assert.That(editorClient.MouseCalls, Is.Empty);
+    }
+
+    /// <summary>
+    /// Pointer-shape hints should resolve to the matching Avalonia cursor.
+    /// </summary>
+    [Test]
+    public void RefreshEditorUiStateForTesting_WithBeamPointerShape_ResolvesIbeamCursor()
+    {
+        var editorClient = new TestEditorClient
+        {
+            ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff, pointerShape: "beam"),
+        };
+
+        using var control = new EditorControl(editorClient);
+        control.RefreshEditorUiStateForTesting();
+
+        Assert.That(control.ResolvedPointerCursorType, Is.EqualTo(StandardCursorType.Ibeam));
+    }
+
+    /// <summary>
+    /// Pointer auto-hide should resolve to a hidden cursor when requested.
+    /// </summary>
+    [Test]
+    public void RefreshEditorUiStateForTesting_WhenPointerModeHidesPointer_ResolvesNoneCursor()
+    {
+        var editorClient = new TestEditorClient
+        {
+            MouseEnabled = false,
+            ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff, pointerShape: "beam", pointerMode: 1),
+        };
+
+        using var control = new EditorControl(editorClient);
+        control.RefreshEditorUiStateForTesting();
+
+        Assert.That(control.ResolvedPointerCursorType, Is.EqualTo(StandardCursorType.None));
+    }
+
+    /// <summary>
+    /// Cursor visibility hints should change the rendered output.
+    /// </summary>
+    [Test]
+    public void RenderForTesting_WithCursorHidden_SuppressesCursorOutput()
+    {
+        var editorClient = new TestEditorClient
+        {
+            CurrentScreen = CreateCursorScreen(),
+            ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff),
+        };
+
+        using var control = new EditorControl(editorClient);
+        byte[] visible = RenderToPng(control, 240, 120);
+
+        editorClient.ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff, cursorVisible: false);
+        byte[] hidden = RenderToPng(control, 240, 120);
+
+        Assert.That(hidden, Is.Not.EqualTo(visible));
+    }
+
+    /// <summary>
+    /// Disabling cursor styling should fall back to the default block cursor.
+    /// </summary>
+    [Test]
+    public void RenderForTesting_WithCursorStyleDisabled_UsesDefaultBlockCursor()
+    {
+        var screen = CreateCursorScreen();
+        byte[] styleDisabled = RenderCursorScreen(
+            screen,
+            new ModeInfo(CursorShape.Vertical, 25, CursorBlinking.BlinkOff, cursorStyleEnabled: false));
+        byte[] defaultBlock = RenderCursorScreen(
+            screen,
+            new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff));
+
+        Assert.That(styleDisabled, Is.EqualTo(defaultBlock));
+    }
+
+    /// <summary>
+    /// Cursor blink state should affect whether the cursor is drawn.
+    /// </summary>
+    [Test]
+    public void RenderForTesting_WithBlinkingCursorHiddenState_SuppressesCursorOutput()
+    {
+        var editorClient = new TestEditorClient
+        {
+            CurrentScreen = CreateCursorScreen(),
+            ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOn),
+        };
+
+        using var control = new EditorControl(editorClient);
+        byte[] visible = RenderToPng(control, 240, 120);
+
+        control.SetCursorBlinkVisibleForTesting(false);
+        byte[] hidden = RenderToPng(control, 240, 120);
+
+        Assert.That(hidden, Is.Not.EqualTo(visible));
     }
 
     /// <summary>
@@ -197,6 +356,14 @@ public class EditorControlTests
         return screen;
     }
 
+    private static Screen CreateCursorScreen()
+    {
+        var screen = TestScreenBuilder.CreateScreen(1, 2);
+        TestScreenBuilder.SetCell(screen, 0, 0, "A", 0x000000, 0xFFFFFF);
+        screen.CursorPosition = (0, 0);
+        return screen;
+    }
+
     private static SKTypeface? CreateValidatedTypeface(string fontName)
     {
         var typeface = SKTypeface.FromFamilyName(fontName);
@@ -260,6 +427,18 @@ public class EditorControlTests
 
         control.EnableLigature = enableLigature;
         return RenderToPng(control, 480, 120);
+    }
+
+    private static byte[] RenderCursorScreen(Screen screen, ModeInfo modeInfo)
+    {
+        var editorClient = new TestEditorClient
+        {
+            CurrentScreen = screen,
+            ModeInfo = modeInfo,
+        };
+
+        using var control = new EditorControl(editorClient);
+        return RenderToPng(control, 240, 120);
     }
 
     private static byte[] RenderToPng(EditorControl control, int width, int height)

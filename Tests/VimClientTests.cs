@@ -6,6 +6,7 @@
 namespace AeroVim.Tests;
 
 using System.Text;
+using AeroVim.Editor.Utilities;
 using AeroVim.Tests.Helpers;
 using AeroVim.VimClient;
 using NUnit.Framework;
@@ -91,5 +92,25 @@ public class VimClientTests
         client.Command("set number");
 
         Assert.That(ptyConnection.GetWrittenText(), Is.EqualTo("\x1B:set number\r"));
+    }
+
+    /// <summary>
+    /// VT cursor and pointer controls should surface through the shared mode info.
+    /// </summary>
+    [Test]
+    public void ProcessOutputForTesting_UpdatesModeInfoCapabilities()
+    {
+        var ptyConnection = new FakePtyConnection();
+        using var client = new VimClient("vim", ptyConnection);
+
+        client.ProcessOutputForTesting(Encoding.UTF8.GetBytes("\x1B[?1006h\x1B[>2p\x1B[5 q\x1B]22;beam\x1B\\\x1B[?25l"));
+
+        Assert.That(client.MouseEnabled, Is.True);
+        Assert.That(client.ModeInfo.CursorShape, Is.EqualTo(CursorShape.Vertical));
+        Assert.That(client.ModeInfo.CursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
+        Assert.That(client.ModeInfo.PointerShape, Is.EqualTo("beam"));
+        Assert.That(client.ModeInfo.PointerMode, Is.EqualTo(2));
+        Assert.That(client.ModeInfo.CursorVisible, Is.False);
+        Assert.That(client.ModeInfo.CursorStyleEnabled, Is.True);
     }
 }

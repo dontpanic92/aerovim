@@ -27,6 +27,9 @@ using EditorScreen = AeroVim.Editor.Screen;
 /// </summary>
 public class EditorControl : Control, IDisposable
 {
+    private static readonly TimeSpan DefaultCursorBlinkInterval = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan DefaultCursorBlinkWait = TimeSpan.FromMilliseconds(700);
+
     private readonly IEditorClient editorClient;
     private readonly ConcurrentQueue<Action> pendingActions = new();
     private readonly SKPaint backgroundPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
@@ -43,7 +46,12 @@ public class EditorControl : Control, IDisposable
     private List<string> currentGuiFontNames = new List<string>();
     private List<string> currentUserFallbackFonts = new List<string>();
     private volatile bool isDisposed;
+    private Cursor? pointerCursor;
+    private DispatcherTimer? cursorBlinkTimer;
     private string? pressedMouseButton;
+    private StandardCursorType? resolvedPointerCursorType;
+    private bool cursorBlinkVisible = true;
+    private bool cursorBlinkStarted;
     private int redrawQueued;
 
     /// <summary>
@@ -110,6 +118,11 @@ public class EditorControl : Control, IDisposable
             return c == 0 ? 1 : c;
         }
     }
+
+    /// <summary>
+    /// Gets the currently resolved pointer cursor type for tests.
+    /// </summary>
+    internal StandardCursorType? ResolvedPointerCursorType => this.resolvedPointerCursorType;
 
     /// <summary>
     /// Sets the user-configured fallback font list and rebuilds the font chain.
@@ -180,6 +193,73 @@ public class EditorControl : Control, IDisposable
         this.imeClient.SetPreeditText(preeditText, cursorPos);
     }
 
+    /// <summary>
+    /// Recomputes editor UI state from the current backend capability snapshot for tests.
+    /// </summary>
+    internal void RefreshEditorUiStateForTesting()
+    {
+        this.ApplyEditorUiState(this.editorClient.ModeInfo, resetCursorBlink: true);
+    }
+
+    /// <summary>
+    /// Sets the current cursor blink visibility state for renderer tests.
+    /// </summary>
+    /// <param name="visible">A value indicating whether the cursor should be rendered as visible.</param>
+    internal void SetCursorBlinkVisibleForTesting(bool visible)
+    {
+        this.cursorBlinkVisible = visible;
+    }
+
+    /// <summary>
+    /// Handles a pointer press using grid coordinates for tests.
+    /// </summary>
+    /// <param name="button">The button name.</param>
+    /// <param name="row">The zero-based grid row.</param>
+    /// <param name="col">The zero-based grid column.</param>
+    /// <param name="modifiers">The active key modifiers.</param>
+    /// <returns>A value indicating whether the event was handled.</returns>
+    internal bool HandlePointerPressedForTesting(string button, int row, int col, KeyModifiers modifiers = KeyModifiers.None)
+    {
+        return this.HandlePointerPressedCore(button, row, col, modifiers);
+    }
+
+    /// <summary>
+    /// Handles a pointer drag using grid coordinates for tests.
+    /// </summary>
+    /// <param name="row">The zero-based grid row.</param>
+    /// <param name="col">The zero-based grid column.</param>
+    /// <param name="modifiers">The active key modifiers.</param>
+    /// <returns>A value indicating whether the event was handled.</returns>
+    internal bool HandlePointerMovedForTesting(int row, int col, KeyModifiers modifiers = KeyModifiers.None)
+    {
+        return this.HandlePointerMovedCore(row, col, modifiers);
+    }
+
+    /// <summary>
+    /// Handles a pointer release using grid coordinates for tests.
+    /// </summary>
+    /// <param name="row">The zero-based grid row.</param>
+    /// <param name="col">The zero-based grid column.</param>
+    /// <param name="modifiers">The active key modifiers.</param>
+    /// <returns>A value indicating whether the event was handled.</returns>
+    internal bool HandlePointerReleasedForTesting(int row, int col, KeyModifiers modifiers = KeyModifiers.None)
+    {
+        return this.HandlePointerReleasedCore(row, col, modifiers);
+    }
+
+    /// <summary>
+    /// Handles a pointer wheel event using grid coordinates for tests.
+    /// </summary>
+    /// <param name="row">The zero-based grid row.</param>
+    /// <param name="col">The zero-based grid column.</param>
+    /// <param name="delta">The wheel delta.</param>
+    /// <param name="modifiers">The active key modifiers.</param>
+    /// <returns>A value indicating whether the event was handled.</returns>
+    internal bool HandlePointerWheelForTesting(int row, int col, Vector delta, KeyModifiers modifiers = KeyModifiers.None)
+    {
+        return this.HandlePointerWheelCore(row, col, delta, modifiers);
+    }
+
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -203,27 +283,22 @@ public class EditorControl : Control, IDisposable
 
         var point = e.GetCurrentPoint(this);
         var (row, col) = this.PixelToGridPosition(point.Position);
-        var modifier = this.GetModifierString(e.KeyModifiers);
+        string? button = null;
 
         if (point.Properties.IsLeftButtonPressed)
         {
-            this.pressedMouseButton = "left";
+            button = "left";
         }
         else if (point.Properties.IsRightButtonPressed)
         {
-            this.pressedMouseButton = "right";
+            button = "right";
         }
         else if (point.Properties.IsMiddleButtonPressed)
         {
-            this.pressedMouseButton = "middle";
-        }
-        else
-        {
-            return;
+            button = "middle";
         }
 
-        this.editorClient.InputMouse(this.pressedMouseButton, "press", modifier, 0, row, col);
-        e.Handled = true;
+        e.Handled = this.HandlePointerPressedCore(button, row, col, e.KeyModifiers);
     }
 
     /// <inheritdoc />
@@ -231,17 +306,9 @@ public class EditorControl : Control, IDisposable
     {
         base.OnPointerMoved(e);
 
-        if (this.pressedMouseButton is null)
-        {
-            return;
-        }
-
         var point = e.GetCurrentPoint(this);
         var (row, col) = this.PixelToGridPosition(point.Position);
-        var modifier = this.GetModifierString(e.KeyModifiers);
-
-        this.editorClient.InputMouse(this.pressedMouseButton, "drag", modifier, 0, row, col);
-        e.Handled = true;
+        e.Handled = this.HandlePointerMovedCore(row, col, e.KeyModifiers);
     }
 
     /// <inheritdoc />
@@ -249,18 +316,9 @@ public class EditorControl : Control, IDisposable
     {
         base.OnPointerReleased(e);
 
-        if (this.pressedMouseButton is null)
-        {
-            return;
-        }
-
         var point = e.GetCurrentPoint(this);
         var (row, col) = this.PixelToGridPosition(point.Position);
-        var modifier = this.GetModifierString(e.KeyModifiers);
-
-        this.editorClient.InputMouse(this.pressedMouseButton, "release", modifier, 0, row, col);
-        this.pressedMouseButton = null;
-        e.Handled = true;
+        e.Handled = this.HandlePointerReleasedCore(row, col, e.KeyModifiers);
     }
 
     /// <inheritdoc />
@@ -270,27 +328,7 @@ public class EditorControl : Control, IDisposable
 
         var point = e.GetCurrentPoint(this);
         var (row, col) = this.PixelToGridPosition(point.Position);
-        var modifier = this.GetModifierString(e.KeyModifiers);
-
-        if (e.Delta.Y > 0)
-        {
-            this.editorClient.InputMouse("wheel", "up", modifier, 0, row, col);
-        }
-        else if (e.Delta.Y < 0)
-        {
-            this.editorClient.InputMouse("wheel", "down", modifier, 0, row, col);
-        }
-
-        if (e.Delta.X > 0)
-        {
-            this.editorClient.InputMouse("wheel", "right", modifier, 0, row, col);
-        }
-        else if (e.Delta.X < 0)
-        {
-            this.editorClient.InputMouse("wheel", "left", modifier, 0, row, col);
-        }
-
-        e.Handled = true;
+        e.Handled = this.HandlePointerWheelCore(row, col, e.Delta, e.KeyModifiers);
     }
 
     /// <summary>
@@ -355,6 +393,93 @@ public class EditorControl : Control, IDisposable
         return parts;
     }
 
+    private bool HandlePointerPressedCore(string? button, int row, int col, KeyModifiers modifiers)
+    {
+        if (button is null)
+        {
+            return false;
+        }
+
+        if (!this.editorClient.MouseEnabled)
+        {
+            this.pressedMouseButton = null;
+            return false;
+        }
+
+        this.pressedMouseButton = button;
+        this.editorClient.InputMouse(button, "press", this.GetModifierString(modifiers), 0, row, col);
+        return true;
+    }
+
+    private bool HandlePointerMovedCore(int row, int col, KeyModifiers modifiers)
+    {
+        if (this.pressedMouseButton is null)
+        {
+            return false;
+        }
+
+        if (!this.editorClient.MouseEnabled)
+        {
+            this.pressedMouseButton = null;
+            return false;
+        }
+
+        this.editorClient.InputMouse(this.pressedMouseButton, "drag", this.GetModifierString(modifiers), 0, row, col);
+        return true;
+    }
+
+    private bool HandlePointerReleasedCore(int row, int col, KeyModifiers modifiers)
+    {
+        if (this.pressedMouseButton is null)
+        {
+            return false;
+        }
+
+        if (!this.editorClient.MouseEnabled)
+        {
+            this.pressedMouseButton = null;
+            return false;
+        }
+
+        this.editorClient.InputMouse(this.pressedMouseButton, "release", this.GetModifierString(modifiers), 0, row, col);
+        this.pressedMouseButton = null;
+        return true;
+    }
+
+    private bool HandlePointerWheelCore(int row, int col, Vector delta, KeyModifiers modifiers)
+    {
+        if (!this.editorClient.MouseEnabled)
+        {
+            return false;
+        }
+
+        var modifier = this.GetModifierString(modifiers);
+        bool handled = false;
+        if (delta.Y > 0)
+        {
+            this.editorClient.InputMouse("wheel", "up", modifier, 0, row, col);
+            handled = true;
+        }
+        else if (delta.Y < 0)
+        {
+            this.editorClient.InputMouse("wheel", "down", modifier, 0, row, col);
+            handled = true;
+        }
+
+        if (delta.X > 0)
+        {
+            this.editorClient.InputMouse("wheel", "right", modifier, 0, row, col);
+            handled = true;
+        }
+        else if (delta.X < 0)
+        {
+            this.editorClient.InputMouse("wheel", "left", modifier, 0, row, col);
+            handled = true;
+        }
+
+        return handled;
+    }
+
     private void OnRedraw()
     {
         if (Interlocked.CompareExchange(ref this.redrawQueued, 1, 0) != 0)
@@ -364,6 +489,7 @@ public class EditorControl : Control, IDisposable
 
         Dispatcher.UIThread.Post(() =>
         {
+            this.ApplyEditorUiState(this.editorClient.ModeInfo, resetCursorBlink: true);
             this.UpdateImeCursorRectangle();
             this.InvalidateVisual();
             Interlocked.Exchange(ref this.redrawQueued, 0);
@@ -418,6 +544,7 @@ public class EditorControl : Control, IDisposable
         // call on the redraw thread. Using a local prevents the array from
         // changing size between reading dimensions and accessing elements.
         var cells = args.Cells;
+        var modeInfo = this.editorClient.ModeInfo;
         int rows = cells.GetLength(0);
         int cols = cells.GetLength(1);
 
@@ -475,7 +602,7 @@ public class EditorControl : Control, IDisposable
         }
 
         // Draw cursor
-        this.DrawCursor(canvas, cells, args);
+        this.DrawCursor(canvas, cells, args, modeInfo);
 
         // Draw preedit (IME composition) overlay
         this.DrawPreedit(canvas, args);
@@ -537,10 +664,19 @@ public class EditorControl : Control, IDisposable
         }
     }
 
-    private void DrawCursor(SKCanvas canvas, Cell[,] cells, EditorScreen args)
+    private void DrawCursor(SKCanvas canvas, Cell[,] cells, EditorScreen args, ModeInfo? modeInfo)
     {
-        var cursorPercentage = this.editorClient.ModeInfo?.CellPercentage ?? 100;
-        var cursorShape = this.editorClient.ModeInfo?.CursorShape ?? CursorShape.Block;
+        if (!this.ShouldDrawCursor(modeInfo))
+        {
+            return;
+        }
+
+        var cursorPercentage = modeInfo is { CursorStyleEnabled: true }
+            ? Math.Clamp(modeInfo.CellPercentage, 1, 100)
+            : 100;
+        var cursorShape = modeInfo is { CursorStyleEnabled: true }
+            ? modeInfo.CursorShape
+            : CursorShape.Block;
         int cellWidth = this.GetCharWidth(cells, args.CursorPosition.Row, args.CursorPosition.Col);
 
         float left, top, right, bottom;
@@ -814,6 +950,15 @@ public class EditorControl : Control, IDisposable
 
     private void DisposeCachedResources()
     {
+        if (this.cursorBlinkTimer is not null)
+        {
+            this.cursorBlinkTimer.Stop();
+            this.cursorBlinkTimer.Tick -= this.OnCursorBlinkTick;
+            this.cursorBlinkTimer = null;
+        }
+
+        this.Cursor = null;
+        this.DisposePointerCursor();
         this.ligatureTextShaper.Dispose();
         this.fontChain.Dispose();
         this.backgroundPaint.Dispose();
@@ -831,6 +976,200 @@ public class EditorControl : Control, IDisposable
             guiFontNames ?? this.currentGuiFontNames,
             this.currentUserFallbackFonts,
             Utilities.Helpers.GetDefaultFallbackFontNames());
+    }
+
+    private void ApplyEditorUiState(ModeInfo? modeInfo, bool resetCursorBlink)
+    {
+        if (!this.editorClient.MouseEnabled)
+        {
+            this.pressedMouseButton = null;
+        }
+
+        this.UpdatePointerCursor(modeInfo);
+        this.UpdateCursorBlink(modeInfo, resetCursorBlink);
+    }
+
+    private void UpdatePointerCursor(ModeInfo? modeInfo)
+    {
+        var pointerCursorType = this.ResolvePointerCursorType(modeInfo);
+        if (this.resolvedPointerCursorType == pointerCursorType)
+        {
+            return;
+        }
+
+        this.resolvedPointerCursorType = pointerCursorType;
+        this.Cursor = null;
+        this.DisposePointerCursor();
+        if (pointerCursorType is null)
+        {
+            return;
+        }
+
+        if (Application.Current is null)
+        {
+            return;
+        }
+
+        this.pointerCursor = new Cursor(pointerCursorType.Value);
+        this.Cursor = this.pointerCursor;
+    }
+
+    private void UpdateCursorBlink(ModeInfo? modeInfo, bool resetCursorBlink)
+    {
+        if (!this.ShouldBlinkCursor(modeInfo))
+        {
+            this.StopCursorBlink();
+            return;
+        }
+
+        if (!resetCursorBlink && this.cursorBlinkTimer is not null && this.cursorBlinkTimer.IsEnabled)
+        {
+            return;
+        }
+
+        this.cursorBlinkVisible = true;
+        this.cursorBlinkStarted = modeInfo!.CursorBlinking != CursorBlinking.BlinkWait;
+        this.EnsureCursorBlinkTimer();
+        this.cursorBlinkTimer!.Interval = this.cursorBlinkStarted ? DefaultCursorBlinkInterval : DefaultCursorBlinkWait;
+        this.cursorBlinkTimer.Start();
+    }
+
+    private void EnsureCursorBlinkTimer()
+    {
+        if (this.cursorBlinkTimer is not null)
+        {
+            return;
+        }
+
+        this.cursorBlinkTimer = new DispatcherTimer();
+        this.cursorBlinkTimer.Tick += this.OnCursorBlinkTick;
+    }
+
+    private void OnCursorBlinkTick(object? sender, EventArgs e)
+    {
+        var modeInfo = this.editorClient.ModeInfo;
+        if (!this.ShouldBlinkCursor(modeInfo))
+        {
+            bool wasHidden = !this.cursorBlinkVisible;
+            this.StopCursorBlink();
+            if (wasHidden)
+            {
+                this.InvalidateVisual();
+            }
+
+            return;
+        }
+
+        if (!this.cursorBlinkStarted)
+        {
+            this.cursorBlinkStarted = true;
+            this.cursorBlinkVisible = false;
+            this.cursorBlinkTimer!.Interval = DefaultCursorBlinkInterval;
+        }
+        else
+        {
+            this.cursorBlinkVisible = !this.cursorBlinkVisible;
+        }
+
+        this.InvalidateVisual();
+    }
+
+    private void StopCursorBlink()
+    {
+        if (this.cursorBlinkTimer is not null)
+        {
+            this.cursorBlinkTimer.Stop();
+        }
+
+        this.cursorBlinkStarted = false;
+        this.cursorBlinkVisible = true;
+    }
+
+    private bool ShouldBlinkCursor(ModeInfo? modeInfo)
+    {
+        return modeInfo is { CursorVisible: true, CursorStyleEnabled: true }
+            && modeInfo.CursorBlinking != CursorBlinking.BlinkOff;
+    }
+
+    private bool ShouldDrawCursor(ModeInfo? modeInfo)
+    {
+        if (modeInfo is { CursorVisible: false })
+        {
+            return false;
+        }
+
+        return !this.ShouldBlinkCursor(modeInfo) || this.cursorBlinkVisible;
+    }
+
+    private StandardCursorType? ResolvePointerCursorType(ModeInfo? modeInfo)
+    {
+        if (modeInfo is null)
+        {
+            return null;
+        }
+
+        if (this.ShouldHidePointer(modeInfo))
+        {
+            return StandardCursorType.None;
+        }
+
+        return this.MapPointerShape(modeInfo.PointerShape);
+    }
+
+    private bool ShouldHidePointer(ModeInfo modeInfo)
+    {
+        return modeInfo.PointerMode switch
+        {
+            1 => !this.editorClient.MouseEnabled,
+            2 => true,
+
+            // Avalonia cannot keep the cursor hidden after it leaves the control,
+            // so "always hide even on leave" degrades to "always hide over the editor".
+            3 => true,
+            _ => false,
+        };
+    }
+
+    private void DisposePointerCursor()
+    {
+        if (this.pointerCursor is not null)
+        {
+            this.pointerCursor.Dispose();
+            this.pointerCursor = null;
+        }
+    }
+
+    private StandardCursorType? MapPointerShape(string? pointerShape)
+    {
+        if (string.IsNullOrWhiteSpace(pointerShape))
+        {
+            return null;
+        }
+
+        return pointerShape.Trim().ToLowerInvariant() switch
+        {
+            "arrow" => StandardCursorType.Arrow,
+            "beam" or "ibeam" or "text" => StandardCursorType.Ibeam,
+            "hand" or "pointer" => StandardCursorType.Hand,
+            "cross" or "crosshair" => StandardCursorType.Cross,
+            "help" => StandardCursorType.Help,
+            "wait" or "busy" => StandardCursorType.Wait,
+            "move" or "sizeall" => StandardCursorType.SizeAll,
+            "no" or "forbidden" or "not-allowed" => StandardCursorType.No,
+            "ew-resize" or "col-resize" or "sizewe" => StandardCursorType.SizeWestEast,
+            "ns-resize" or "row-resize" or "sizens" => StandardCursorType.SizeNorthSouth,
+            "n-resize" => StandardCursorType.TopSide,
+            "s-resize" => StandardCursorType.BottomSide,
+            "w-resize" => StandardCursorType.LeftSide,
+            "e-resize" => StandardCursorType.RightSide,
+            "nw-resize" => StandardCursorType.TopLeftCorner,
+            "ne-resize" => StandardCursorType.TopRightCorner,
+            "sw-resize" => StandardCursorType.BottomLeftCorner,
+            "se-resize" => StandardCursorType.BottomRightCorner,
+            "copy" => StandardCursorType.DragCopy,
+            "link" => StandardCursorType.DragLink,
+            _ => null,
+        };
     }
 
     private readonly struct ResolvedTypefaceRun

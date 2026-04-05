@@ -105,6 +105,11 @@ public class TerminalBuffer
     public CursorShape? RequestedCursorShape { get; set; }
 
     /// <summary>
+    /// Gets or sets the cursor blinking policy requested via DECSCUSR.
+    /// </summary>
+    public CursorBlinking RequestedCursorBlinking { get; set; } = CursorBlinking.BlinkOff;
+
+    /// <summary>
     /// Gets or sets the pointer auto-hide mode set via XTSMPOINTER (CSI > Ps p).
     /// 0 = never hide, 1 = hide when tracking not enabled (default), 2 = always hide, 3 = always hide even on leave.
     /// </summary>

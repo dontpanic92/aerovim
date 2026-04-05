@@ -5,6 +5,7 @@
 
 namespace AeroVim.Tests;
 
+using AeroVim.Editor.Utilities;
 using AeroVim.NeovimClient;
 using AeroVim.NeovimClient.Events;
 using NUnit.Framework;
@@ -104,11 +105,17 @@ public class NeovimRedrawParserTests
 
         Assert.That(events, Has.Count.EqualTo(1));
         Assert.That(events[0], Is.TypeOf<ModeInfoSetEvent>());
-        var modeInfo = ((ModeInfoSetEvent)events[0]).ModeInfo;
+        var modeInfoEvent = (ModeInfoSetEvent)events[0];
+        var modeInfo = modeInfoEvent.ModeInfo;
+        Assert.That(modeInfoEvent.CursorStyleEnabled, Is.True);
         Assert.That(modeInfo, Has.Count.EqualTo(1));
         Assert.That(modeInfo[0].CursorShape, Is.EqualTo(AeroVim.Editor.Utilities.CursorShape.Vertical));
         Assert.That(modeInfo[0].CellPercentage, Is.EqualTo(25));
+        Assert.That(modeInfo[0].CursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
+        Assert.That(modeInfo[0].CursorStyleEnabled, Is.True);
+        Assert.That(modeInfo[0].CursorVisible, Is.True);
         Assert.That(modeInfo[0].MouseShape, Is.EqualTo("beam"));
+        Assert.That(modeInfo[0].PointerShape, Is.EqualTo("beam"));
     }
 
     /// <summary>

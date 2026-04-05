@@ -112,7 +112,7 @@ public sealed class VimClient : IEditorClient
     }
 
     /// <summary>
-    /// Gets the current mode info (cursor shape, size, blink state).
+    /// Gets the current mode info (cursor shape, pointer shape, visibility, and blink state).
     /// When DECSCUSR has been received, the requested cursor shape overrides the default.
     /// </summary>
     public ModeInfo ModeInfo
@@ -120,12 +120,15 @@ public sealed class VimClient : IEditorClient
         get
         {
             var shape = this.buffer.RequestedCursorShape ?? this.currentModeInfo.CursorShape;
-            if (shape != this.currentModeInfo.CursorShape)
-            {
-                return new ModeInfo(shape, this.currentModeInfo.CellPercentage, this.currentModeInfo.CursorBlinking);
-            }
-
-            return this.currentModeInfo;
+            var cursorBlinking = this.buffer.RequestedCursorBlinking;
+            return new ModeInfo(
+                shape,
+                this.currentModeInfo.CellPercentage,
+                cursorBlinking,
+                pointerShape: this.buffer.PointerShape,
+                cursorVisible: this.buffer.CursorVisible,
+                cursorStyleEnabled: true,
+                pointerMode: this.buffer.PointerMode);
         }
     }
 
