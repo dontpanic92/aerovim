@@ -116,15 +116,6 @@ public static class Helpers
     }
 
     /// <summary>
-    /// Check whether the blur behind is enabled.
-    /// </summary>
-    /// <returns>Whether the blur behind is enabled.</returns>
-    public static bool BlurBehindEnabled()
-    {
-        return AppSettings.Default.EnableBlurBehind && BlurBehindAvailable();
-    }
-
-    /// <summary>
     /// Check whether transparent window background is available.
     /// </summary>
     /// <returns>Whether transparent background is available.</returns>

@@ -5,7 +5,7 @@
 
 namespace AeroVim.Tests.Helpers;
 
-using AeroVim.Settings;
+using AeroVim.Services;
 
 /// <summary>
 /// Redirects app-settings persistence to a temporary directory for a test.

@@ -6,6 +6,7 @@
 namespace AeroVim.Settings;
 
 using System.Text.Json.Serialization;
+using AeroVim.Services;
 
 /// <summary>
 /// Source-generated JSON metadata for <see cref="AppSettings"/>.

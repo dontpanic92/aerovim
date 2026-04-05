@@ -3,12 +3,13 @@
 // Licensed under the GPLv2 license. See LICENSE file in the project root for full license information.
 // </copyright>
 
-namespace AeroVim.Settings;
+namespace AeroVim.Services;
 
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using AeroVim.Settings;
 
 /// <summary>
 /// Application settings with JSON persistence.
@@ -42,7 +43,10 @@ public sealed class AppSettings : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
-    /// Gets the default settings instance.
+    /// Gets the default settings instance. This exists primarily for XAML
+    /// designer support and parameterless-constructor fallbacks. Runtime
+    /// code should receive <see cref="AppSettings"/> through constructor
+    /// injection rather than accessing this property directly.
     /// </summary>
     public static AppSettings Default
     {

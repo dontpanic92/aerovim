@@ -8,7 +8,6 @@ namespace AeroVim.Services;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using AeroVim.Controls;
-using AeroVim.Settings;
 using AeroVim.Utilities;
 using Avalonia.Controls;
 using Avalonia.Media;

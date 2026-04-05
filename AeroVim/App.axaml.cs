@@ -5,6 +5,7 @@
 
 namespace AeroVim;
 
+using AeroVim.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -26,7 +27,7 @@ public class App : Application
     {
         if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            desktop.MainWindow = new MainWindow(AppSettings.Default);
         }
 
         base.OnFrameworkInitializationCompleted();

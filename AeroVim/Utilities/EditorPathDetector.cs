@@ -6,7 +6,7 @@
 namespace AeroVim.Utilities;
 
 using System.Runtime.InteropServices;
-using AeroVim.Settings;
+using AeroVim.Services;
 
 /// <summary>
 /// Detects editor executables and populates unset editor paths from the system PATH.

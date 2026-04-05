@@ -6,7 +6,7 @@
 namespace AeroVim.Utilities;
 
 using AeroVim.Editor;
-using AeroVim.Settings;
+using AeroVim.Services;
 
 /// <summary>
 /// Creates editor backend clients based on application settings.

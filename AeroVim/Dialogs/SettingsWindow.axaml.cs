@@ -8,7 +8,7 @@ namespace AeroVim.Dialogs;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using AeroVim.Settings;
+using AeroVim.Services;
 using AeroVim.Utilities;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -20,22 +20,26 @@ using Avalonia.Platform.Storage;
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    private readonly AppSettings settings = AppSettings.Default;
+    private readonly AppSettings settings;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsWindow"/> class.
+    /// Used by the XAML designer; runtime code should use
+    /// <see cref="SettingsWindow(AppSettings, string?)"/>.
     /// </summary>
     public SettingsWindow()
-        : this(null)
+        : this(AppSettings.Default, null)
     {
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsWindow"/> class.
     /// </summary>
+    /// <param name="settings">Application settings.</param>
     /// <param name="promptText">Text for prompt.</param>
-    public SettingsWindow(string? promptText)
+    public SettingsWindow(AppSettings settings, string? promptText)
     {
+        this.settings = settings;
         this.InitializeComponent();
 
         if (!string.IsNullOrWhiteSpace(promptText))
@@ -231,7 +235,7 @@ public partial class SettingsWindow : Window
     {
         this.settings.NeovimPath = this.FindControl<TextBox>("NeovimPathBox")!.Text ?? string.Empty;
         this.settings.VimPath = this.FindControl<TextBox>("VimPathBox")!.Text ?? string.Empty;
-        this.settings.EditorType = (Settings.EditorType)this.FindControl<ComboBox>("EditorTypeCombo")!.SelectedIndex;
+        this.settings.EditorType = (EditorType)this.FindControl<ComboBox>("EditorTypeCombo")!.SelectedIndex;
         this.settings.EnableLigature = this.FindControl<CheckBox>("LigatureCheckBox")!.IsChecked == true;
         this.settings.EnableBlurBehind = this.FindControl<CheckBox>("BlurBehindCheckBox")!.IsChecked == true;
         this.settings.BackgroundOpacity = this.FindControl<Slider>("OpacitySlider")!.Value;

@@ -7,7 +7,6 @@ namespace AeroVim;
 
 using System.Runtime.InteropServices;
 using AeroVim.Services;
-using AeroVim.Settings;
 using AeroVim.Utilities;
 using Avalonia;
 using Avalonia.Controls;
@@ -23,16 +22,28 @@ using Avalonia.Threading;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly AppSettings settings = AppSettings.Default;
+    private readonly AppSettings settings;
     private readonly WindowEffectsService effectsService;
     private readonly EditorSessionCoordinator coordinator;
     private bool isSettingsDialogOpen;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
+    /// Used by the XAML designer; runtime code should use
+    /// <see cref="MainWindow(AppSettings)"/>.
     /// </summary>
     public MainWindow()
+        : this(AppSettings.Default)
     {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainWindow"/> class.
+    /// </summary>
+    /// <param name="settings">Application settings.</param>
+    public MainWindow(AppSettings settings)
+    {
+        this.settings = settings;
         this.InitializeComponent();
 
         this.effectsService = new WindowEffectsService(this, this.settings);
@@ -81,7 +92,7 @@ public partial class MainWindow : Window
 
             blurHandle = this.effectsService.BeginDialogBlurPreservation();
 
-            var dialog = new Dialogs.SettingsWindow(promptText);
+            var dialog = new Dialogs.SettingsWindow(this.settings, promptText);
             await dialog.ShowDialog(this);
 
             if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)

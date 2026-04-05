@@ -33,8 +33,7 @@
   </ItemGroup>
 
   <!-- macOS .app bundle creation (runs only when publishing for osx-*) -->
-  <Target Name="CreateMacOSBundle" AfterTargets="Publish"
-          Condition="$(RuntimeIdentifier.StartsWith('osx-'))">
+  <Target Name="CreateMacOSBundle" AfterTargets="Publish" Condition="$(RuntimeIdentifier.StartsWith('osx-'))">
     <PropertyGroup>
       <_PublishParent>$([System.IO.Path]::GetDirectoryName('$(PublishDir.TrimEnd('/\'))'))</_PublishParent>
       <BundleDir>$(_PublishParent)/AeroVim.app</BundleDir>

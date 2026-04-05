@@ -5,7 +5,7 @@
 
 namespace AeroVim.Utilities;
 
-using AeroVim.Settings;
+using AeroVim.Services;
 using Avalonia.Controls;
 
 /// <summary>

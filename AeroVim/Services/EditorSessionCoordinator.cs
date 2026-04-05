@@ -7,7 +7,6 @@ namespace AeroVim.Services;
 
 using AeroVim.Controls;
 using AeroVim.Editor;
-using AeroVim.Settings;
 using AeroVim.Utilities;
 using Avalonia.Threading;
 

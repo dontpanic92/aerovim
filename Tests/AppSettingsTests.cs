@@ -5,7 +5,7 @@
 
 namespace AeroVim.Tests;
 
-using AeroVim.Settings;
+using AeroVim.Services;
 using AeroVim.Tests.Helpers;
 using NUnit.Framework;
 
