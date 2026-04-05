@@ -133,6 +133,15 @@ internal sealed class EditorRenderer : IDisposable
         this.DrawPreedit(canvas, screen, textParam);
     }
 
+    /// <summary>
+    /// Discards any cached rendering state. Currently a no-op since the
+    /// renderer paints directly on the canvas, but retained for API
+    /// compatibility with <see cref="EditorControl"/>.
+    /// </summary>
+    public void DiscardBackbuffer()
+    {
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

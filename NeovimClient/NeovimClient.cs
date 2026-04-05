@@ -205,11 +205,15 @@ public sealed class NeovimClient : IEditorClient
                 return null;
             }
 
+            int rows = this.cells.GetLength(0);
+            bool sizeChanged = false;
+
             if (this.screen.Cells is null
-                || this.screen.Cells.GetLength(0) != this.cells.GetLength(0)
+                || this.screen.Cells.GetLength(0) != rows
                 || this.screen.Cells.GetLength(1) != this.cells.GetLength(1))
             {
-                this.screen.Cells = new Cell[this.cells.GetLength(0), this.cells.GetLength(1)];
+                sizeChanged = true;
+                this.screen.Cells = new Cell[rows, this.cells.GetLength(1)];
                 this.CopyAllCells(this.screen.Cells, this.cells);
             }
             else if (this.allDirty)
@@ -229,6 +233,22 @@ public sealed class NeovimClient : IEditorClient
                         }
                     }
                 }
+            }
+
+            // Propagate dirty metadata to the screen before clearing.
+            this.screen.AllDirty = sizeChanged || this.allDirty;
+            if (this.dirtyRows is not null && !this.screen.AllDirty)
+            {
+                if (this.screen.DirtyRows is null || this.screen.DirtyRows.Length != rows)
+                {
+                    this.screen.DirtyRows = new bool[rows];
+                }
+
+                Array.Copy(this.dirtyRows, this.screen.DirtyRows, rows);
+            }
+            else
+            {
+                this.screen.DirtyRows = null;
             }
 
             this.allDirty = false;

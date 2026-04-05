@@ -449,6 +449,7 @@ public class EditorControl : Control, IDisposable
     private void RebuildFontChain(IReadOnlyList<string>? guiFontNames = null)
     {
         this.ligatureTextShaper.ClearCache();
+        this.renderer.DiscardBackbuffer();
         this.fontChain.Rebuild(
             guiFontNames ?? this.currentGuiFontNames,
             this.currentUserFallbackFonts,

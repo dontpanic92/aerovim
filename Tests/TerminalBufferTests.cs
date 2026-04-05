@@ -132,6 +132,82 @@ public class TerminalBufferTests
         Assert.That(screen.Cells[2, 0].Character, Is.EqualTo(" "));
     }
 
+    /// <summary>
+    /// Initial GetScreen should report all rows dirty.
+    /// </summary>
+    [Test]
+    public void GetScreen_AfterConstruction_ReportsAllDirty()
+    {
+        var buffer = new TerminalBuffer(3, 2);
+        buffer.PutChar('X');
+
+        var screen = buffer.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.True);
+    }
+
+    /// <summary>
+    /// A partial update should report only the affected row as dirty.
+    /// </summary>
+    [Test]
+    public void GetScreen_AfterPartialUpdate_ReportsOnlyDirtyRows()
+    {
+        var buffer = new TerminalBuffer(3, 3);
+        FillRow(buffer, 0, 'A');
+        FillRow(buffer, 1, 'B');
+        FillRow(buffer, 2, 'C');
+
+        // First snapshot consumes all dirty flags.
+        buffer.GetScreen();
+
+        // Update only row 1.
+        buffer.SetCursorPosition(1, 0);
+        buffer.PutChar('Z');
+
+        var screen = buffer.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.False);
+        Assert.That(screen.DirtyRows, Is.Not.Null);
+        Assert.That(screen.DirtyRows![0], Is.False);
+        Assert.That(screen.DirtyRows[1], Is.True);
+        Assert.That(screen.DirtyRows[2], Is.False);
+    }
+
+    /// <summary>
+    /// A second GetScreen with no intervening changes should report nothing dirty.
+    /// </summary>
+    [Test]
+    public void GetScreen_WithNoChanges_ReportsNothingDirty()
+    {
+        var buffer = new TerminalBuffer(2, 2);
+        buffer.PutChar('A');
+
+        buffer.GetScreen();
+
+        var screen = buffer.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.False);
+        Assert.That(screen.DirtyRows, Is.Not.Null);
+        Assert.That(screen.DirtyRows!.Any(d => d), Is.False);
+    }
+
+    /// <summary>
+    /// Resize should report AllDirty in the subsequent snapshot.
+    /// </summary>
+    [Test]
+    public void GetScreen_AfterResize_ReportsAllDirty()
+    {
+        var buffer = new TerminalBuffer(2, 2);
+        buffer.PutChar('A');
+
+        buffer.GetScreen();
+        buffer.Resize(4, 3);
+
+        var screen = buffer.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.True);
+    }
+
     private static void FillRow(TerminalBuffer buffer, int row, char value)
     {
         buffer.SetCursorPosition(row, 0);

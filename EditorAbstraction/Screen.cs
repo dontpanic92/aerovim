@@ -29,4 +29,20 @@ public sealed class Screen
     /// Gets or sets the background color.
     /// </summary>
     public int BackgroundColor { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether every row is dirty and the
+    /// entire grid must be repainted. When true, <see cref="DirtyRows"/>
+    /// should be ignored.
+    /// </summary>
+    public bool AllDirty { get; set; }
+
+    /// <summary>
+    /// Gets or sets per-row dirty flags. Each element indicates whether the
+    /// corresponding row has changed since the last render. The array length
+    /// matches the row count of <see cref="Cells"/>. May be null when dirty
+    /// tracking is not available, in which case the renderer should treat
+    /// every row as dirty.
+    /// </summary>
+    public bool[]? DirtyRows { get; set; }
 }

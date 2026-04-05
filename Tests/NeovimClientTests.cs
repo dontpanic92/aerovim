@@ -135,4 +135,83 @@ public class NeovimClientTests
 
         Assert.That(client.MouseEnabled, Is.True);
     }
+
+    /// <summary>
+    /// Initial GetScreen after resize should report AllDirty.
+    /// </summary>
+    [Test]
+    public void GetScreen_AfterResize_ReportsAllDirty()
+    {
+        var client = new NeovimClient();
+        client.ProcessRedrawForTesting(new IRedrawEvent[]
+        {
+            new ResizeEvent(2, 3),
+            new CursorGotoEvent(0, 0),
+            new PutEvent(new string?[] { "A" }),
+        });
+
+        var screen = client.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.True);
+    }
+
+    /// <summary>
+    /// A partial update should mark only the affected rows dirty.
+    /// </summary>
+    [Test]
+    public void GetScreen_AfterPartialUpdate_ReportsOnlyDirtyRows()
+    {
+        var client = new NeovimClient();
+        client.ProcessRedrawForTesting(new IRedrawEvent[]
+        {
+            new ResizeEvent(4, 3),
+            new CursorGotoEvent(0, 0),
+            new PutEvent(new string?[] { "A" }),
+            new CursorGotoEvent(1, 0),
+            new PutEvent(new string?[] { "B" }),
+            new CursorGotoEvent(2, 0),
+            new PutEvent(new string?[] { "C" }),
+        });
+
+        // First snapshot consumes all dirty flags.
+        client.GetScreen();
+
+        // Only modify row 1.
+        client.ProcessRedrawForTesting(new IRedrawEvent[]
+        {
+            new CursorGotoEvent(1, 1),
+            new PutEvent(new string?[] { "Z" }),
+        });
+
+        var screen = client.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.False);
+        Assert.That(screen.DirtyRows, Is.Not.Null);
+        Assert.That(screen.DirtyRows![0], Is.False);
+        Assert.That(screen.DirtyRows[1], Is.True);
+        Assert.That(screen.DirtyRows[2], Is.False);
+    }
+
+    /// <summary>
+    /// A second GetScreen with no intervening changes should report nothing dirty.
+    /// </summary>
+    [Test]
+    public void GetScreen_WithNoChanges_ReportsNothingDirty()
+    {
+        var client = new NeovimClient();
+        client.ProcessRedrawForTesting(new IRedrawEvent[]
+        {
+            new ResizeEvent(2, 3),
+            new CursorGotoEvent(0, 0),
+            new PutEvent(new string?[] { "A" }),
+        });
+
+        client.GetScreen();
+
+        var screen = client.GetScreen();
+        Assert.That(screen, Is.Not.Null);
+        Assert.That(screen!.AllDirty, Is.False);
+        Assert.That(screen.DirtyRows, Is.Not.Null);
+        Assert.That(screen.DirtyRows!.Any(d => d), Is.False);
+    }
 }

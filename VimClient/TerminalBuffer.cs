@@ -804,10 +804,13 @@ public class TerminalBuffer
                 return null;
             }
 
+            bool sizeChanged = false;
+
             if (this.screen.Cells is null
                 || this.screen.Cells.GetLength(0) != this.Rows
                 || this.screen.Cells.GetLength(1) != this.Cols)
             {
+                sizeChanged = true;
                 this.screen.Cells = (Cell[,])this.cells.Clone();
             }
             else if (this.allDirty)
@@ -832,6 +835,22 @@ public class TerminalBuffer
                         }
                     }
                 }
+            }
+
+            // Propagate dirty metadata to the screen before clearing.
+            this.screen.AllDirty = sizeChanged || this.allDirty;
+            if (this.dirtyRows is not null && !this.screen.AllDirty)
+            {
+                if (this.screen.DirtyRows is null || this.screen.DirtyRows.Length != this.Rows)
+                {
+                    this.screen.DirtyRows = new bool[this.Rows];
+                }
+
+                Array.Copy(this.dirtyRows, this.screen.DirtyRows, this.Rows);
+            }
+            else
+            {
+                this.screen.DirtyRows = null;
             }
 
             this.allDirty = false;

@@ -344,6 +344,65 @@ public class EditorControlTests
         Assert.That(withInvisibleSplit, Is.EqualTo(baseline));
     }
 
+    /// <summary>
+    /// Incremental rendering of a single dirty row should produce the same
+    /// output as a full-grid render of the same screen state.
+    /// </summary>
+    [Test]
+    public void RenderForTesting_IncrementalUpdateMatchesFullRender()
+    {
+        var screen = TestScreenBuilder.CreateScreen(3, 6);
+        TestScreenBuilder.SetCell(screen, 0, 0, "A", 0x000000, 0xFFFFFF);
+        TestScreenBuilder.SetCell(screen, 1, 0, "B", 0x000000, 0xFFFFFF);
+        TestScreenBuilder.SetCell(screen, 2, 0, "C", 0x000000, 0xFFFFFF);
+        screen.CursorPosition = (0, 1);
+
+        // First render: AllDirty paints everything onto the backbuffer.
+        screen.AllDirty = true;
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+        RenderToPng(control, 240, 120);
+
+        // Now update only row 1 and mark it dirty.
+        TestScreenBuilder.SetCell(screen, 1, 0, "Z", 0x000000, 0xFFFFFF);
+        screen.AllDirty = false;
+        screen.DirtyRows = new[] { false, true, false };
+        byte[] incremental = RenderToPng(control, 240, 120);
+
+        // Full render of the same screen state for comparison.
+        screen.AllDirty = true;
+        screen.DirtyRows = null;
+        var freshClient = new TestEditorClient { CurrentScreen = screen };
+        using var freshControl = new EditorControl(freshClient);
+        byte[] fullRender = RenderToPng(freshControl, 240, 120);
+
+        Assert.That(incremental, Is.EqualTo(fullRender));
+    }
+
+    /// <summary>
+    /// When no rows are dirty the rendered output should still be valid
+    /// (backbuffer blit without grid changes, e.g. cursor blink).
+    /// </summary>
+    [Test]
+    public void RenderForTesting_NoDirtyRows_StillProducesOutput()
+    {
+        var screen = TestScreenBuilder.CreateScreen(2, 4);
+        TestScreenBuilder.SetCell(screen, 0, 0, "X", 0x000000, 0xFFFFFF);
+        screen.CursorPosition = (0, 1);
+        screen.AllDirty = true;
+
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+        byte[] first = RenderToPng(control, 240, 120);
+
+        // No changes — dirty flags clear.
+        screen.AllDirty = false;
+        screen.DirtyRows = new[] { false, false };
+        byte[] second = RenderToPng(control, 240, 120);
+
+        Assert.That(second, Is.EqualTo(first));
+    }
+
     private static Screen CreateAsciiScreen(string text, bool bold = false)
     {
         var screen = TestScreenBuilder.CreateScreen(1, text.Length + 2);
