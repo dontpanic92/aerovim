@@ -495,17 +495,18 @@ public class EditorControl : Control, IDisposable
         var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
         var styledTypeface = this.fontChain.GetStyledTypeface(weight, slant);
         this.textPaint.Color = Helpers.GetSkColor(foregroundColor);
-        this.textPaint.FakeBoldText = bold;
         this.textPaint.Typeface = styledTypeface;
 
         float baselineY = (row * this.textParam.LineHeight) + (this.textParam.LineHeight * 0.8f);
 
         if (this.EnableLigature)
         {
-            this.DrawLigatureTextRange(canvas, cells, row, colStart, colEnd, weight, slant, baselineY);
+            this.textPaint.FakeBoldText = false;
+            this.DrawLigatureTextRange(canvas, cells, row, colStart, colEnd, weight, slant, baselineY, bold);
         }
         else
         {
+            this.textPaint.FakeBoldText = bold;
             this.DrawPlainTextRange(canvas, cells, row, colStart, colEnd, styledTypeface, weight, slant, baselineY);
         }
 
@@ -671,15 +672,18 @@ public class EditorControl : Control, IDisposable
         int colEnd,
         SKFontStyleWeight weight,
         SKFontStyleSlant slant,
-        float baselineY)
+        float baselineY,
+        bool embolden)
     {
         foreach (var run in this.BuildResolvedTypefaceRuns(cells, row, colStart, colEnd, weight, slant))
         {
             var shapedRun = this.ligatureTextShaper.ShapeText(run.Typeface, this.textParam.SkiaFontSize, run.Text);
-            if (shapedRun is null || !this.DrawAnchoredShapedRun(canvas, run, shapedRun, baselineY))
+            if (shapedRun is null || !this.DrawAnchoredShapedRun(canvas, run, shapedRun, baselineY, embolden))
             {
                 this.textPaint.Typeface = run.Typeface;
+                this.textPaint.FakeBoldText = embolden;
                 this.DrawPlainTextRange(canvas, cells, row, run.StartColumn, run.EndColumn, run.Typeface, weight, slant, baselineY);
+                this.textPaint.FakeBoldText = false;
             }
         }
     }
@@ -688,7 +692,8 @@ public class EditorControl : Control, IDisposable
         SKCanvas canvas,
         ResolvedTypefaceRun run,
         LigatureTextShaper.ShapedTextRun shapedRun,
-        float baselineY)
+        float baselineY,
+        bool embolden)
     {
         int glyphStart = 0;
         while (glyphStart < shapedRun.GlyphCount)
@@ -718,7 +723,7 @@ public class EditorControl : Control, IDisposable
                 points[i] = new SKPoint(point.X - clusterOriginX, point.Y);
             }
 
-            using var blob = this.ligatureTextShaper.CreateTextBlob(run.Typeface, this.textParam.SkiaFontSize, glyphIds, points);
+            using var blob = this.ligatureTextShaper.CreateTextBlob(run.Typeface, this.textParam.SkiaFontSize, glyphIds, points, embolden);
             if (blob is null)
             {
                 return false;

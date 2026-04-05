@@ -110,10 +110,12 @@ internal sealed class LigatureTextShaper : IDisposable
     /// <param name="textSize">The font size in device pixels.</param>
     /// <param name="glyphIds">The glyph ids to render.</param>
     /// <param name="points">The glyph positions relative to the blob origin.</param>
+    /// <param name="embolden">Whether synthetic bold should be applied to the blob font.</param>
     /// <returns>The created text blob, or <c>null</c> if the blob could not be created.</returns>
-    public SKTextBlob? CreateTextBlob(SKTypeface typeface, float textSize, ReadOnlySpan<ushort> glyphIds, ReadOnlySpan<SKPoint> points)
+    public SKTextBlob? CreateTextBlob(SKTypeface typeface, float textSize, ReadOnlySpan<ushort> glyphIds, ReadOnlySpan<SKPoint> points, bool embolden)
     {
         using var font = new SKFont(typeface, textSize, 1f, 0f);
+        font.Embolden = embolden;
         using var builder = new SKTextBlobBuilder();
         builder.AddPositionedRun(glyphIds, font, points);
         return builder.Build();

@@ -146,6 +146,26 @@ public class EditorControlTests
     }
 
     /// <summary>
+    /// Bold output should stay visually closer to plain bold output than to ligature normal output.
+    /// </summary>
+    [Test]
+    public void RenderForTesting_WithLigaturesEnabled_BoldTextRetainsPlainBoldWeight()
+    {
+        Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
+
+        var normalScreen = CreateAsciiScreen(fixture.Text);
+        var boldScreen = CreateAsciiScreen(fixture.Text, bold: true);
+
+        long plainBoldInk = MeasureInk(RenderScreen(fixture.FontName, boldScreen, false));
+        long ligatureNormalInk = MeasureInk(RenderScreen(fixture.FontName, normalScreen, true));
+        long ligatureBoldInk = MeasureInk(RenderScreen(fixture.FontName, boldScreen, true));
+
+        Assert.That(
+            Math.Abs(ligatureBoldInk - plainBoldInk),
+            Is.LessThan(Math.Abs(ligatureNormalInk - plainBoldInk)));
+    }
+
+    /// <summary>
     /// Invisible style-run splits should not change glyph positions in ligature mode.
     /// </summary>
     [Test]
@@ -251,6 +271,22 @@ public class EditorControlTests
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
+    }
+
+    private static long MeasureInk(byte[] pngData)
+    {
+        using var bitmap = SKBitmap.Decode(pngData);
+        long ink = 0;
+        for (int y = 0; y < bitmap.Height; y++)
+        {
+            for (int x = 0; x < bitmap.Width; x++)
+            {
+                var pixel = bitmap.GetPixel(x, y);
+                ink += byte.MaxValue - pixel.Red;
+            }
+        }
+
+        return ink;
     }
 
     private readonly record struct LigatureFixture(string FontName, string Text);
