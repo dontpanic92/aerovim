@@ -61,7 +61,7 @@ public class VimClientTests
         Assert.That(screen, Is.Not.Null);
         Assert.That(screen!.Cells[0, 0].Character, Is.EqualTo("A"));
         Assert.That(titles, Is.EqualTo(new[] { "Editor" }));
-        Assert.That(foregrounds, Is.EqualTo(new[] { 0xCC0000 }));
+        Assert.That(foregrounds, Is.EqualTo(new[] { ColorUtility.DeriveReadableForeground(0x00CC00) }));
         Assert.That(backgrounds, Is.EqualTo(new[] { 0x00CC00 }));
         Assert.That(redrawCount, Is.EqualTo(2));
     }

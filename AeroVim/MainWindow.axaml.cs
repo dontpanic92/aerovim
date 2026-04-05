@@ -256,12 +256,9 @@ public partial class MainWindow : Window
     {
         var color = Helpers.GetAvaloniaColor(intColor);
         var brush = new SolidColorBrush(color);
-        var titleText = this.FindControl<TextBlock>("TitleText");
-        if (titleText is not null)
-        {
-            titleText.Foreground = brush;
-        }
 
+        this.FindControl<TextBlock>("TitleText")?.Foreground = brush;
+        this.FindControl<TextBlock>("LogoText")?.Foreground = brush;
         this.FindControl<Button>("SettingsButton")!.Foreground = brush;
         this.FindControl<Button>("MinimizeButton")!.Foreground = brush;
         this.FindControl<Button>("MaximizeButton")!.Foreground = brush;

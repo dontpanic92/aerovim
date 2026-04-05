@@ -43,8 +43,10 @@ public class TerminalBuffer
 
     private int defaultFg = 0x000000;
     private int defaultBg = 0xFFFFFF;
-    private int detectedFg = 0x000000;
     private int detectedBg = 0xFFFFFF;
+
+    private Dictionary<int, int> bgHistogram = new(16);
+    private bool bgHistogramValid;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TerminalBuffer"/> class.
@@ -159,7 +161,7 @@ public class TerminalBuffer
                 int startCol = i < copyRows ? copyCols : 0;
                 for (int j = startCol; j < cols; j++)
                 {
-                    newCells[i, j].Clear(this.detectedFg, this.detectedBg, this.currentSpecial);
+                    newCells[i, j].Clear(this.defaultFg, this.detectedBg, this.currentSpecial);
                 }
             }
 
@@ -170,6 +172,7 @@ public class TerminalBuffer
             this.scrollTop = 0;
             this.scrollBottom = rows - 1;
             this.allDirty = true;
+            this.bgHistogramValid = false;
             this.suppressNextErase = true;
 
             if (this.cursorRow >= rows)
@@ -625,6 +628,7 @@ public class TerminalBuffer
                 this.ClearRegion(0, 0, this.Rows - 1, this.Cols - 1);
                 this.usingAltBuffer = true;
                 this.allDirty = true;
+                this.bgHistogramValid = false;
             }
         }
     }
@@ -660,7 +664,7 @@ public class TerminalBuffer
                         int startCol = i < copyRows ? copyCols : 0;
                         for (int j = startCol; j < this.Cols; j++)
                         {
-                            resized[i, j].Clear(this.detectedFg, this.detectedBg, 0);
+                            resized[i, j].Clear(this.defaultFg, this.detectedBg, 0);
                         }
                     }
 
@@ -671,6 +675,7 @@ public class TerminalBuffer
                 this.altCells = null!;
                 this.usingAltBuffer = false;
                 this.allDirty = true;
+                this.bgHistogramValid = false;
             }
         }
     }
@@ -691,6 +696,7 @@ public class TerminalBuffer
             this.altCells = null!;
             this.ClearRegion(0, 0, this.Rows - 1, this.Cols - 1);
             this.allDirty = true;
+            this.bgHistogramValid = false;
         }
     }
 
@@ -804,34 +810,41 @@ public class TerminalBuffer
                 return null;
             }
 
-            bool sizeChanged = false;
-
-            if (this.screen.Cells is null
+            bool sizeChanged = this.screen.Cells is null
                 || this.screen.Cells.GetLength(0) != this.Rows
-                || this.screen.Cells.GetLength(1) != this.Cols)
+                || this.screen.Cells.GetLength(1) != this.Cols;
+
+            // Update bg histogram incrementally BEFORE copying cells, so
+            // screen.Cells still holds the previous frame for diffing.
+            this.UpdateBackgroundDetection(sizeChanged);
+
+            if (sizeChanged)
             {
-                sizeChanged = true;
                 this.screen.Cells = (Cell[,])this.cells.Clone();
             }
-            else if (this.allDirty)
+            else
             {
-                for (int i = 0; i < this.Rows; i++)
+                var screenCells = this.screen.Cells!;
+                if (this.allDirty)
                 {
-                    for (int j = 0; j < this.Cols; j++)
-                    {
-                        this.screen.Cells[i, j] = this.cells[i, j];
-                    }
-                }
-            }
-            else if (this.dirtyRows is not null)
-            {
-                for (int i = 0; i < this.dirtyRows.Length; i++)
-                {
-                    if (this.dirtyRows[i])
+                    for (int i = 0; i < this.Rows; i++)
                     {
                         for (int j = 0; j < this.Cols; j++)
                         {
-                            this.screen.Cells[i, j] = this.cells[i, j];
+                            screenCells[i, j] = this.cells[i, j];
+                        }
+                    }
+                }
+                else if (this.dirtyRows is not null)
+                {
+                    for (int i = 0; i < this.dirtyRows.Length; i++)
+                    {
+                        if (this.dirtyRows[i])
+                        {
+                            for (int j = 0; j < this.Cols; j++)
+                            {
+                                screenCells[i, j] = this.cells[i, j];
+                            }
                         }
                     }
                 }
@@ -859,10 +872,9 @@ public class TerminalBuffer
                 Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
             }
 
-            this.DetectPredominantColors();
             this.screen.CursorPosition = (this.cursorRow, this.cursorCol);
-            this.screen.ForegroundColor = this.detectedFg;
             this.screen.BackgroundColor = this.detectedBg;
+            this.screen.ForegroundColor = ColorUtility.DeriveReadableForeground(this.detectedBg);
         }
 
         return this.screen;
@@ -873,10 +885,13 @@ public class TerminalBuffer
     private int ResolveBg() => this.currentBg == -1 ? this.defaultBg : this.currentBg;
 
     /// <summary>
-    /// Detect the most common foreground and background colors on screen.
-    /// Updates detectedFg/detectedBg when a single color dominates (>50% of cells).
+    /// Updates the background color histogram incrementally and resolves
+    /// the predominant background color. Called before the cell copy in
+    /// <see cref="GetScreen"/> so that <c>screen.Cells</c> still holds
+    /// the previous frame for diffing.
     /// </summary>
-    private void DetectPredominantColors()
+    /// <param name="sizeChanged">Whether the grid dimensions changed since the last call.</param>
+    private void UpdateBackgroundDetection(bool sizeChanged)
     {
         int totalCells = this.Rows * this.Cols;
         if (totalCells == 0)
@@ -884,63 +899,104 @@ public class TerminalBuffer
             return;
         }
 
-        int bestBgColor = this.cells[0, 0].BackgroundColor;
-        int bestBgCount = 0;
-        int bestFgColor = this.cells[0, 0].ForegroundColor;
-        int bestFgCount = 0;
+        bool needFullRecount = sizeChanged || !this.bgHistogramValid;
 
-        var bgCounts = new Dictionary<int, int>(16);
-        var fgCounts = new Dictionary<int, int>(16);
-        for (int i = 0; i < this.Rows; i++)
+        if (needFullRecount)
         {
-            for (int j = 0; j < this.Cols; j++)
+            // Full recount from current cells.
+            this.bgHistogram.Clear();
+            for (int i = 0; i < this.Rows; i++)
             {
-                int bg = this.cells[i, j].BackgroundColor;
-                int bgCount;
-                if (bgCounts.TryGetValue(bg, out bgCount))
+                for (int j = 0; j < this.Cols; j++)
                 {
-                    bgCount++;
+                    int bg = this.cells[i, j].BackgroundColor;
+                    this.bgHistogram[bg] = this.bgHistogram.GetValueOrDefault(bg) + 1;
                 }
-                else
-                {
-                    bgCount = 1;
-                }
+            }
 
-                bgCounts[bg] = bgCount;
-                if (bgCount > bestBgCount)
-                {
-                    bestBgCount = bgCount;
-                    bestBgColor = bg;
-                }
+            this.bgHistogramValid = true;
+        }
+        else if (this.allDirty)
+        {
+            // All rows changed — differential update if old snapshot exists.
+            var oldCells = this.screen.Cells;
+            bool canDiff = oldCells is not null
+                && oldCells.GetLength(0) == this.Rows
+                && oldCells.GetLength(1) == this.Cols;
 
-                int fg = this.cells[i, j].ForegroundColor;
-                int fgCount;
-                if (fgCounts.TryGetValue(fg, out fgCount))
+            if (canDiff)
+            {
+                this.DiffRows(oldCells!, 0, this.Rows);
+            }
+            else
+            {
+                this.bgHistogram.Clear();
+                for (int i = 0; i < this.Rows; i++)
                 {
-                    fgCount++;
+                    for (int j = 0; j < this.Cols; j++)
+                    {
+                        int bg = this.cells[i, j].BackgroundColor;
+                        this.bgHistogram[bg] = this.bgHistogram.GetValueOrDefault(bg) + 1;
+                    }
                 }
-                else
+            }
+        }
+        else if (this.dirtyRows is not null && this.screen.Cells is not null)
+        {
+            // Incremental: only update dirty rows.
+            var oldCells = this.screen.Cells;
+            for (int i = 0; i < this.dirtyRows.Length; i++)
+            {
+                if (this.dirtyRows[i])
                 {
-                    fgCount = 1;
-                }
-
-                fgCounts[fg] = fgCount;
-                if (fgCount > bestFgCount)
-                {
-                    bestFgCount = fgCount;
-                    bestFgColor = fg;
+                    this.DiffRows(oldCells, i, i + 1);
                 }
             }
         }
 
-        if (bestBgCount > totalCells / 2 && bestBgColor != this.detectedBg)
+        // Find the peak bg color in the histogram.
+        int bestColor = this.detectedBg;
+        int bestCount = 0;
+        foreach (var kvp in this.bgHistogram)
         {
-            this.detectedBg = bestBgColor;
+            if (kvp.Value > bestCount)
+            {
+                bestCount = kvp.Value;
+                bestColor = kvp.Key;
+            }
         }
 
-        if (bestFgCount > totalCells / 2 && bestFgColor != this.detectedFg)
+        if (bestCount > totalCells / 2)
         {
-            this.detectedFg = bestFgColor;
+            this.detectedBg = bestColor;
+        }
+    }
+
+    /// <summary>
+    /// Subtracts old bg counts and adds new bg counts for rows in [rowStart, rowEnd).
+    /// </summary>
+    private void DiffRows(Cell[,] oldCells, int rowStart, int rowEnd)
+    {
+        for (int i = rowStart; i < rowEnd; i++)
+        {
+            for (int j = 0; j < this.Cols; j++)
+            {
+                int oldBg = oldCells[i, j].BackgroundColor;
+                if (this.bgHistogram.TryGetValue(oldBg, out int oldCount))
+                {
+                    if (oldCount <= 1)
+                    {
+                        this.bgHistogram.Remove(oldBg);
+                    }
+                    else
+                    {
+                        this.bgHistogram[oldBg] = oldCount - 1;
+                    }
+                }
+
+                int newBg = this.cells[i, j].BackgroundColor;
+                this.bgHistogram[newBg] = this.bgHistogram.GetValueOrDefault(newBg) + 1;
+            }
         }
     }
 
@@ -954,7 +1010,7 @@ public class TerminalBuffer
 
     private void ClearRow(int row)
     {
-        int fg = this.currentFg == -1 ? this.detectedFg : this.currentFg;
+        int fg = this.currentFg == -1 ? this.defaultFg : this.currentFg;
         int bg = this.currentBg == -1 ? this.detectedBg : this.currentBg;
         for (int j = 0; j < this.Cols; j++)
         {
@@ -971,7 +1027,7 @@ public class TerminalBuffer
         rowEnd = Math.Min(this.Rows - 1, rowEnd);
         colEnd = Math.Min(this.Cols - 1, colEnd);
 
-        int fg = this.currentFg == -1 ? this.detectedFg : this.currentFg;
+        int fg = this.currentFg == -1 ? this.defaultFg : this.currentFg;
         int bg = this.currentBg == -1 ? this.detectedBg : this.currentBg;
         for (int i = rowStart; i <= rowEnd; i++)
         {

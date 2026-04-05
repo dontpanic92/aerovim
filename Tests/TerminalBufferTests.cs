@@ -5,6 +5,7 @@
 
 namespace AeroVim.Tests;
 
+using AeroVim.Editor.Utilities;
 using AeroVim.VimClient;
 using NUnit.Framework;
 
@@ -90,10 +91,11 @@ public class TerminalBufferTests
     }
 
     /// <summary>
-    /// Predominant colors should surface through the screen snapshot once they dominate the grid.
+    /// Predominant background color should surface through the screen snapshot
+    /// and foreground should be derived from it for readable chrome text.
     /// </summary>
     [Test]
-    public void GetScreen_DetectsPredominantColors()
+    public void GetScreen_DetectsPredominantBackground_DerivesForeground()
     {
         var buffer = new TerminalBuffer(3, 2);
         buffer.SetForegroundColor(0x112233);
@@ -107,8 +109,10 @@ public class TerminalBufferTests
         var screen = buffer.GetScreen();
 
         Assert.That(screen, Is.Not.Null);
-        Assert.That(screen!.ForegroundColor, Is.EqualTo(0x112233));
-        Assert.That(screen.BackgroundColor, Is.EqualTo(0x445566));
+        Assert.That(screen!.BackgroundColor, Is.EqualTo(0x445566));
+
+        // Foreground is derived from bg, not detected from cell fg.
+        Assert.That(screen.ForegroundColor, Is.EqualTo(ColorUtility.DeriveReadableForeground(0x445566)));
     }
 
     /// <summary>
