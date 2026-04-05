@@ -33,7 +33,6 @@ public sealed class NeovimClient : IEditorClient
     private IList<ModeInfo> modeInfo = new List<ModeInfo>();
     private int modeIndex = 0;
     private string title = string.Empty;
-    private string iconTitle = string.Empty;
     private Cell[,]? cells;
     private bool[]? dirtyRows;
     private bool allDirty;
@@ -281,8 +280,7 @@ public sealed class NeovimClient : IEditorClient
                         this.title = e.Title;
                         actions.Add(() => this.TitleChanged?.Invoke(e.Title));
                         break;
-                    case SetIconTitleEvent e:
-                        this.iconTitle = e.Title;
+                    case SetIconTitleEvent:
                         break;
                     case PutEvent e:
                         this.Put(

@@ -59,11 +59,6 @@ public class ModeInfo
     public string? PointerShape { get; }
 
     /// <summary>
-    /// Gets the pointer shape name, using Neovim's original field name.
-    /// </summary>
-    public string? MouseShape => this.PointerShape;
-
-    /// <summary>
     /// Gets a value indicating whether the cursor should be visible.
     /// </summary>
     public bool CursorVisible { get; }

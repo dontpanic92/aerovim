@@ -41,24 +41,11 @@ public sealed class MsgPackRpc : IDisposable
     }
 
     /// <summary>
-    /// The RequestHandler type to process requests.
-    /// </summary>
-    /// <param name="method">The name of the method in the request.</param>
-    /// <param name="args">The args of the method.</param>
-    /// <returns>If error occured, returns null; otherwise returns the response.</returns>
-    public delegate object RequestHandler(string method, IList<MsgPack.MessagePackObject> args);
-
-    /// <summary>
     /// The RequestHandler type to process notifications.
     /// </summary>
     /// <param name="method">The name of the method in the request.</param>
     /// <param name="args">The args of the method.</param>
     public delegate void NotificationHandler(string method, IList<MsgPack.MessagePackObject> args);
-
-    /// <summary>
-    /// Gets or sets the handlers to process requests.
-    /// </summary>
-    public RequestHandler? RequestHandlers { get; set; }
 
     /// <summary>
     /// Gets or sets the handlers to process notifications.
@@ -267,11 +254,7 @@ public sealed class MsgPackRpc : IDisposable
         switch (type)
         {
             case 0:
-                if (list.Count != 4)
-                {
-                    throw new InvalidDataException($"Wrong MsgPackRpc format: Request must have 4 elements but {list.Count} received.");
-                }
-
+                Trace.TraceWarning("MsgPackRpc: Received an incoming request but request handling is not supported.");
                 break;
             case 1:
                 if (list.Count != 4)

@@ -78,12 +78,6 @@ public sealed class MessagePackObject : IEquatable<MessagePackObject>
     /// <returns>Dictionary value.</returns>
     public MessagePackObjectDictionary AsDictionary() => (MessagePackObjectDictionary)this.value!;
 
-    /// <summary>
-    /// Convert to enumerable.
-    /// </summary>
-    /// <returns>Enumerable value.</returns>
-    public IEnumerable<MessagePackObject> AsEnumerable() => this.AsList();
-
     /// <inheritdoc/>
     public override string ToString()
     {

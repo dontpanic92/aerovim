@@ -114,7 +114,6 @@ public class NeovimRedrawParserTests
         Assert.That(modeInfo[0].CursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
         Assert.That(modeInfo[0].CursorStyleEnabled, Is.True);
         Assert.That(modeInfo[0].CursorVisible, Is.True);
-        Assert.That(modeInfo[0].MouseShape, Is.EqualTo("beam"));
         Assert.That(modeInfo[0].PointerShape, Is.EqualTo("beam"));
     }
 

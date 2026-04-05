@@ -125,7 +125,6 @@ public class NeovimClientTests
         Assert.That(client.ModeInfo!.CursorShape, Is.EqualTo(CursorShape.Vertical));
         Assert.That(client.ModeInfo.CellPercentage, Is.EqualTo(25));
         Assert.That(client.ModeInfo.CursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
-        Assert.That(client.ModeInfo.MouseShape, Is.EqualTo("beam"));
         Assert.That(client.ModeInfo.PointerShape, Is.EqualTo("beam"));
         Assert.That(client.ModeInfo.CursorStyleEnabled, Is.False);
         Assert.That(client.ModeInfo.CursorVisible, Is.True);
