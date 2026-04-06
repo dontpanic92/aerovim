@@ -31,6 +31,7 @@ public class UI
         var options = new Dictionary<string, bool>()
         {
             ["rgb"] = true,
+            ["ext_linegrid"] = true,
         };
 
         // UI connection is critical — observe the response so failures are visible.

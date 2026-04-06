@@ -147,4 +147,134 @@ public interface IRedrawEventFactory<TRedrawEvent>
     /// </summary>
     /// <returns>The created redraw event.</returns>
     TRedrawEvent CreateMouseOffEvent();
+
+    /// <summary>
+    /// Create HlAttrDefine event.
+    /// </summary>
+    /// <param name="id">The highlight ID.</param>
+    /// <param name="rgbAttrs">The RGB highlight attributes.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateHlAttrDefineEvent(int id, AeroVim.Editor.Utilities.HighlightAttributes rgbAttrs);
+
+    /// <summary>
+    /// Create DefaultColorsSet event.
+    /// </summary>
+    /// <param name="rgbFg">Default RGB foreground color.</param>
+    /// <param name="rgbBg">Default RGB background color.</param>
+    /// <param name="rgbSp">Default RGB special color.</param>
+    /// <param name="ctermFg">Default cterm foreground color code.</param>
+    /// <param name="ctermBg">Default cterm background color code.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateDefaultColorsSetEvent(int rgbFg, int rgbBg, int rgbSp, int ctermFg, int ctermBg);
+
+    /// <summary>
+    /// Create GridResize event.
+    /// </summary>
+    /// <param name="grid">The grid identifier.</param>
+    /// <param name="width">Column count.</param>
+    /// <param name="height">Row count.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateGridResizeEvent(int grid, int width, int height);
+
+    /// <summary>
+    /// Create GridLine event.
+    /// </summary>
+    /// <param name="grid">The grid identifier.</param>
+    /// <param name="row">The row index.</param>
+    /// <param name="colStart">The starting column.</param>
+    /// <param name="cells">The cell data.</param>
+    /// <param name="wrap">Whether this line wraps.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateGridLineEvent(int grid, int row, int colStart, Events.GridLineCell[] cells, bool wrap);
+
+    /// <summary>
+    /// Create GridClear event.
+    /// </summary>
+    /// <param name="grid">The grid identifier.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateGridClearEvent(int grid);
+
+    /// <summary>
+    /// Create GridCursorGoto event.
+    /// </summary>
+    /// <param name="grid">The grid identifier.</param>
+    /// <param name="row">The row index.</param>
+    /// <param name="col">The column index.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateGridCursorGotoEvent(int grid, int row, int col);
+
+    /// <summary>
+    /// Create GridScroll event.
+    /// </summary>
+    /// <param name="grid">The grid identifier.</param>
+    /// <param name="top">Top row (inclusive).</param>
+    /// <param name="bot">Bottom row (exclusive).</param>
+    /// <param name="left">Left column (inclusive).</param>
+    /// <param name="right">Right column (exclusive).</param>
+    /// <param name="rows">Rows to scroll.</param>
+    /// <param name="cols">Columns to scroll (reserved).</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateGridScrollEvent(int grid, int top, int bot, int left, int right, int rows, int cols);
+
+    /// <summary>
+    /// Create Flush event.
+    /// </summary>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateFlushEvent();
+
+    /// <summary>
+    /// Create PopupmenuShow event.
+    /// </summary>
+    /// <param name="items">The completion items.</param>
+    /// <param name="selected">The initially selected item index.</param>
+    /// <param name="row">The anchor row.</param>
+    /// <param name="col">The anchor column.</param>
+    /// <param name="grid">The anchor grid.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreatePopupmenuShowEvent(AeroVim.Editor.PopupMenuItem[] items, int selected, int row, int col, int grid);
+
+    /// <summary>
+    /// Create PopupmenuSelect event.
+    /// </summary>
+    /// <param name="selected">The selected item index.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreatePopupmenuSelectEvent(int selected);
+
+    /// <summary>
+    /// Create PopupmenuHide event.
+    /// </summary>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreatePopupmenuHideEvent();
+
+    /// <summary>
+    /// Create CmdlineShow event.
+    /// </summary>
+    /// <param name="content">The content chunks.</param>
+    /// <param name="pos">The cursor byte position.</param>
+    /// <param name="firstc">The first character.</param>
+    /// <param name="prompt">The prompt text.</param>
+    /// <param name="indent">The indent level.</param>
+    /// <param name="level">The nesting level.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateCmdlineShowEvent(
+        IList<(int HlId, string Text)> content,
+        int pos,
+        string firstc,
+        string prompt,
+        int indent,
+        int level);
+
+    /// <summary>
+    /// Create CmdlinePos event.
+    /// </summary>
+    /// <param name="pos">The cursor byte position.</param>
+    /// <param name="level">The nesting level.</param>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateCmdlinePosEvent(int pos, int level);
+
+    /// <summary>
+    /// Create CmdlineHide event.
+    /// </summary>
+    /// <returns>The created redraw event.</returns>
+    TRedrawEvent CreateCmdlineHideEvent();
 }

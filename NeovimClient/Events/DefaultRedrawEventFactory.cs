@@ -132,4 +132,94 @@ public class DefaultRedrawEventFactory : IRedrawEventFactory<IRedrawEvent>
     {
         return new MouseOffEvent();
     }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateHlAttrDefineEvent(int id, AeroVim.Editor.Utilities.HighlightAttributes rgbAttrs)
+    {
+        return new HlAttrDefineEvent(id, rgbAttrs);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateDefaultColorsSetEvent(int rgbFg, int rgbBg, int rgbSp, int ctermFg, int ctermBg)
+    {
+        return new DefaultColorsSetEvent(rgbFg, rgbBg, rgbSp, ctermFg, ctermBg);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateGridResizeEvent(int grid, int width, int height)
+    {
+        return new GridResizeEvent(grid, width, height);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateGridLineEvent(int grid, int row, int colStart, GridLineCell[] cells, bool wrap)
+    {
+        return new GridLineEvent(grid, row, colStart, cells, wrap);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateGridClearEvent(int grid)
+    {
+        return new GridClearEvent(grid);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateGridCursorGotoEvent(int grid, int row, int col)
+    {
+        return new GridCursorGotoEvent(grid, row, col);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateGridScrollEvent(int grid, int top, int bot, int left, int right, int rows, int cols)
+    {
+        return new GridScrollEvent(grid, top, bot, left, right, rows, cols);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateFlushEvent()
+    {
+        return new FlushEvent();
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreatePopupmenuShowEvent(AeroVim.Editor.PopupMenuItem[] items, int selected, int row, int col, int grid)
+    {
+        return new PopupmenuShowEvent(items, selected, row, col, grid);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreatePopupmenuSelectEvent(int selected)
+    {
+        return new PopupmenuSelectEvent(selected);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreatePopupmenuHideEvent()
+    {
+        return new PopupmenuHideEvent();
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateCmdlineShowEvent(
+        IList<(int HlId, string Text)> content,
+        int pos,
+        string firstc,
+        string prompt,
+        int indent,
+        int level)
+    {
+        return new CmdlineShowEvent(content, pos, firstc, prompt, indent, level);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateCmdlinePosEvent(int pos, int level)
+    {
+        return new CmdlinePosEvent(pos, level);
+    }
+
+    /// <inheritdoc />
+    public IRedrawEvent CreateCmdlineHideEvent()
+    {
+        return new CmdlineHideEvent();
+    }
 }

@@ -6,6 +6,7 @@
 namespace AeroVim.NeovimClient;
 
 using AeroVim.Editor.Diagnostics;
+using AeroVim.Editor.Utilities;
 
 /// <summary>
 /// Parses Neovim redraw notifications into redraw events.
@@ -151,6 +152,48 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 break;
             case "mouse_off":
                 this.ParseNoArgRepeating(command, events, this.factory.CreateMouseOffEvent, eventName);
+                break;
+            case "hl_attr_define":
+                this.ParseHlAttrDefine(command, events);
+                break;
+            case "default_colors_set":
+                this.ParseDefaultColorsSet(command, events);
+                break;
+            case "grid_resize":
+                this.ParseGridResize(command, events);
+                break;
+            case "grid_line":
+                this.ParseGridLine(command, events);
+                break;
+            case "grid_clear":
+                this.ParseGridClear(command, events);
+                break;
+            case "grid_cursor_goto":
+                this.ParseGridCursorGoto(command, events);
+                break;
+            case "grid_scroll":
+                this.ParseGridScroll(command, events);
+                break;
+            case "flush":
+                this.ParseNoArgRepeating(command, events, this.factory.CreateFlushEvent, eventName);
+                break;
+            case "popupmenu_show":
+                this.ParsePopupmenuShow(command, events);
+                break;
+            case "popupmenu_select":
+                this.ParsePopupmenuSelect(command, events);
+                break;
+            case "popupmenu_hide":
+                this.ParseNoArgRepeating(command, events, this.factory.CreatePopupmenuHideEvent, eventName);
+                break;
+            case "cmdline_show":
+                this.ParseCmdlineShow(command, events);
+                break;
+            case "cmdline_pos":
+                this.ParseCmdlinePos(command, events);
+                break;
+            case "cmdline_hide":
+                this.ParseNoArgRepeating(command, events, this.factory.CreateCmdlineHideEvent, eventName);
                 break;
             default:
                 this.log.Warning($"Unsupported redraw event '{eventName}' was ignored.");
@@ -308,6 +351,188 @@ public sealed class RedrawEventParser<TRedrawEvent>
         {
             var args = RequireArgumentList(command, i, 2, "option_set");
             events.Add(this.factory.CreateOptionSetEvent(args[0].AsString(), args[1].ToString()));
+        }
+    }
+
+    private void ParseHlAttrDefine(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 4, "hl_attr_define");
+            int id = args[0].AsInt32();
+            var rgbDict = args[1].AsDictionary();
+
+            var attrs = new HighlightAttributes
+            {
+                Foreground = TryGetValueFromDictionary(rgbDict, "foreground")?.AsInt32(),
+                Background = TryGetValueFromDictionary(rgbDict, "background")?.AsInt32(),
+                Special = TryGetValueFromDictionary(rgbDict, "special")?.AsInt32(),
+                Reverse = TryGetValueFromDictionary(rgbDict, "reverse")?.AsBoolean() == true,
+                Italic = TryGetValueFromDictionary(rgbDict, "italic")?.AsBoolean() == true,
+                Bold = TryGetValueFromDictionary(rgbDict, "bold")?.AsBoolean() == true,
+                Underline = TryGetValueFromDictionary(rgbDict, "underline")?.AsBoolean() == true,
+                Undercurl = TryGetValueFromDictionary(rgbDict, "undercurl")?.AsBoolean() == true,
+                Strikethrough = TryGetValueFromDictionary(rgbDict, "strikethrough")?.AsBoolean() == true,
+            };
+
+            events.Add(this.factory.CreateHlAttrDefineEvent(id, attrs));
+        }
+    }
+
+    private void ParseDefaultColorsSet(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 5, "default_colors_set");
+            events.Add(this.factory.CreateDefaultColorsSetEvent(
+                args[0].AsInt32(),
+                args[1].AsInt32(),
+                args[2].AsInt32(),
+                args[3].AsInt32(),
+                args[4].AsInt32()));
+        }
+    }
+
+    private void ParseGridResize(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 3, "grid_resize");
+            events.Add(this.factory.CreateGridResizeEvent(
+                args[0].AsInt32(),
+                args[1].AsInt32(),
+                args[2].AsInt32()));
+        }
+    }
+
+    private void ParseGridLine(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 4, "grid_line");
+            int grid = args[0].AsInt32();
+            int row = args[1].AsInt32();
+            int colStart = args[2].AsInt32();
+            var rawCells = RequireList(args[3], "grid_line cells");
+            bool wrap = args.Count > 4 && args[4].AsBoolean();
+
+            var cells = new Events.GridLineCell[rawCells.Count];
+            for (int c = 0; c < rawCells.Count; c++)
+            {
+                var cellArray = RequireList(rawCells[c], $"grid_line cell[{c}]");
+                string text = cellArray[0].AsString();
+                int? hlId = cellArray.Count > 1 ? cellArray[1].AsInt32() : null;
+                int repeat = cellArray.Count > 2 ? cellArray[2].AsInt32() : 1;
+                cells[c] = new Events.GridLineCell(text, hlId, repeat);
+            }
+
+            events.Add(this.factory.CreateGridLineEvent(grid, row, colStart, cells, wrap));
+        }
+    }
+
+    private void ParseGridClear(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 1, "grid_clear");
+            events.Add(this.factory.CreateGridClearEvent(args[0].AsInt32()));
+        }
+    }
+
+    private void ParseGridCursorGoto(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 3, "grid_cursor_goto");
+            events.Add(this.factory.CreateGridCursorGotoEvent(
+                args[0].AsInt32(),
+                args[1].AsInt32(),
+                args[2].AsInt32()));
+        }
+    }
+
+    private void ParseGridScroll(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 7, "grid_scroll");
+            events.Add(this.factory.CreateGridScrollEvent(
+                args[0].AsInt32(),
+                args[1].AsInt32(),
+                args[2].AsInt32(),
+                args[3].AsInt32(),
+                args[4].AsInt32(),
+                args[5].AsInt32(),
+                args[6].AsInt32()));
+        }
+    }
+
+    private void ParsePopupmenuShow(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 5, "popupmenu_show");
+            var rawItems = RequireList(args[0], "popupmenu_show items");
+            var items = new AeroVim.Editor.PopupMenuItem[rawItems.Count];
+            for (int j = 0; j < rawItems.Count; j++)
+            {
+                var itemArray = RequireList(rawItems[j], $"popupmenu_show item[{j}]");
+                string word = itemArray.Count > 0 ? itemArray[0].AsString() : string.Empty;
+                string kind = itemArray.Count > 1 ? itemArray[1].AsString() : string.Empty;
+                string menu = itemArray.Count > 2 ? itemArray[2].AsString() : string.Empty;
+                string info = itemArray.Count > 3 ? itemArray[3].AsString() : string.Empty;
+                items[j] = new AeroVim.Editor.PopupMenuItem(word, kind, menu, info);
+            }
+
+            events.Add(this.factory.CreatePopupmenuShowEvent(
+                items,
+                args[1].AsInt32(),
+                args[2].AsInt32(),
+                args[3].AsInt32(),
+                args[4].AsInt32()));
+        }
+    }
+
+    private void ParsePopupmenuSelect(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 1, "popupmenu_select");
+            events.Add(this.factory.CreatePopupmenuSelectEvent(args[0].AsInt32()));
+        }
+    }
+
+    private void ParseCmdlineShow(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 6, "cmdline_show");
+            var rawContent = RequireList(args[0], "cmdline_show content");
+            var content = new List<(int HlId, string Text)>(rawContent.Count);
+            foreach (var chunk in rawContent)
+            {
+                var chunkList = RequireList(chunk, "cmdline_show chunk");
+                int hlId = chunkList.Count > 2 ? chunkList[2].AsInt32() : 0;
+                string text = chunkList.Count > 1 ? chunkList[1].AsString() : string.Empty;
+                content.Add((hlId, text));
+            }
+
+            events.Add(this.factory.CreateCmdlineShowEvent(
+                content,
+                args[1].AsInt32(),
+                args[2].AsString(),
+                args[3].AsString(),
+                args[4].AsInt32(),
+                args[5].AsInt32()));
+        }
+    }
+
+    private void ParseCmdlinePos(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    {
+        for (int i = 1; i < command.Count; i++)
+        {
+            var args = RequireArgumentList(command, i, 2, "cmdline_pos");
+            events.Add(this.factory.CreateCmdlinePosEvent(args[0].AsInt32(), args[1].AsInt32()));
         }
     }
 }

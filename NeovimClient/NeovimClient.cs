@@ -21,6 +21,7 @@ public sealed class NeovimClient : IEditorClient
     private readonly DefaultNeovimRpcClient? neovim;
     private readonly object screenLock = new();
     private readonly Screen screen = new() { Cells = new Cell[0, 0] };
+    private readonly Dictionary<int, HighlightAttributes> highlightTable = new();
 
     private int foregroundColor = DefaultForegroundColor;
     private int backgroundColor = DefaultBackgroundColor;
@@ -37,6 +38,10 @@ public sealed class NeovimClient : IEditorClient
     private bool[]? dirtyRows;
     private bool allDirty;
     private (int Row, int Col) cursorPosition = (0, 0);
+    private PopupMenuItem[]? popupItems;
+    private int popupSelected = -1;
+    private (int Row, int Col)? popupAnchor;
+    private CmdlineState? cmdlineState;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NeovimClient"/> class.
@@ -261,6 +266,10 @@ public sealed class NeovimClient : IEditorClient
             this.screen.CursorPosition = this.cursorPosition;
             this.screen.BackgroundColor = this.backgroundColor;
             this.screen.ForegroundColor = this.foregroundColor;
+            this.screen.PopupItems = this.popupItems;
+            this.screen.PopupSelected = this.popupSelected;
+            this.screen.PopupAnchor = this.popupAnchor;
+            this.screen.Cmdline = this.cmdlineState;
         }
 
         return this.screen;
@@ -278,6 +287,7 @@ public sealed class NeovimClient : IEditorClient
     private void OnNeovimRedraw(IList<IRedrawEvent> events)
     {
         var actions = new List<Action>();
+        bool flush = false;
 
         lock (this.screenLock)
         {
@@ -285,23 +295,18 @@ public sealed class NeovimClient : IEditorClient
             {
                 switch (ev)
                 {
+                    // ---- ui-grid-old events ----
                     case ResizeEvent e:
                         this.Resize((int)e.Col, (int)e.Row);
                         break;
-                    case ClearEvent e:
+                    case ClearEvent:
                         this.Clear();
                         break;
-                    case EolClearEvent e:
+                    case EolClearEvent:
                         this.EolClear();
                         break;
                     case CursorGotoEvent e:
                         this.cursorPosition = ((int)e.Row, (int)e.Col);
-                        break;
-                    case SetTitleEvent e:
-                        this.title = e.Title;
-                        actions.Add(() => this.TitleChanged?.Invoke(e.Title));
-                        break;
-                    case SetIconTitleEvent:
                         break;
                     case PutEvent e:
                         this.Put(
@@ -335,6 +340,47 @@ public sealed class NeovimClient : IEditorClient
                     case ScrollEvent e:
                         this.Scroll(e.Count);
                         break;
+
+                    // ---- ext_linegrid events ----
+                    case HlAttrDefineEvent e:
+                        this.highlightTable[e.Id] = e.RgbAttrs;
+                        break;
+                    case DefaultColorsSetEvent e:
+                        this.foregroundColor = e.RgbFg;
+                        this.backgroundColor = e.RgbBg;
+                        this.specialColor = e.RgbSp;
+                        actions.Add(() =>
+                        {
+                            this.ForegroundColorChanged?.Invoke(e.RgbFg);
+                            this.BackgroundColorChanged?.Invoke(e.RgbBg);
+                        });
+                        break;
+                    case GridResizeEvent e:
+                        this.Resize(e.Width, e.Height);
+                        break;
+                    case GridLineEvent e:
+                        this.GridLine(e);
+                        break;
+                    case GridClearEvent:
+                        this.Clear();
+                        break;
+                    case GridCursorGotoEvent e:
+                        this.cursorPosition = (e.Row, e.Col);
+                        break;
+                    case GridScrollEvent e:
+                        this.GridScroll(e);
+                        break;
+                    case FlushEvent:
+                        flush = true;
+                        break;
+
+                    // ---- Global events (shared) ----
+                    case SetTitleEvent e:
+                        this.title = e.Title;
+                        actions.Add(() => this.TitleChanged?.Invoke(e.Title));
+                        break;
+                    case SetIconTitleEvent:
+                        break;
                     case GuiFontEvent e:
                         this.FontSettings = e.FontSettings;
                         actions.Add(() => this.FontChanged?.Invoke(this.FontSettings));
@@ -351,6 +397,45 @@ public sealed class NeovimClient : IEditorClient
                     case MouseOffEvent:
                         this.MouseEnabled = false;
                         break;
+
+                    // ---- ext_popupmenu events ----
+                    case PopupmenuShowEvent e:
+                        Console.WriteLine("popupmenu");
+                        this.popupItems = e.Items;
+                        this.popupSelected = e.Selected;
+                        this.popupAnchor = (e.Row, e.Col);
+                        break;
+                    case PopupmenuSelectEvent e:
+                        this.popupSelected = e.Selected;
+                        break;
+                    case PopupmenuHideEvent:
+                        this.popupItems = null;
+                        this.popupSelected = -1;
+                        this.popupAnchor = null;
+                        break;
+
+                    // ---- ext_cmdline events ----
+                    case CmdlineShowEvent e:
+                        this.cmdlineState = new CmdlineState
+                        {
+                            Content = e.Content,
+                            CursorPos = e.Pos,
+                            FirstChar = e.Firstc,
+                            Prompt = e.Prompt,
+                            Indent = e.Indent,
+                            Level = e.Level,
+                        };
+                        break;
+                    case CmdlinePosEvent e:
+                        if (this.cmdlineState is not null)
+                        {
+                            this.cmdlineState.CursorPos = e.Pos;
+                        }
+
+                        break;
+                    case CmdlineHideEvent:
+                        this.cmdlineState = null;
+                        break;
                 }
             }
         }
@@ -360,7 +445,12 @@ public sealed class NeovimClient : IEditorClient
             action.Invoke();
         }
 
-        this.Redraw?.Invoke();
+        // With ext_linegrid, only refresh the UI on flush. Legacy batches
+        // that never contain a flush event still trigger an immediate redraw.
+        if (flush || !events.Any(e => e is FlushEvent or HlAttrDefineEvent or GridLineEvent or GridResizeEvent or GridClearEvent or GridCursorGotoEvent or GridScrollEvent or DefaultColorsSetEvent or PopupmenuShowEvent or PopupmenuSelectEvent or PopupmenuHideEvent or CmdlineShowEvent or CmdlinePosEvent or CmdlineHideEvent))
+        {
+            this.Redraw?.Invoke();
+        }
     }
 
     private void Resize(int width, int height)
@@ -490,6 +580,140 @@ public sealed class NeovimClient : IEditorClient
             {
                 this.dirtyRows[row] = true;
             }
+        }
+    }
+
+    private void GridLine(GridLineEvent e)
+    {
+        if (this.cells is null)
+        {
+            return;
+        }
+
+        int row = e.Row;
+        int col = e.ColStart;
+        int lastHlId = 0;
+
+        if (this.dirtyRows is not null && row < this.dirtyRows.Length)
+        {
+            this.dirtyRows[row] = true;
+        }
+
+        foreach (var cell in e.Cells)
+        {
+            if (cell.HlId.HasValue)
+            {
+                lastHlId = cell.HlId.Value;
+            }
+
+            this.ResolveHighlight(lastHlId, out int fg, out int bg, out int sp, out bool reverse, out bool italic, out bool bold, out bool underline, out bool undercurl);
+
+            for (int r = 0; r < cell.Repeat; r++)
+            {
+                if (col >= this.Width)
+                {
+                    break;
+                }
+
+                string? text = cell.Text.Length > 0 ? cell.Text : null;
+                this.cells[row, col].Set(text, fg, bg, sp, reverse, italic, bold, underline, undercurl);
+                col++;
+            }
+        }
+    }
+
+    private void GridScroll(GridScrollEvent e)
+    {
+        if (this.cells is null)
+        {
+            return;
+        }
+
+        // ext_linegrid uses end-exclusive ranges (unlike legacy end-inclusive)
+        int top = e.Top;
+        int bot = e.Bot;
+        int left = e.Left;
+        int right = e.Right;
+        int count = e.Rows;
+
+        if (count > 0)
+        {
+            // Scroll up: move rows [top+count, bot) → [top, bot-count)
+            for (int row = top; row < bot - count; row++)
+            {
+                for (int col = left; col < right; col++)
+                {
+                    this.cells[row, col] = this.cells[row + count, col];
+                }
+            }
+
+            // Clear the vacated rows at the bottom
+            for (int row = bot - count; row < bot; row++)
+            {
+                for (int col = left; col < right; col++)
+                {
+                    this.ClearCell(ref this.cells[row, col]);
+                }
+            }
+        }
+        else if (count < 0)
+        {
+            int absCount = -count;
+
+            // Scroll down: move rows [top, bot+count) → [top-count, bot)
+            for (int row = bot - 1; row >= top + absCount; row--)
+            {
+                for (int col = left; col < right; col++)
+                {
+                    this.cells[row, col] = this.cells[row - absCount, col];
+                }
+            }
+
+            // Clear the vacated rows at the top
+            for (int row = top; row < top + absCount; row++)
+            {
+                for (int col = left; col < right; col++)
+                {
+                    this.ClearCell(ref this.cells[row, col]);
+                }
+            }
+        }
+
+        if (this.dirtyRows is not null)
+        {
+            for (int row = top; row < bot; row++)
+            {
+                if (row < this.dirtyRows.Length)
+                {
+                    this.dirtyRows[row] = true;
+                }
+            }
+        }
+    }
+
+    private void ResolveHighlight(int hlId, out int fg, out int bg, out int sp, out bool reverse, out bool italic, out bool bold, out bool underline, out bool undercurl)
+    {
+        if (hlId != 0 && this.highlightTable.TryGetValue(hlId, out var attrs))
+        {
+            fg = attrs.Foreground ?? this.foregroundColor;
+            bg = attrs.Background ?? this.backgroundColor;
+            sp = attrs.Special ?? this.specialColor;
+            reverse = attrs.Reverse;
+            italic = attrs.Italic;
+            bold = attrs.Bold;
+            underline = attrs.Underline;
+            undercurl = attrs.Undercurl;
+        }
+        else
+        {
+            fg = this.foregroundColor;
+            bg = this.backgroundColor;
+            sp = this.specialColor;
+            reverse = false;
+            italic = false;
+            bold = false;
+            underline = false;
+            undercurl = false;
         }
     }
 
