@@ -34,6 +34,44 @@ public static class EditorPathDetector
     }
 
     /// <summary>
+    /// Validates that the configured editor path is usable before launch.
+    /// </summary>
+    /// <param name="editorType">The editor backend type.</param>
+    /// <param name="path">The configured executable path.</param>
+    /// <returns>
+    /// <c>null</c> if the path looks valid; otherwise a human-readable
+    /// reason string explaining the problem.
+    /// </returns>
+    public static string? ValidateEditorPath(EditorType editorType, string? path)
+    {
+        string editorName = editorType == EditorType.Vim ? "Vim" : "Neovim";
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return $"{editorName} executable path is not configured.";
+        }
+
+        // Only validate existence for absolute/relative paths (contain a separator).
+        // Bare names like "nvim" are resolved by the OS at launch time.
+        if (path.IndexOf(Path.DirectorySeparatorChar) >= 0
+            || path.IndexOf(Path.AltDirectorySeparatorChar) >= 0)
+        {
+            if (!File.Exists(path))
+            {
+                return $"{editorName} executable was not found at '{path}'.";
+            }
+
+            var info = new FileInfo(path);
+            if (info.Attributes.HasFlag(FileAttributes.Directory))
+            {
+                return $"'{path}' is a directory, not an executable file.";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Fill unset editor paths using PATH-based detection.
     /// </summary>
     /// <param name="settings">Application settings.</param>

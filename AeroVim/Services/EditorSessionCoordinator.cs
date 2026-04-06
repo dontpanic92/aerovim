@@ -110,12 +110,43 @@ internal sealed class EditorSessionCoordinator
                 this.log.Info($"{this.settings.EditorType} backend created successfully.");
                 break;
             }
+            catch (EditorNotFoundException ex)
+            {
+                this.log.Error($"Editor not found.", ex);
+                if (await this.ShowStartupError(ex.UserMessage) == Dialogs.SettingsWindow.Result.Cancel)
+                {
+                    return false;
+                }
+            }
+            catch (EditorLaunchException ex)
+            {
+                this.log.Error($"Editor launch failed.", ex);
+                if (await this.ShowStartupError(ex.UserMessage) == Dialogs.SettingsWindow.Result.Cancel)
+                {
+                    return false;
+                }
+            }
+            catch (EditorCrashedException ex)
+            {
+                this.log.Error($"Editor crashed on startup.", ex);
+                if (await this.ShowStartupError(AppendLogPath(ex.UserMessage)) == Dialogs.SettingsWindow.Result.Cancel)
+                {
+                    return false;
+                }
+            }
+            catch (BackendCommunicationException ex)
+            {
+                this.log.Error($"Backend communication failed.", ex);
+                if (await this.ShowStartupError(AppendLogPath(ex.UserMessage)) == Dialogs.SettingsWindow.Result.Cancel)
+                {
+                    return false;
+                }
+            }
             catch (Exception ex)
             {
-                this.log.Error($"Failed to create {this.settings.EditorType} backend.", ex);
-                string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
-                if (await this.showSettingsPrompt($"Please specify the path to {editorName}") ==
-                    Dialogs.SettingsWindow.Result.Cancel)
+                this.log.Error($"Unexpected error creating {this.settings.EditorType} backend.", ex);
+                string message = $"{this.settings.EditorType} failed to start: {ex.Message}";
+                if (await this.ShowStartupError(AppendLogPath(message)) == Dialogs.SettingsWindow.Result.Cancel)
                 {
                     return false;
                 }
@@ -191,6 +222,17 @@ internal sealed class EditorSessionCoordinator
         this.editorClient?.Dispose();
     }
 
+    private static string AppendLogPath(string message)
+    {
+        string? logPath = AeroVim.Diagnostics.AppLogger.LogFilePath;
+        if (logPath is not null)
+        {
+            message += $"\n\nSee log file for details:\n{logPath}";
+        }
+
+        return message;
+    }
+
     private void WireClientEvents()
     {
         if (this.editorClient is null)
@@ -225,16 +267,30 @@ internal sealed class EditorSessionCoordinator
         if (exitCode != 0)
         {
             string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
-            string message = exitCode == -1
-                ? $"{editorName} failed to start. Please check the executable path in Settings."
-                : $"{editorName} exited unexpectedly (exit code {exitCode}). Please verify the executable path in Settings.";
+            string message;
 
-            string? logPath = AeroVim.Diagnostics.AppLogger.LogFilePath;
-            if (logPath is not null)
+            if (exitCode == -1)
             {
-                message += $"\n\nSee log file for details:\n{logPath}";
+                // For VimClient, check if a classified startup error was recorded.
+                string? classifiedError = (this.editorClient as VimClient.VimClient)?.LastStartupError;
+                message = classifiedError
+                    ?? $"{editorName} failed to start. Please check the executable path in Settings.";
+            }
+            else
+            {
+                // Try to provide extra context for well-known exit codes.
+                string detail = exitCode switch
+                {
+                    127 => " (command not found)",
+                    126 => " (permission denied)",
+                    137 => " (killed by signal 9 / SIGKILL)",
+                    _ => string.Empty,
+                };
+
+                message = $"{editorName} exited unexpectedly (exit code {exitCode}{detail}).";
             }
 
+            message = AppendLogPath(message);
             this.log.Error(message);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -265,5 +321,10 @@ internal sealed class EditorSessionCoordinator
                 this.editorControl?.SetFallbackFonts(this.settings.FallbackFonts);
                 break;
         }
+    }
+
+    private Task<Dialogs.SettingsWindow.Result> ShowStartupError(string message)
+    {
+        return this.showSettingsPrompt(message);
     }
 }

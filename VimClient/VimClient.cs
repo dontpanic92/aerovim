@@ -32,6 +32,7 @@ public sealed class VimClient : IEditorClient
     private bool disposed;
     private bool contentReceived;
     private int processExitHandled;
+    private string? lastStartupError;
     private ModeInfo currentModeInfo;
     private ColorChangedHandler? foregroundColorChanged;
     private ColorChangedHandler? backgroundColorChanged;
@@ -147,6 +148,15 @@ public sealed class VimClient : IEditorClient
     /// Gets the current font settings.
     /// </summary>
     public FontSettings FontSettings { get; private set; }
+
+    /// <summary>
+    /// Gets a classified error message describing why the last startup
+    /// attempt failed, or <c>null</c> if startup succeeded or has not
+    /// been attempted. This is set when <see cref="EditorExited"/> fires
+    /// with exit code -1, allowing callers to distinguish "not found"
+    /// from "crashed" from "PTY failure".
+    /// </summary>
+    public string? LastStartupError => this.lastStartupError;
 
     /// <summary>
     /// Try to resize the editor screen. The first call spawns the Vim process.
@@ -412,11 +422,13 @@ public sealed class VimClient : IEditorClient
         {
             if (string.IsNullOrEmpty(this.vimPath))
             {
+                this.lastStartupError = "Vim executable path is not configured. Please set the path in Settings.";
                 throw new InvalidOperationException("Vim executable path is not configured.");
             }
 
             if (this.vimPath.IndexOf(Path.DirectorySeparatorChar) >= 0 && !File.Exists(this.vimPath))
             {
+                this.lastStartupError = $"Vim executable was not found at:\n{this.vimPath}\n\nPlease verify the path in Settings or use Detect to find it.";
                 throw new FileNotFoundException(
                     $"Vim executable not found at '{this.vimPath}'.");
             }
@@ -465,8 +477,17 @@ public sealed class VimClient : IEditorClient
             this.log.Info(
                 $"Vim process started successfully (pid={this.ptyConnection.Pid})");
         }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            this.lastStartupError = $"Vim could not be started from:\n{this.vimPath}\n\n{ex.Message}";
+            this.log.Error(
+                $"Failed to spawn Vim at '{this.vimPath}'.",
+                ex);
+            this.EditorExited?.Invoke(-1);
+        }
         catch (Exception ex)
         {
+            this.lastStartupError ??= $"Vim failed to start from '{this.vimPath}': {ex.Message}";
             this.log.Error(
                 $"Failed to spawn Vim at '{this.vimPath}'.",
                 ex);
