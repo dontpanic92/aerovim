@@ -383,8 +383,7 @@ public class EditorControl : Control, IDisposable
 
             if (this.fontChain.PrimaryFontName.Length == 0)
             {
-                AeroVim.Diagnostics.AppLogger.Instance.Warning(
-                    "EditorControl",
+                AeroVim.Diagnostics.AppLogger.For<EditorControl>().Warning(
                     "None of the guifont names resolved to a valid font. Keeping current font.");
                 return;
             }

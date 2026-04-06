@@ -191,7 +191,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)
         {
             this.LastPersistenceError = ex.Message;
-            AppLogger.Instance.Error("AppSettings", "Failed to save settings.", ex);
+            AppLogger.For<AppSettings>().Error("Failed to save settings.", ex);
             return false;
         }
     }
@@ -274,7 +274,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)
         {
-            AppLogger.Instance.Error("AppSettings", "Failed to load settings.", ex);
+            AppLogger.For<AppSettings>().Error("Failed to load settings.", ex);
             return new AppSettings
             {
                 LastPersistenceError = ex.Message,

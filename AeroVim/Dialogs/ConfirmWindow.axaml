@@ -27,7 +27,8 @@
                     Click="Yes_Click" />
             <Button Content="No"
                     Width="76"
-                    Click="No_Click" />
+                    Click="No_Click"
+                    IsDefault="True" />
         </StackPanel>
     </Grid>
 </Window>

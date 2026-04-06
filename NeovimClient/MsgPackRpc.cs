@@ -18,7 +18,7 @@ public sealed class MsgPackRpc : IDisposable
 {
     private readonly Stream writer;
     private readonly Stream reader;
-    private readonly IAppLogger logger;
+    private readonly IComponentLogger log;
     private readonly CancellationTokenSource disposeCancellation = new();
     private readonly Task readTask;
     private uint nextRequestId = 0;
@@ -38,7 +38,7 @@ public sealed class MsgPackRpc : IDisposable
     {
         this.writer = writer;
         this.reader = reader;
-        this.logger = logger;
+        this.log = logger.For<MsgPackRpc>();
         this.NotificationHandlers += handler;
         this.readTask = Task.Run(() => this.ReadTaskAsync(this.disposeCancellation.Token));
     }
@@ -229,7 +229,7 @@ public sealed class MsgPackRpc : IDisposable
                 {
                     var unpackException = new MsgPack.UnpackException("Failed to unpack msgpack-rpc payload.", ex);
                     this.FailPendingRequests(unpackException);
-                    this.logger.Error("MsgPackRpc", "Failed to unpack msgpack-rpc payload.", unpackException);
+                    this.log.Error("Failed to unpack msgpack-rpc payload.", unpackException);
                     break;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -257,7 +257,7 @@ public sealed class MsgPackRpc : IDisposable
         switch (type)
         {
             case 0:
-                this.logger.Warning("MsgPackRpc", "Received an incoming request but request handling is not supported.");
+                this.log.Warning("Received an incoming request but request handling is not supported.");
                 break;
             case 1:
                 if (list.Count != 4)

@@ -76,6 +76,25 @@ public class FileLoggerTests
     }
 
     /// <summary>
+    /// <see cref="AppLoggerExtensions.For{T}"/> should tag messages with
+    /// the type name, removing the need to pass the component manually.
+    /// </summary>
+    [Test]
+    public void ForT_TagsMessagesWithTypeName()
+    {
+        string logDir = Path.Combine(this.testDir, "logs");
+        using var logger = new FileLogger(logDir);
+        IComponentLogger log = logger.For<FileLoggerTests>();
+
+        log.Info("typed message");
+        logger.Dispose();
+
+        string content = File.ReadAllText(logger.LogFilePath);
+        Assert.That(content, Does.Contain("[FileLoggerTests]"));
+        Assert.That(content, Does.Contain("typed message"));
+    }
+
+    /// <summary>
     /// Error-level messages should include the exception details.
     /// </summary>
     [Test]

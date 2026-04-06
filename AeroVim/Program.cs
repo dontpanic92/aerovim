@@ -27,8 +27,8 @@ public static class Program
             "logs");
         AppLogger.Initialize(new FileLogger(logDir));
 
-        var logger = AppLogger.Instance;
-        logger.Info("Startup", $"AeroVim starting — OS={RuntimeInformation.OSDescription}, Runtime={RuntimeInformation.FrameworkDescription}");
+        var log = AppLogger.For("Startup");
+        log.Info($"AeroVim starting — OS={RuntimeInformation.OSDescription}, Runtime={RuntimeInformation.FrameworkDescription}");
 
         try
         {
@@ -36,7 +36,7 @@ public static class Program
         }
         finally
         {
-            logger.Info("Startup", "AeroVim shutting down.");
+            log.Info("AeroVim shutting down.");
             AppLogger.Shutdown();
         }
     }

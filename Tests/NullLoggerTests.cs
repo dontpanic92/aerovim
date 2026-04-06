@@ -44,4 +44,19 @@ public class NullLoggerTests
     {
         Assert.That(NullLogger.Instance, Is.InstanceOf<IAppLogger>());
     }
+
+    /// <summary>
+    /// <see cref="AppLoggerExtensions.For{T}"/> should return a non-null
+    /// <see cref="IComponentLogger"/> that does not throw.
+    /// </summary>
+    [Test]
+    public void ForT_ReturnsComponentLogger_ThatDoesNotThrow()
+    {
+        IComponentLogger log = NullLogger.Instance.For<NullLoggerTests>();
+        Assert.That(log, Is.Not.Null);
+        Assert.DoesNotThrow(() => log.Error("err"));
+        Assert.DoesNotThrow(() => log.Warning("warn"));
+        Assert.DoesNotThrow(() => log.Info("info"));
+        Assert.DoesNotThrow(() => log.Debug("debug"));
+    }
 }

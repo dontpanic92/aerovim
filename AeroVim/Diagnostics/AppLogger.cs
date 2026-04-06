@@ -28,6 +28,27 @@ internal static class AppLogger
     public static string? LogFilePath => (instance as FileLogger)?.LogFilePath;
 
     /// <summary>
+    /// Creates a component-scoped logger whose tag is derived from
+    /// <typeparamref name="T"/>'s short name.
+    /// </summary>
+    /// <typeparam name="T">The type whose name becomes the component tag.</typeparam>
+    /// <returns>A component-scoped logger.</returns>
+    public static IComponentLogger For<T>()
+    {
+        return instance.For<T>();
+    }
+
+    /// <summary>
+    /// Creates a component-scoped logger with an explicit component name.
+    /// </summary>
+    /// <param name="component">The component tag for log messages.</param>
+    /// <returns>A component-scoped logger.</returns>
+    public static IComponentLogger For(string component)
+    {
+        return instance.For(component);
+    }
+
+    /// <summary>
     /// Sets the global logger instance. Should be called exactly once
     /// during application startup.
     /// </summary>

@@ -95,7 +95,7 @@ internal sealed class WindowEffectsService
                 var nsWindow = this.window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (nsWindow == IntPtr.Zero)
                 {
-                    AppLogger.Instance.Info("WindowEffects", "macOS platform handle unavailable, skipping native transparency setup.");
+                    AppLogger.For<WindowEffectsService>().Info("macOS platform handle unavailable, skipping native transparency setup.");
                     return;
                 }
 
@@ -122,7 +122,7 @@ internal sealed class WindowEffectsService
             var nsWindow = this.window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
             if (nsWindow == IntPtr.Zero)
             {
-                AppLogger.Instance.Info("WindowEffects", "macOS platform handle unavailable in HandleMacOSActivation.");
+                AppLogger.For<WindowEffectsService>().Info("macOS platform handle unavailable in HandleMacOSActivation.");
                 return;
             }
 
@@ -130,7 +130,7 @@ internal sealed class WindowEffectsService
         }
         catch (Exception ex)
         {
-            AppLogger.Instance.Warning("WindowEffects", $"HandleMacOSActivation failed: {ex.Message}", ex);
+            AppLogger.For<WindowEffectsService>().Warning($"HandleMacOSActivation failed: {ex.Message}", ex);
         }
     }
 
@@ -144,7 +144,7 @@ internal sealed class WindowEffectsService
         var nsWindow = this.window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
         if (nsWindow == IntPtr.Zero)
         {
-            AppLogger.Instance.Info("WindowEffects", "macOS platform handle unavailable during WindowState change.");
+            AppLogger.For<WindowEffectsService>().Info("macOS platform handle unavailable during WindowState change.");
             return;
         }
 

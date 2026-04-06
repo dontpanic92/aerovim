@@ -14,7 +14,7 @@ using AeroVim.Editor.Diagnostics;
 public sealed class RedrawEventParser<TRedrawEvent>
 {
     private readonly IRedrawEventFactory<TRedrawEvent> factory;
-    private readonly IAppLogger logger;
+    private readonly IComponentLogger log;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RedrawEventParser{TRedrawEvent}"/> class.
@@ -24,7 +24,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
     public RedrawEventParser(IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger)
     {
         this.factory = factory;
-        this.logger = logger;
+        this.log = logger.For<RedrawEventParser<TRedrawEvent>>();
     }
 
     /// <summary>
@@ -43,7 +43,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
             }
             catch (Exception ex) when (ex is InvalidDataException or ArgumentException or FormatException or InvalidOperationException)
             {
-                this.logger.Error("RedrawParser", "Failed to parse redraw command.", ex);
+                this.log.Error("Failed to parse redraw command.", ex);
             }
         }
 
@@ -153,7 +153,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParseNoArgRepeating(command, events, this.factory.CreateMouseOffEvent, eventName);
                 break;
             default:
-                this.logger.Warning("RedrawParser", $"Unsupported redraw event '{eventName}' was ignored.");
+                this.log.Warning($"Unsupported redraw event '{eventName}' was ignored.");
                 break;
         }
     }

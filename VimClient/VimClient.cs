@@ -20,7 +20,7 @@ public sealed class VimClient : IEditorClient
 {
     private readonly string vimPath;
     private readonly string? workingDirectory;
-    private readonly IAppLogger logger;
+    private readonly IComponentLogger log;
     private readonly TerminalBuffer buffer;
     private readonly VtParser parser;
     private readonly object screenLock = new();
@@ -49,7 +49,7 @@ public sealed class VimClient : IEditorClient
     public VimClient(string vimPath, IAppLogger logger, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
     {
         this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));
-        this.logger = logger;
+        this.log = logger.For<VimClient>();
         this.workingDirectory = workingDirectory;
         this.buffer = new TerminalBuffer(80, 24);
         this.buffer.SetDetectedBackground(initialBackgroundColor);
@@ -421,8 +421,7 @@ public sealed class VimClient : IEditorClient
                     $"Vim executable not found at '{this.vimPath}'.");
             }
 
-            this.logger.Info(
-                "VimClient",
+            this.log.Info(
                 $"Spawning Vim at '{this.vimPath}' ({cols}x{rows})");
 
             var env = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -463,14 +462,12 @@ public sealed class VimClient : IEditorClient
 
             this.ReplayPendingCommands();
 
-            this.logger.Info(
-                "VimClient",
+            this.log.Info(
                 $"Vim process started successfully (pid={this.ptyConnection.Pid})");
         }
         catch (Exception ex)
         {
-            this.logger.Error(
-                "VimClient",
+            this.log.Error(
                 $"Failed to spawn Vim at '{this.vimPath}'.",
                 ex);
             this.EditorExited?.Invoke(-1);
@@ -530,8 +527,7 @@ public sealed class VimClient : IEditorClient
             int exitCode = this.ptyConnection?.ExitCode ?? 0;
             int signal = this.ptyConnection?.ExitSignalNumber ?? 0;
             int pid = this.ptyConnection?.Pid ?? 0;
-            this.logger.Info(
-                "VimClient",
+            this.log.Info(
                 $"Vim process exited (pid={pid}, code={exitCode}, signal={signal})");
             this.EditorExited?.Invoke(exitCode);
         }

@@ -17,7 +17,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     private readonly MsgPackRpc msgPackRpc;
     private readonly IRedrawEventFactory<TRedrawEvent> factory;
     private readonly RedrawEventParser<TRedrawEvent> redrawEventParser;
-    private readonly IAppLogger logger;
+    private readonly IComponentLogger log;
     private readonly Process process;
     private bool disposedValue = false;
 
@@ -30,7 +30,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger)
     {
         this.factory = factory;
-        this.logger = logger;
+        this.log = logger.For<NeovimRpcClient<TRedrawEvent>>();
         this.redrawEventParser = new RedrawEventParser<TRedrawEvent>(factory, logger);
 
         this.process = new Process
@@ -123,7 +123,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     {
         if (name != "redraw")
         {
-            this.logger.Warning("NeovimRpc", $"Unexpected notification received: {name}");
+            this.log.Warning($"Unexpected notification received: {name}");
             return;
         }
 

@@ -19,6 +19,7 @@ using Avalonia.Threading;
 internal sealed class EditorSessionCoordinator
 {
     private readonly AppSettings settings;
+    private readonly IComponentLogger log;
     private readonly IAppLogger logger;
     private readonly Func<string?, Task<Dialogs.SettingsWindow.Result>> showSettingsPrompt;
     private IEditorClient? editorClient;
@@ -41,6 +42,7 @@ internal sealed class EditorSessionCoordinator
     {
         this.settings = settings;
         this.logger = logger;
+        this.log = logger.For<EditorSessionCoordinator>();
         this.showSettingsPrompt = showSettingsPrompt;
 
         this.settings.PropertyChanged += this.OnSettingsPropertyChanged;
@@ -103,14 +105,14 @@ internal sealed class EditorSessionCoordinator
         {
             try
             {
-                this.logger.Info("EditorSession", $"Creating {this.settings.EditorType} backend...");
+                this.log.Info($"Creating {this.settings.EditorType} backend...");
                 this.editorClient = EditorClientFactory.Create(this.settings, this.logger);
-                this.logger.Info("EditorSession", $"{this.settings.EditorType} backend created successfully.");
+                this.log.Info($"{this.settings.EditorType} backend created successfully.");
                 break;
             }
             catch (Exception ex)
             {
-                this.logger.Error("EditorSession", $"Failed to create {this.settings.EditorType} backend.", ex);
+                this.log.Error($"Failed to create {this.settings.EditorType} backend.", ex);
                 string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
                 if (await this.showSettingsPrompt($"Please specify the path to {editorName}") ==
                     Dialogs.SettingsWindow.Result.Cancel)
@@ -233,7 +235,7 @@ internal sealed class EditorSessionCoordinator
                 message += $"\n\nSee log file for details:\n{logPath}";
             }
 
-            this.logger.Error("EditorSession", message);
+            this.log.Error(message);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {

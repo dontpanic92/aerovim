@@ -74,7 +74,7 @@ public static class WindowsInterop
         }
         else
         {
-            AppLogger.Instance.Warning("WindowsInterop", "Failed to install WM_NCACTIVATE subclass for blur preservation.");
+            AppLogger.For("WindowsInterop").Warning("Failed to install WM_NCACTIVATE subclass for blur preservation.");
             subclassProcInstance = null;
         }
     }
