@@ -51,9 +51,22 @@ public sealed class MsgPackRpc : IDisposable
     public delegate void NotificationHandler(string method, IList<MsgPack.MessagePackObject> args);
 
     /// <summary>
+    /// Handler for RPC errors observed from fire-and-forget requests.
+    /// </summary>
+    /// <param name="method">The RPC method that failed.</param>
+    /// <param name="errorDescription">A human-readable description of the error.</param>
+    public delegate void RpcErrorHandler(string method, string errorDescription);
+
+    /// <summary>
     /// Gets or sets the handlers to process notifications.
     /// </summary>
     public NotificationHandler NotificationHandlers { get; set; }
+
+    /// <summary>
+    /// Gets or sets the handler invoked when a fire-and-forget RPC request
+    /// completes with an error response or a transport failure.
+    /// </summary>
+    public RpcErrorHandler? RpcErrorOccurred { get; set; }
 
     private uint NextRequestId
     {
@@ -104,6 +117,33 @@ public sealed class MsgPackRpc : IDisposable
             responseSignal.TrySetException(ex);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Send a request to remote without requiring the caller to observe the result.
+    /// Errors are logged and surfaced via <see cref="RpcErrorOccurred"/>.
+    /// </summary>
+    /// <param name="name">Method name.</param>
+    /// <param name="args">Method args.</param>
+    public void SendRequestFireAndForget(string name, IList<object> args)
+    {
+        Task<(bool Success, object Value)> task;
+        try
+        {
+            task = this.SendRequest(name, args);
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            this.log.Error($"RPC call '{name}' failed to send.", ex);
+            this.RpcErrorOccurred?.Invoke(name, ex.Message);
+            return;
+        }
+
+        _ = this.ObserveResponse(name, task);
     }
 
     /// <summary>
@@ -283,6 +323,29 @@ public sealed class MsgPackRpc : IDisposable
     private void OnNotification(string name, IList<MsgPack.MessagePackObject> args)
     {
         this.NotificationHandlers?.Invoke(name, args);
+    }
+
+    private async Task ObserveResponse(string name, Task<(bool Success, object Value)> task)
+    {
+        try
+        {
+            var (success, value) = await task.ConfigureAwait(false);
+            if (!success)
+            {
+                var description = value?.ToString() ?? "unknown error";
+                this.log.Warning($"RPC call '{name}' returned error: {description}");
+                this.RpcErrorOccurred?.Invoke(name, description);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Expected during shutdown.
+        }
+        catch (Exception ex)
+        {
+            this.log.Error($"RPC call '{name}' failed.", ex);
+            this.RpcErrorOccurred?.Invoke(name, ex.Message);
+        }
     }
 
     private void OnResponse(uint requestId, MsgPack.MessagePackObject error, MsgPack.MessagePackObject result)

@@ -27,7 +27,7 @@ public class Global
     /// <param name="keys">String of keys.</param>
     public void Input(string keys)
     {
-        this.msgPackRpc.SendRequest("nvim_input", new List<object>() { keys });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_input", new List<object>() { keys });
     }
 
     /// <summary>
@@ -36,7 +36,7 @@ public class Global
     /// <param name="message">The error message.</param>
     public void WriteErrorMessage(string message)
     {
-        this.msgPackRpc.SendRequest("nvim_err_writeln", new List<object>() { message });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_err_writeln", new List<object>() { message });
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public class Global
     /// <param name="value">Variable value.</param>
     public void SetGlobalVariable(string name, string value)
     {
-        this.msgPackRpc.SendRequest("nvim_set_var", new List<object>() { name, value });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_set_var", new List<object>() { name, value });
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public class Global
     /// <param name="col">Zero-based grid column.</param>
     public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
     {
-        this.msgPackRpc.SendRequest("nvim_input_mouse", new List<object>() { button, action, modifier, grid, row, col });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_input_mouse", new List<object>() { button, action, modifier, grid, row, col });
     }
 
     /// <summary>
@@ -69,6 +69,6 @@ public class Global
     /// <param name="command">The command string.</param>
     public void Command(string command)
     {
-        this.msgPackRpc.SendRequest("nvim_command", new List<object>() { command });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_command", new List<object>() { command });
     }
 }

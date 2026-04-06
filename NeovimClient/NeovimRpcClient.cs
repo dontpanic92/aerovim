@@ -56,6 +56,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
             this.process.StandardOutput.BaseStream,
             this.NotificationDispatcher,
             logger);
+        this.msgPackRpc.RpcErrorOccurred += this.OnRpcError;
 
         this.UI = new API.UI(this.msgPackRpc);
         this.Global = new API.Global(this.msgPackRpc);
@@ -77,6 +78,12 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     /// Gets or sets the callback functions that will be called when Neovim crashs.
     /// </summary>
     public NeovimExitedEventHandler? NeovimExited { get; set; }
+
+    /// <summary>
+    /// Gets or sets the handler invoked when an RPC call fails with an error
+    /// response or a transport exception. Useful for diagnostics.
+    /// </summary>
+    public MsgPackRpc.RpcErrorHandler? RpcErrorOccurred { get; set; }
 
     /// <summary>
     /// Gets the apis of UI part.
@@ -127,7 +134,20 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
             return;
         }
 
-        this.Redraw?.Invoke(this.redrawEventParser.Parse(rawEvents));
+        try
+        {
+            this.Redraw?.Invoke(this.redrawEventParser.Parse(rawEvents));
+        }
+        catch (Exception ex)
+        {
+            this.log.Error($"Exception while processing '{name}' notification.", ex);
+        }
+    }
+
+    private void OnRpcError(string method, string errorDescription)
+    {
+        this.log.Warning($"RPC error on '{method}': {errorDescription}");
+        this.RpcErrorOccurred?.Invoke(method, errorDescription);
     }
 
     private void Process_Exited(object? sender, EventArgs e)

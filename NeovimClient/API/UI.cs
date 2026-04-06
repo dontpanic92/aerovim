@@ -22,7 +22,7 @@ public class UI
     }
 
     /// <summary>
-    /// Attach to Neovim.
+    /// Connect to Neovim as an external UI.
     /// </summary>
     /// <param name="width">The column count.</param>
     /// <param name="height">The row count.</param>
@@ -33,7 +33,8 @@ public class UI
             ["rgb"] = true,
         };
 
-        this.msgPackRpc.SendRequest("nvim_ui_attach", new List<object>() { width, height, options });
+        // UI connection is critical — observe the response so failures are visible.
+        this.msgPackRpc.SendRequestFireAndForget("nvim_ui_attach", new List<object>() { width, height, options });
     }
 
     /// <summary>
@@ -43,6 +44,6 @@ public class UI
     /// <param name="height">The row count.</param>
     public void TryResize(uint width, uint height)
     {
-        this.msgPackRpc.SendRequest("nvim_ui_try_resize", new List<object>() { width, height });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_ui_try_resize", new List<object>() { width, height });
     }
 }

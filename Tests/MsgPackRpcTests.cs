@@ -125,6 +125,90 @@ public class MsgPackRpcTests
         Assert.That(ex, Is.Not.Null);
     }
 
+    /// <summary>
+    /// Fire-and-forget should raise RpcErrorOccurred when the server returns an error response.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Test]
+    public async Task SendRequestFireAndForget_ErrorResponse_RaisesRpcErrorOccurred()
+    {
+        using var streams = new DuplexStreamPair();
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
+
+        var errorReceived = new TaskCompletionSource<(string Method, string Error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        rpc.RpcErrorOccurred += (method, error) => errorReceived.TrySetResult((method, error));
+
+        rpc.SendRequestFireAndForget("nvim_command", new object[] { "badcmd" });
+
+        var request = await ReadRequestAsync(streams.ServerReader);
+        await WriteRpcArrayAsync(streams.ServerWriter, 1, request.RequestId, "E492: Not an editor command", null);
+
+        var result = await errorReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(result.Method, Is.EqualTo("nvim_command"));
+        Assert.That(result.Error, Does.Contain("E492"));
+    }
+
+    /// <summary>
+    /// Fire-and-forget should raise RpcErrorOccurred when the transport fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Test]
+    public async Task SendRequestFireAndForget_TransportFailure_RaisesRpcErrorOccurred()
+    {
+        using var streams = new DuplexStreamPair();
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
+
+        var errorReceived = new TaskCompletionSource<(string Method, string Error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        rpc.RpcErrorOccurred += (method, error) => errorReceived.TrySetResult((method, error));
+
+        rpc.SendRequestFireAndForget("nvim_input", new object[] { "abc" });
+
+        // Read the request, then send garbage to trigger a parse failure that faults pending requests.
+        await ReadRequestAsync(streams.ServerReader);
+        WriteStandaloneString(streams.ServerWriter, "not-an-array");
+
+        var result = await errorReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.That(result.Method, Is.EqualTo("nvim_input"));
+    }
+
+    /// <summary>
+    /// Fire-and-forget should not raise RpcErrorOccurred on a successful response.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Test]
+    public async Task SendRequestFireAndForget_SuccessResponse_DoesNotRaiseRpcErrorOccurred()
+    {
+        using var streams = new DuplexStreamPair();
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
+
+        bool errorFired = false;
+        rpc.RpcErrorOccurred += (_, _) => errorFired = true;
+
+        rpc.SendRequestFireAndForget("nvim_input", new object[] { "abc" });
+
+        var request = await ReadRequestAsync(streams.ServerReader);
+        await WriteRpcArrayAsync(streams.ServerWriter, 1, request.RequestId, null, 3);
+
+        // Give the continuation a moment to run.
+        await Task.Delay(100);
+
+        Assert.That(errorFired, Is.False);
+    }
+
+    /// <summary>
+    /// Fire-and-forget should not throw when the transport is disposed mid-flight.
+    /// </summary>
+    [Test]
+    public void SendRequestFireAndForget_DisposeDuringFlight_DoesNotThrow()
+    {
+        using var streams = new DuplexStreamPair();
+        var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
+
+        rpc.SendRequestFireAndForget("nvim_input", new object[] { "abc" });
+
+        Assert.DoesNotThrow(() => rpc.Dispose());
+    }
+
     private static async Task<(int Type, uint RequestId, string Method, object?[] Args)> ReadRequestAsync(Stream stream)
     {
         var reader = new MessagePackStreamReader(stream);
