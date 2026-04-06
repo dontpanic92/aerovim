@@ -48,7 +48,7 @@ public partial class MainWindow : Window
 
         this.effectsService = new WindowEffectsService(this, this.settings);
         this.effectsService.CurrentBackgroundColor = this.settings.BackgroundColor;
-        this.coordinator = new EditorSessionCoordinator(this.settings, this.ShowSettingsDialogAsync);
+        this.coordinator = new EditorSessionCoordinator(this.settings, AeroVim.Diagnostics.AppLogger.Instance, this.ShowSettingsDialogAsync);
 
         this.effectsService.BackgroundBrushChanged += this.OnBackgroundBrushChanged;
         this.effectsService.MacOSFullScreenChanged += this.OnMacOSFullScreenChanged;
@@ -228,9 +228,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = new Dialogs.MessageWindow(
-            $"Settings could not be fully loaded or saved:\n{this.settings.LastPersistenceError}",
-            "Settings Warning");
+        string message = $"Settings could not be fully loaded or saved:\n{this.settings.LastPersistenceError}";
+        string? logPath = AeroVim.Diagnostics.AppLogger.LogFilePath;
+        if (logPath is not null)
+        {
+            message += $"\n\nSee log file for details:\n{logPath}";
+        }
+
+        var dialog = new Dialogs.MessageWindow(message, "Settings Warning");
         await dialog.ShowDialog(this);
         this.settings.ClearLastPersistenceError();
     }

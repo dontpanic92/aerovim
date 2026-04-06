@@ -5,8 +5,8 @@
 
 namespace AeroVim.Utilities;
 
-using System.Diagnostics;
 using System.Runtime.InteropServices;
+using AeroVim.Diagnostics;
 
 /// <summary>
 /// Provides native Windows interop helpers for preserving blur/acrylic/mica
@@ -74,7 +74,7 @@ public static class WindowsInterop
         }
         else
         {
-            Trace.WriteLine("AeroVim: Failed to install WM_NCACTIVATE subclass for blur preservation.");
+            AppLogger.Instance.Warning("WindowsInterop", "Failed to install WM_NCACTIVATE subclass for blur preservation.");
             subclassProcInstance = null;
         }
     }

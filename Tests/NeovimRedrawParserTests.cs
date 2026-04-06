@@ -5,6 +5,7 @@
 
 namespace AeroVim.Tests;
 
+using AeroVim.Editor.Diagnostics;
 using AeroVim.Editor.Utilities;
 using AeroVim.NeovimClient;
 using AeroVim.NeovimClient.Events;
@@ -21,7 +22,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_BatchedPutCommands_ReturnsMultiplePutEvents()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory());
+        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command(
@@ -44,7 +45,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_InvalidCommand_DoesNotAbortFollowingCommands()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory());
+        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("resize", Args(new MsgPack.MessagePackObject(80))),
@@ -64,7 +65,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_OptionSetGuifont_ReturnsGuiFontEvent()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory());
+        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("option_set", Args("guifont", "Cascadia_Code,Fira_Code:h12:b")),
@@ -86,7 +87,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_ModeInfoSet_ReturnsParsedModeInfo()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory());
+        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command(
@@ -123,7 +124,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_MouseEvents_ReturnsOneEventPerArgumentSet()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory());
+        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("mouse_on", Args(), Args()),

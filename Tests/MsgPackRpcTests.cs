@@ -7,6 +7,7 @@ namespace AeroVim.Tests;
 
 using System.Buffers;
 using System.Collections;
+using AeroVim.Editor.Diagnostics;
 using AeroVim.NeovimClient;
 using AeroVim.Tests.Helpers;
 using MessagePack;
@@ -25,7 +26,7 @@ public class MsgPackRpcTests
     public async Task SendRequest_WritesRequestAndCompletesOnResponse()
     {
         using var streams = new DuplexStreamPair();
-        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { });
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
 
         Task<(bool Success, object Value)> requestTask = rpc.SendRequest("nvim_input", new object[] { "abc", 42 });
         var request = await ReadRequestAsync(streams.ServerReader);
@@ -49,7 +50,7 @@ public class MsgPackRpcTests
     public async Task SendRequest_ErrorResponseReturnsFailureTuple()
     {
         using var streams = new DuplexStreamPair();
-        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { });
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
 
         Task<(bool Success, object Value)> requestTask = rpc.SendRequest("nvim_eval", new object[] { "g:var" });
         var request = await ReadRequestAsync(streams.ServerReader);
@@ -73,7 +74,8 @@ public class MsgPackRpcTests
         using var rpc = new MsgPackRpc(
             streams.ClientWriter,
             streams.ClientReader,
-            (name, args) => handlerCalled.TrySetResult((name, args)));
+            (name, args) => handlerCalled.TrySetResult((name, args)),
+            NullLogger.Instance);
 
         await WriteRpcArrayAsync(
             streams.ServerWriter,
@@ -98,7 +100,7 @@ public class MsgPackRpcTests
     public void InvalidPayload_FailsPendingRequests()
     {
         using var streams = new DuplexStreamPair();
-        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { });
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
 
         Task<(bool Success, object Value)> requestTask = rpc.SendRequest("nvim_input", new object[] { "abc" });
         WriteStandaloneString(streams.ServerWriter, "not-an-array");
@@ -114,7 +116,7 @@ public class MsgPackRpcTests
     public void Dispose_FailsPendingRequests()
     {
         using var streams = new DuplexStreamPair();
-        var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { });
+        var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
         Task<(bool Success, object Value)> requestTask = rpc.SendRequest("nvim_input", new object[] { "abc" });
 
         rpc.Dispose();

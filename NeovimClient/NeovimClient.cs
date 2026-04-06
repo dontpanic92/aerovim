@@ -42,9 +42,10 @@ public sealed class NeovimClient : IEditorClient
     /// Initializes a new instance of the <see cref="NeovimClient"/> class.
     /// </summary>
     /// <param name="neovimPath">Neovim.</param>
-    public NeovimClient(string neovimPath)
+    /// <param name="logger">Application logger.</param>
+    public NeovimClient(string neovimPath, AeroVim.Editor.Diagnostics.IAppLogger logger)
     {
-        this.neovim = new DefaultNeovimRpcClient(neovimPath);
+        this.neovim = new DefaultNeovimRpcClient(neovimPath, logger);
         this.neovim.Redraw += this.OnNeovimRedraw;
         this.neovim.NeovimExited += (int exitCode) =>
         {

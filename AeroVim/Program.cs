@@ -5,6 +5,8 @@
 
 namespace AeroVim;
 
+using System.Runtime.InteropServices;
+using AeroVim.Diagnostics;
 using Avalonia;
 
 /// <summary>
@@ -19,7 +21,24 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        string logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "AeroVim",
+            "logs");
+        AppLogger.Initialize(new FileLogger(logDir));
+
+        var logger = AppLogger.Instance;
+        logger.Info("Startup", $"AeroVim starting — OS={RuntimeInformation.OSDescription}, Runtime={RuntimeInformation.FrameworkDescription}");
+
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            logger.Info("Startup", "AeroVim shutting down.");
+            AppLogger.Shutdown();
+        }
     }
 
     /// <summary>

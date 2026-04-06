@@ -9,6 +9,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using System.Text;
 using AeroVim.Editor;
+using AeroVim.Editor.Diagnostics;
 using AeroVim.Editor.Utilities;
 
 /// <summary>
@@ -19,6 +20,7 @@ public sealed class VimClient : IEditorClient
 {
     private readonly string vimPath;
     private readonly string? workingDirectory;
+    private readonly IAppLogger logger;
     private readonly TerminalBuffer buffer;
     private readonly VtParser parser;
     private readonly object screenLock = new();
@@ -41,11 +43,13 @@ public sealed class VimClient : IEditorClient
     /// Initializes a new instance of the <see cref="VimClient"/> class.
     /// </summary>
     /// <param name="vimPath">Path to the Vim executable.</param>
+    /// <param name="logger">Application logger.</param>
     /// <param name="workingDirectory">Optional working directory for Vim.</param>
     /// <param name="initialBackgroundColor">Initial default background color in RGB format, e.g. from saved settings.</param>
-    public VimClient(string vimPath, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
+    public VimClient(string vimPath, IAppLogger logger, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
     {
         this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));
+        this.logger = logger;
         this.workingDirectory = workingDirectory;
         this.buffer = new TerminalBuffer(80, 24);
         this.buffer.SetDetectedBackground(initialBackgroundColor);
@@ -60,10 +64,11 @@ public sealed class VimClient : IEditorClient
     /// </summary>
     /// <param name="vimPath">Path to the Vim executable.</param>
     /// <param name="ptyConnection">The PTY connection to attach.</param>
+    /// <param name="logger">Application logger.</param>
     /// <param name="workingDirectory">Optional working directory for Vim.</param>
     /// <param name="initialBackgroundColor">Initial background color in RGB format.</param>
-    internal VimClient(string vimPath, IPtyConnection ptyConnection, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
-        : this(vimPath, workingDirectory, initialBackgroundColor)
+    internal VimClient(string vimPath, IPtyConnection ptyConnection, IAppLogger logger, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
+        : this(vimPath, logger, workingDirectory, initialBackgroundColor)
     {
         ArgumentNullException.ThrowIfNull(ptyConnection);
         this.AttachPtyConnection(ptyConnection);
@@ -416,11 +421,9 @@ public sealed class VimClient : IEditorClient
                     $"Vim executable not found at '{this.vimPath}'.");
             }
 
-            Console.Error.WriteLine(
-                "VimClient: Spawning Vim at '{0}' ({1}x{2})",
-                this.vimPath,
-                cols,
-                rows);
+            this.logger.Info(
+                "VimClient",
+                $"Spawning Vim at '{this.vimPath}' ({cols}x{rows})");
 
             var env = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
@@ -460,16 +463,16 @@ public sealed class VimClient : IEditorClient
 
             this.ReplayPendingCommands();
 
-            Console.Error.WriteLine(
-                "VimClient: Vim process started successfully (pid={0})",
-                this.ptyConnection.Pid);
+            this.logger.Info(
+                "VimClient",
+                $"Vim process started successfully (pid={this.ptyConnection.Pid})");
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine(
-                "VimClient: Failed to spawn Vim at '{0}': {1}",
-                this.vimPath,
-                ex.Message);
+            this.logger.Error(
+                "VimClient",
+                $"Failed to spawn Vim at '{this.vimPath}'.",
+                ex);
             this.EditorExited?.Invoke(-1);
         }
     }
@@ -527,11 +530,9 @@ public sealed class VimClient : IEditorClient
             int exitCode = this.ptyConnection?.ExitCode ?? 0;
             int signal = this.ptyConnection?.ExitSignalNumber ?? 0;
             int pid = this.ptyConnection?.Pid ?? 0;
-            Console.Error.WriteLine(
-                "VimClient: Vim process exited (pid={0}, code={1}, signal={2})",
-                pid,
-                exitCode,
-                signal);
+            this.logger.Info(
+                "VimClient",
+                $"Vim process exited (pid={pid}, code={exitCode}, signal={signal})");
             this.EditorExited?.Invoke(exitCode);
         }
     }

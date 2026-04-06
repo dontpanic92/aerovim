@@ -5,6 +5,8 @@
 
 namespace AeroVim.NeovimClient;
 
+using AeroVim.Editor.Diagnostics;
+
 /// <summary>
 /// The default neovim client.
 /// </summary>
@@ -14,8 +16,9 @@ public class DefaultNeovimRpcClient : NeovimRpcClient<Events.IRedrawEvent>
     /// Initializes a new instance of the <see cref="DefaultNeovimRpcClient"/> class.
     /// </summary>
     /// <param name="path">The path to neovim.</param>
-    public DefaultNeovimRpcClient(string path)
-        : base(path, new DefaultRedrawEventFactory())
+    /// <param name="logger">Application logger.</param>
+    public DefaultNeovimRpcClient(string path, IAppLogger logger)
+        : base(path, new DefaultRedrawEventFactory(), logger)
     {
     }
 }

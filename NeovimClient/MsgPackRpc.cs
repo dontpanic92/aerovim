@@ -8,7 +8,7 @@ namespace AeroVim.NeovimClient;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.Diagnostics;
+using AeroVim.Editor.Diagnostics;
 using MessagePack;
 
 /// <summary>
@@ -18,6 +18,7 @@ public sealed class MsgPackRpc : IDisposable
 {
     private readonly Stream writer;
     private readonly Stream reader;
+    private readonly IAppLogger logger;
     private readonly CancellationTokenSource disposeCancellation = new();
     private readonly Task readTask;
     private uint nextRequestId = 0;
@@ -32,10 +33,12 @@ public sealed class MsgPackRpc : IDisposable
     /// <param name="writer">The stream for sending data to remote.</param>
     /// <param name="reader">The stream for receiving data from remote.</param>
     /// <param name="handler">Notification handler.</param>
-    public MsgPackRpc(Stream writer, Stream reader, NotificationHandler handler)
+    /// <param name="logger">Application logger.</param>
+    public MsgPackRpc(Stream writer, Stream reader, NotificationHandler handler, IAppLogger logger)
     {
         this.writer = writer;
         this.reader = reader;
+        this.logger = logger;
         this.NotificationHandlers += handler;
         this.readTask = Task.Run(() => this.ReadTaskAsync(this.disposeCancellation.Token));
     }
@@ -226,7 +229,7 @@ public sealed class MsgPackRpc : IDisposable
                 {
                     var unpackException = new MsgPack.UnpackException("Failed to unpack msgpack-rpc payload.", ex);
                     this.FailPendingRequests(unpackException);
-                    Trace.TraceError(unpackException.ToString());
+                    this.logger.Error("MsgPackRpc", "Failed to unpack msgpack-rpc payload.", unpackException);
                     break;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -254,7 +257,7 @@ public sealed class MsgPackRpc : IDisposable
         switch (type)
         {
             case 0:
-                Trace.TraceWarning("MsgPackRpc: Received an incoming request but request handling is not supported.");
+                this.logger.Warning("MsgPackRpc", "Received an incoming request but request handling is not supported.");
                 break;
             case 1:
                 if (list.Count != 4)

@@ -6,6 +6,7 @@
 namespace AeroVim.NeovimClient;
 
 using System.Diagnostics;
+using AeroVim.Editor.Diagnostics;
 
 /// <summary>
 /// Lowlevel neovim client that is responsible for communicate with Neovim.
@@ -16,6 +17,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     private readonly MsgPackRpc msgPackRpc;
     private readonly IRedrawEventFactory<TRedrawEvent> factory;
     private readonly RedrawEventParser<TRedrawEvent> redrawEventParser;
+    private readonly IAppLogger logger;
     private readonly Process process;
     private bool disposedValue = false;
 
@@ -24,10 +26,12 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     /// </summary>
     /// <param name="path">The path to neovim executable.</param>
     /// <param name="factory">The painter used for drawing UI.</param>
-    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory)
+    /// <param name="logger">Application logger.</param>
+    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger)
     {
         this.factory = factory;
-        this.redrawEventParser = new RedrawEventParser<TRedrawEvent>(factory);
+        this.logger = logger;
+        this.redrawEventParser = new RedrawEventParser<TRedrawEvent>(factory, logger);
 
         this.process = new Process
         {
@@ -50,7 +54,8 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
         this.msgPackRpc = new MsgPackRpc(
             this.process.StandardInput.BaseStream,
             this.process.StandardOutput.BaseStream,
-            this.NotificationDispatcher);
+            this.NotificationDispatcher,
+            logger);
 
         this.UI = new API.UI(this.msgPackRpc);
         this.Global = new API.Global(this.msgPackRpc);
@@ -118,7 +123,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     {
         if (name != "redraw")
         {
-            Trace.WriteLine($"Unexpected notification received {name}");
+            this.logger.Warning("NeovimRpc", $"Unexpected notification received: {name}");
             return;
         }
 

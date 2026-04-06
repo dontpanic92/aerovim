@@ -6,9 +6,9 @@
 namespace AeroVim.Services;
 
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using AeroVim.Diagnostics;
 using AeroVim.Settings;
 
 /// <summary>
@@ -191,7 +191,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)
         {
             this.LastPersistenceError = ex.Message;
-            Trace.TraceError($"AeroVim: Failed to save settings: {ex}");
+            AppLogger.Instance.Error("AppSettings", "Failed to save settings.", ex);
             return false;
         }
     }
@@ -274,7 +274,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)
         {
-            Trace.TraceError($"AeroVim: Failed to load settings: {ex}");
+            AppLogger.Instance.Error("AppSettings", "Failed to load settings.", ex);
             return new AppSettings
             {
                 LastPersistenceError = ex.Message,

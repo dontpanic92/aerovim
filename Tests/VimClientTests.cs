@@ -6,6 +6,7 @@
 namespace AeroVim.Tests;
 
 using System.Text;
+using AeroVim.Editor.Diagnostics;
 using AeroVim.Editor.Utilities;
 using AeroVim.Tests.Helpers;
 using AeroVim.VimClient;
@@ -23,7 +24,7 @@ public class VimClientTests
     public void TryResize_WithAttachedPty_ResizesBufferAndPty()
     {
         var ptyConnection = new FakePtyConnection();
-        using var client = new VimClient("vim", ptyConnection);
+        using var client = new VimClient("vim", ptyConnection, NullLogger.Instance);
 
         client.TryResize(100, 40);
         client.ProcessOutputForTesting(Encoding.UTF8.GetBytes("A"));
@@ -42,7 +43,7 @@ public class VimClientTests
     public void ProcessOutputForTesting_UpdatesScreenStateAndRaisesEvents()
     {
         var ptyConnection = new FakePtyConnection();
-        using var client = new VimClient("vim", ptyConnection);
+        using var client = new VimClient("vim", ptyConnection, NullLogger.Instance);
         var titles = new List<string>();
         var foregrounds = new List<int>();
         var backgrounds = new List<int>();
@@ -73,7 +74,7 @@ public class VimClientTests
     public void InputMouse_LeftPressWithModifiers_WritesExpectedSgrSequence()
     {
         var ptyConnection = new FakePtyConnection();
-        using var client = new VimClient("vim", ptyConnection);
+        using var client = new VimClient("vim", ptyConnection, NullLogger.Instance);
 
         client.InputMouse("left", "press", "C-S", 0, 4, 2);
 
@@ -87,7 +88,7 @@ public class VimClientTests
     public void Command_WithAttachedPty_WritesEscapedCommandSequence()
     {
         var ptyConnection = new FakePtyConnection();
-        using var client = new VimClient("vim", ptyConnection);
+        using var client = new VimClient("vim", ptyConnection, NullLogger.Instance);
 
         client.Command("set number");
 
@@ -101,7 +102,7 @@ public class VimClientTests
     public void ProcessOutputForTesting_UpdatesModeInfoCapabilities()
     {
         var ptyConnection = new FakePtyConnection();
-        using var client = new VimClient("vim", ptyConnection);
+        using var client = new VimClient("vim", ptyConnection, NullLogger.Instance);
 
         client.ProcessOutputForTesting(Encoding.UTF8.GetBytes("\x1B[?1006h\x1B[>2p\x1B[5 q\x1B]22;beam\x1B\\\x1B[?25l"));
 

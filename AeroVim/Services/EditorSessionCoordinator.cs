@@ -7,6 +7,7 @@ namespace AeroVim.Services;
 
 using AeroVim.Controls;
 using AeroVim.Editor;
+using AeroVim.Editor.Diagnostics;
 using AeroVim.Utilities;
 using Avalonia.Threading;
 
@@ -18,6 +19,7 @@ using Avalonia.Threading;
 internal sealed class EditorSessionCoordinator
 {
     private readonly AppSettings settings;
+    private readonly IAppLogger logger;
     private readonly Func<string?, Task<Dialogs.SettingsWindow.Result>> showSettingsPrompt;
     private IEditorClient? editorClient;
     private EditorControl? editorControl;
@@ -26,6 +28,7 @@ internal sealed class EditorSessionCoordinator
     /// Initializes a new instance of the <see cref="EditorSessionCoordinator"/> class.
     /// </summary>
     /// <param name="settings">Application settings.</param>
+    /// <param name="logger">Application logger.</param>
     /// <param name="showSettingsPrompt">
     /// Callback invoked when the coordinator needs to prompt the user for an
     /// editor path. Receives an optional prompt message and returns the
@@ -33,9 +36,11 @@ internal sealed class EditorSessionCoordinator
     /// </param>
     public EditorSessionCoordinator(
         AppSettings settings,
+        IAppLogger logger,
         Func<string?, Task<Dialogs.SettingsWindow.Result>> showSettingsPrompt)
     {
         this.settings = settings;
+        this.logger = logger;
         this.showSettingsPrompt = showSettingsPrompt;
 
         this.settings.PropertyChanged += this.OnSettingsPropertyChanged;
@@ -98,11 +103,14 @@ internal sealed class EditorSessionCoordinator
         {
             try
             {
-                this.editorClient = EditorClientFactory.Create(this.settings);
+                this.logger.Info("EditorSession", $"Creating {this.settings.EditorType} backend...");
+                this.editorClient = EditorClientFactory.Create(this.settings, this.logger);
+                this.logger.Info("EditorSession", $"{this.settings.EditorType} backend created successfully.");
                 break;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                this.logger.Error("EditorSession", $"Failed to create {this.settings.EditorType} backend.", ex);
                 string editorName = this.settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
                 if (await this.showSettingsPrompt($"Please specify the path to {editorName}") ==
                     Dialogs.SettingsWindow.Result.Cancel)
@@ -218,6 +226,14 @@ internal sealed class EditorSessionCoordinator
             string message = exitCode == -1
                 ? $"{editorName} failed to start. Please check the executable path in Settings."
                 : $"{editorName} exited unexpectedly (exit code {exitCode}). Please verify the executable path in Settings.";
+
+            string? logPath = AeroVim.Diagnostics.AppLogger.LogFilePath;
+            if (logPath is not null)
+            {
+                message += $"\n\nSee log file for details:\n{logPath}";
+            }
+
+            this.logger.Error("EditorSession", message);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {

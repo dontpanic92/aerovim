@@ -5,9 +5,9 @@
 
 namespace AeroVim.Services;
 
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using AeroVim.Controls;
+using AeroVim.Diagnostics;
 using AeroVim.Utilities;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -95,7 +95,7 @@ internal sealed class WindowEffectsService
                 var nsWindow = this.window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
                 if (nsWindow == IntPtr.Zero)
                 {
-                    Trace.WriteLine("AeroVim: macOS platform handle unavailable, skipping native transparency setup.");
+                    AppLogger.Instance.Info("WindowEffects", "macOS platform handle unavailable, skipping native transparency setup.");
                     return;
                 }
 
@@ -122,7 +122,7 @@ internal sealed class WindowEffectsService
             var nsWindow = this.window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
             if (nsWindow == IntPtr.Zero)
             {
-                Trace.WriteLine("AeroVim: macOS platform handle unavailable in HandleMacOSActivation.");
+                AppLogger.Instance.Info("WindowEffects", "macOS platform handle unavailable in HandleMacOSActivation.");
                 return;
             }
 
@@ -130,7 +130,7 @@ internal sealed class WindowEffectsService
         }
         catch (Exception ex)
         {
-            Trace.WriteLine($"AeroVim: HandleMacOSActivation failed: {ex.Message}");
+            AppLogger.Instance.Warning("WindowEffects", $"HandleMacOSActivation failed: {ex.Message}", ex);
         }
     }
 
@@ -144,7 +144,7 @@ internal sealed class WindowEffectsService
         var nsWindow = this.window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
         if (nsWindow == IntPtr.Zero)
         {
-            Trace.WriteLine("AeroVim: macOS platform handle unavailable during WindowState change.");
+            AppLogger.Instance.Info("WindowEffects", "macOS platform handle unavailable during WindowState change.");
             return;
         }
 

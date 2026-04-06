@@ -6,6 +6,7 @@
 namespace AeroVim.Utilities;
 
 using AeroVim.Editor;
+using AeroVim.Editor.Diagnostics;
 using AeroVim.Services;
 
 /// <summary>
@@ -17,13 +18,14 @@ public static class EditorClientFactory
     /// Create an editor client for the configured backend.
     /// </summary>
     /// <param name="settings">Application settings.</param>
+    /// <param name="logger">Logger for the backend to use.</param>
     /// <returns>The created editor client.</returns>
-    public static IEditorClient Create(AppSettings settings)
+    public static IEditorClient Create(AppSettings settings, IAppLogger logger)
     {
         return settings.EditorType switch
         {
-            EditorType.Vim => new VimClient.VimClient(settings.VimPath, initialBackgroundColor: settings.BackgroundColor),
-            EditorType.Neovim => new NeovimClient.NeovimClient(settings.NeovimPath),
+            EditorType.Vim => new VimClient.VimClient(settings.VimPath, logger, initialBackgroundColor: settings.BackgroundColor),
+            EditorType.Neovim => new NeovimClient.NeovimClient(settings.NeovimPath, logger),
             _ => throw new InvalidOperationException($"Unsupported editor type: {settings.EditorType}"),
         };
     }
