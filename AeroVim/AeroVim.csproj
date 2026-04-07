@@ -42,7 +42,13 @@
     <MakeDir Directories="$(BundleDir)/Contents/MacOS" />
     <MakeDir Directories="$(BundleDir)/Contents/Resources" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)../Packaging/macOS/Info.plist" DestinationFolder="$(BundleDir)/Contents/" />
-    <Copy SourceFiles="$(PublishDir)aerovim" DestinationFolder="$(BundleDir)/Contents/MacOS/" />
+
+    <!-- Copy all publish output (binary + native libraries such as libSkiaSharp, libHarfBuzzSharp) -->
+    <ItemGroup>
+      <_PublishFiles Include="$(PublishDir)**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PublishFiles)" DestinationFolder="$(BundleDir)/Contents/MacOS/%(RecursiveDir)" />
+
     <Copy SourceFiles="$(MSBuildThisFileDirectory)../Packaging/macOS/aerovim.icns" DestinationFolder="$(BundleDir)/Contents/Resources/" />
     <Exec Command="chmod +x '$(BundleDir)/Contents/MacOS/aerovim'" />
     <Message Importance="high" Text="macOS app bundle created at $(BundleDir)" />

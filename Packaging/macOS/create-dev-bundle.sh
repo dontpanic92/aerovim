@@ -5,7 +5,7 @@ set -euo pipefail
 
 RID="${1:-osx-arm64}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PROJECT="$REPO_ROOT/AeroVim/AeroVim.csproj"
 PACKAGING_DIR="$REPO_ROOT/Packaging/macOS"
 
@@ -20,7 +20,8 @@ mkdir -p "$BUNDLE/Contents/MacOS"
 mkdir -p "$BUNDLE/Contents/Resources"
 
 cp "$PACKAGING_DIR/Info.plist" "$BUNDLE/Contents/"
-cp "$BUILD_DIR/aerovim" "$BUNDLE/Contents/MacOS/"
+cp -a "$BUILD_DIR"/* "$BUNDLE/Contents/MacOS/"
+rm -rf "$BUNDLE/Contents/MacOS/AeroVim.app"
 cp "$PACKAGING_DIR/aerovim.icns" "$BUNDLE/Contents/Resources/"
 chmod +x "$BUNDLE/Contents/MacOS/aerovim"
 

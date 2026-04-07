@@ -45,14 +45,20 @@ jobs:
       run: dotnet test Tests/Tests.csproj --configuration Debug --no-build --nologo
 
     - name: Publish
-      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --nologo -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
+      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} -p:DebugType=none
+
+    - name: Prepare macOS artifact
+      if: startsWith(matrix.rid, 'osx-')
+      run: |
+        mkdir staging
+        cp -a AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app staging/
 
     - name: Upload artifact (macOS .app bundle)
       if: startsWith(matrix.rid, 'osx-')
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact }}
-        path: AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app/
+        path: staging/
 
     - name: Upload artifact
       if: ${{ !startsWith(matrix.rid, 'osx-') }}
