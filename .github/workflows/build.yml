@@ -44,11 +44,8 @@ jobs:
     - name: Run tests
       run: dotnet test Tests/Tests.csproj --configuration Debug --no-build --nologo
 
-    - name: Build release
-      run: dotnet build AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --no-restore --nologo -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
-
     - name: Publish
-      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --no-build --no-restore --nologo -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
+      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --nologo -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:DebugType=none
 
     - name: Upload artifact (macOS .app bundle)
       if: startsWith(matrix.rid, 'osx-')
