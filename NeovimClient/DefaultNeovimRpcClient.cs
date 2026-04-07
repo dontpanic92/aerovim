@@ -10,7 +10,7 @@ using AeroVim.Editor.Diagnostics;
 /// <summary>
 /// The default neovim client.
 /// </summary>
-public class DefaultNeovimRpcClient : NeovimRpcClient<Events.IRedrawEvent>
+public class DefaultNeovimRpcClient : NeovimRpcClient
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="DefaultNeovimRpcClient"/> class.
@@ -20,7 +20,7 @@ public class DefaultNeovimRpcClient : NeovimRpcClient<Events.IRedrawEvent>
     /// <param name="workingDirectory">Optional working directory for Neovim.</param>
     /// <param name="fileArgs">Optional file paths to open on startup.</param>
     public DefaultNeovimRpcClient(string path, IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
-        : base(path, new DefaultRedrawEventFactory(), logger, workingDirectory, fileArgs)
+        : base(path, logger, workingDirectory, fileArgs)
     {
     }
 }

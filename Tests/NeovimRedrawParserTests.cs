@@ -22,7 +22,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_BatchedPutCommands_ReturnsMultiplePutEvents()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command(
@@ -45,7 +45,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_InvalidCommand_DoesNotAbortFollowingCommands()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("resize", Args(new MsgPack.MessagePackObject(80))),
@@ -65,7 +65,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_OptionSetGuifont_ReturnsGuiFontEvent()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("option_set", Args("guifont", "Cascadia_Code,Fira_Code:h12:b")),
@@ -87,7 +87,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_ModeInfoSet_ReturnsParsedModeInfo()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command(
@@ -124,7 +124,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_MouseEvents_ReturnsOneEventPerArgumentSet()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("mouse_on", Args(), Args()),
@@ -145,7 +145,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_HlAttrDefine_ParsesRgbAttributes()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var rgbAttrs = new MsgPack.MessagePackObjectDictionary
         {
             [new MsgPack.MessagePackObject("foreground")] = new MsgPack.MessagePackObject(0xFF0000),
@@ -182,7 +182,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_DefaultColorsSet_ParsesFiveValues()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("default_colors_set", Args(0x112233, 0x445566, 0x778899, 7, 0)),
@@ -206,7 +206,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_GridResize_ParsesGridWidthHeight()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("grid_resize", Args(1, 80, 24)),
@@ -228,7 +228,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_GridLine_ParsesCellsWithHlIdAndRepeat()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
 
         // [grid, row, col_start, cells, wrap]
         // cells: [["H", 1], ["e"], [" ", 0, 5]]
@@ -283,7 +283,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_GridClear_ParsesGridId()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("grid_clear", Args(1)),
@@ -302,7 +302,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_GridCursorGoto_ParsesGridRowCol()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("grid_cursor_goto", Args(1, 5, 10)),
@@ -324,7 +324,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_GridScroll_ParsesAllParameters()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("grid_scroll", Args(1, 0, 24, 0, 80, 3, 0)),
@@ -350,7 +350,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_Flush_ProducesFlushEvent()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("flush", Args()),
@@ -368,7 +368,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_PopupmenuShow_ParsesItemsAndAnchor()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
 
         var item1 = new List<MsgPack.MessagePackObject>
         {
@@ -418,7 +418,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_PopupmenuSelect_ParsesSelectedIndex()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("popupmenu_select", Args(3)),
@@ -437,7 +437,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_PopupmenuHide_ProducesEvent()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("popupmenu_hide", Args()),
@@ -455,7 +455,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_CmdlineShow_ParsesContentAndMetadata()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
 
         // content: [[hlId, "set number"]] — per Neovim API: [attr_id, text]
         var chunk = new List<MsgPack.MessagePackObject>
@@ -492,7 +492,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_CmdlinePos_ParsesPosAndLevel()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("cmdline_pos", Args(5, 1)),
@@ -513,7 +513,7 @@ public class NeovimRedrawParserTests
     [Test]
     public void Parse_CmdlineHide_ProducesEvent()
     {
-        var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
+        var parser = new RedrawEventParser(NullLogger.Instance);
         var redrawCommands = new List<MsgPack.MessagePackObject>
         {
             Command("cmdline_hide", Args()),

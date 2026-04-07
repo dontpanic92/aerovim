@@ -7,25 +7,31 @@ namespace AeroVim.NeovimClient;
 
 using AeroVim.Editor.Diagnostics;
 using AeroVim.Editor.Utilities;
+using AeroVim.NeovimClient.Events;
 
 /// <summary>
 /// Parses Neovim redraw notifications into redraw events.
 /// </summary>
-/// <typeparam name="TRedrawEvent">The redraw event type.</typeparam>
-public sealed class RedrawEventParser<TRedrawEvent>
+public sealed class RedrawEventParser
 {
-    private readonly IRedrawEventFactory<TRedrawEvent> factory;
+    private static readonly ClearEvent CachedClear = new();
+    private static readonly EolClearEvent CachedEolClear = new();
+    private static readonly FlushEvent CachedFlush = new();
+    private static readonly MouseOnEvent CachedMouseOn = new();
+    private static readonly MouseOffEvent CachedMouseOff = new();
+    private static readonly NopEvent CachedNop = new();
+    private static readonly CmdlineHideEvent CachedCmdlineHide = new();
+    private static readonly PopupmenuHideEvent CachedPopupmenuHide = new();
+
     private readonly IComponentLogger log;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="RedrawEventParser{TRedrawEvent}"/> class.
+    /// Initializes a new instance of the <see cref="RedrawEventParser"/> class.
     /// </summary>
-    /// <param name="factory">The event factory.</param>
     /// <param name="logger">Application logger.</param>
-    public RedrawEventParser(IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger)
+    public RedrawEventParser(IAppLogger logger)
     {
-        this.factory = factory;
-        this.log = logger.For<RedrawEventParser<TRedrawEvent>>();
+        this.log = logger.For<RedrawEventParser>();
     }
 
     /// <summary>
@@ -33,9 +39,9 @@ public sealed class RedrawEventParser<TRedrawEvent>
     /// </summary>
     /// <param name="rawEvents">The raw redraw payload.</param>
     /// <returns>The parsed redraw events.</returns>
-    public IList<TRedrawEvent> Parse(IList<MsgPack.MessagePackObject> rawEvents)
+    public IList<IRedrawEvent> Parse(IList<MsgPack.MessagePackObject> rawEvents)
     {
-        var events = new List<TRedrawEvent>();
+        var events = new List<IRedrawEvent>();
         foreach (var rawEvent in rawEvents)
         {
             try
@@ -88,7 +94,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
         return args;
     }
 
-    private void ParseRedrawCommand(MsgPack.MessagePackObject rawEvent, ICollection<TRedrawEvent> events)
+    private void ParseRedrawCommand(MsgPack.MessagePackObject rawEvent, ICollection<IRedrawEvent> events)
     {
         var command = RequireList(rawEvent, "redraw command");
         if (command.Count == 0)
@@ -118,10 +124,10 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParsePut(command, events);
                 break;
             case "clear":
-                this.ParseNoArgRepeating(command, events, this.factory.CreateClearEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedClear, eventName);
                 break;
             case "eol_clear":
-                this.ParseNoArgRepeating(command, events, this.factory.CreateEolClearEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedEolClear, eventName);
                 break;
             case "resize":
                 this.ParseResize(command, events);
@@ -130,13 +136,13 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParseHighlightSet(command, events);
                 break;
             case "update_fg":
-                this.ParseUpdateColor(command, events, this.factory.CreateUpdateFgEvent, eventName);
+                this.ParseUpdateColor(command, events, color => new UpdateFgEvent(color), eventName);
                 break;
             case "update_bg":
-                this.ParseUpdateColor(command, events, this.factory.CreateUpdateBgEvent, eventName);
+                this.ParseUpdateColor(command, events, color => new UpdateBgEvent(color), eventName);
                 break;
             case "update_sp":
-                this.ParseUpdateColor(command, events, this.factory.CreateUpdateSpEvent, eventName);
+                this.ParseUpdateColor(command, events, color => new UpdateSpEvent(color), eventName);
                 break;
             case "set_scroll_region":
                 this.ParseSetScrollRegion(command, events);
@@ -148,10 +154,10 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParseOptionSet(command, events);
                 break;
             case "mouse_on":
-                this.ParseNoArgRepeating(command, events, this.factory.CreateMouseOnEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedMouseOn, eventName);
                 break;
             case "mouse_off":
-                this.ParseNoArgRepeating(command, events, this.factory.CreateMouseOffEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedMouseOff, eventName);
                 break;
             case "hl_attr_define":
                 this.ParseHlAttrDefine(command, events);
@@ -175,7 +181,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParseGridScroll(command, events);
                 break;
             case "flush":
-                this.ParseNoArgRepeating(command, events, this.factory.CreateFlushEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedFlush, eventName);
                 break;
             case "popupmenu_show":
                 this.ParsePopupmenuShow(command, events);
@@ -184,7 +190,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParsePopupmenuSelect(command, events);
                 break;
             case "popupmenu_hide":
-                this.ParseNoArgRepeating(command, events, this.factory.CreatePopupmenuHideEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedPopupmenuHide, eventName);
                 break;
             case "cmdline_show":
                 this.ParseCmdlineShow(command, events);
@@ -193,7 +199,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 this.ParseCmdlinePos(command, events);
                 break;
             case "cmdline_hide":
-                this.ParseNoArgRepeating(command, events, this.factory.CreateCmdlineHideEvent, eventName);
+                this.ParseNoArgRepeating(command, events, () => CachedCmdlineHide, eventName);
                 break;
             default:
                 this.log.Warning($"Unsupported redraw event '{eventName}' was ignored.");
@@ -201,25 +207,25 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseSetTitle(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseSetTitle(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 1, "set_title");
-            events.Add(this.factory.CreateSetTitleEvent(args[0].AsStringUtf8()));
+            events.Add(new SetTitleEvent(args[0].AsStringUtf8()));
         }
     }
 
-    private void ParseSetIcon(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseSetIcon(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 1, "set_icon");
-            events.Add(this.factory.CreateSetIconTitleEvent(args[0].AsStringUtf8()));
+            events.Add(new SetIconTitleEvent(args[0].AsStringUtf8()));
         }
     }
 
-    private void ParseModeInfoSet(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseModeInfoSet(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -228,29 +234,29 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 item => (IDictionary<string, string>)item.AsDictionary().ToDictionary(
                     k => k.Key.AsStringUtf8(),
                     v => v.Value.ToString())).ToList();
-            events.Add(this.factory.CreateModeInfoSetEvent(args[0].AsBoolean(), mode));
+            events.Add(new ModeInfoSetEvent(args[0].AsBoolean(), mode));
         }
     }
 
-    private void ParseModeChange(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseModeChange(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 2, "mode_change");
-            events.Add(this.factory.CreateModeChangeEvent(args[0].AsStringUtf8(), args[1].AsInt32()));
+            events.Add(new ModeChangeEvent(args[0].AsStringUtf8(), args[1].AsInt32()));
         }
     }
 
-    private void ParseCursorGoto(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseCursorGoto(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 2, "cursor_goto");
-            events.Add(this.factory.CreateCursorGotoEvent(args[0].AsUInt32(), args[1].AsUInt32()));
+            events.Add(new CursorGotoEvent(args[0].AsUInt32(), args[1].AsUInt32()));
         }
     }
 
-    private void ParsePut(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParsePut(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -263,11 +269,11 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 result.Add(text);
             }
 
-            events.Add(this.factory.CreatePutEvent(result));
+            events.Add(new PutEvent(result));
         }
     }
 
-    private void ParseNoArgRepeating(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events, Func<TRedrawEvent> factoryMethod, string eventName)
+    private void ParseNoArgRepeating(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events, Func<IRedrawEvent> factoryMethod, string eventName)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -276,18 +282,18 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseResize(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseResize(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 2, "resize");
             uint col = args[0].AsUInt32();
             uint row = args[1].AsUInt32();
-            events.Add(this.factory.CreateResizeEvent(row, col));
+            events.Add(new ResizeEvent(row, col));
         }
     }
 
-    private void ParseHighlightSet(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseHighlightSet(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -302,7 +308,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
             bool underline = TryGetValueFromDictionary(dict, "underline")?.AsBoolean() == true;
             bool undercurl = TryGetValueFromDictionary(dict, "undercurl")?.AsBoolean() == true;
 
-            events.Add(this.factory.CreateHightlightSetEvent(
+            events.Add(new HighlightSetEvent(
                 foreground,
                 background,
                 special,
@@ -314,7 +320,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseUpdateColor(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events, Func<int, TRedrawEvent> factoryMethod, string eventName)
+    private void ParseUpdateColor(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events, Func<int, IRedrawEvent> factoryMethod, string eventName)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -323,12 +329,12 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseSetScrollRegion(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseSetScrollRegion(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 4, "set_scroll_region");
-            events.Add(this.factory.CreateSetScrollRegionEvent(
+            events.Add(new SetScrollRegionEvent(
                 args[0].AsInt32(),
                 args[1].AsInt32(),
                 args[2].AsInt32(),
@@ -336,25 +342,36 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseScroll(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseScroll(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 1, "scroll");
-            events.Add(this.factory.CreateScrollEvent(args[0].AsInt32()));
+            events.Add(new ScrollEvent(args[0].AsInt32()));
         }
     }
 
-    private void ParseOptionSet(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseOptionSet(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 2, "option_set");
-            events.Add(this.factory.CreateOptionSetEvent(args[0].AsString(), args[1].ToString()));
+            string name = args[0].AsString();
+            string value = args[1].ToString();
+
+            switch (name)
+            {
+                case "guifont":
+                    events.Add(new GuiFontEvent(value));
+                    break;
+                default:
+                    events.Add(CachedNop);
+                    break;
+            }
         }
     }
 
-    private void ParseHlAttrDefine(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseHlAttrDefine(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -375,16 +392,16 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 Strikethrough = TryGetValueFromDictionary(rgbDict, "strikethrough")?.AsBoolean() == true,
             };
 
-            events.Add(this.factory.CreateHlAttrDefineEvent(id, attrs));
+            events.Add(new HlAttrDefineEvent(id, attrs));
         }
     }
 
-    private void ParseDefaultColorsSet(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseDefaultColorsSet(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 5, "default_colors_set");
-            events.Add(this.factory.CreateDefaultColorsSetEvent(
+            events.Add(new DefaultColorsSetEvent(
                 args[0].AsInt32(),
                 args[1].AsInt32(),
                 args[2].AsInt32(),
@@ -393,19 +410,19 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseGridResize(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseGridResize(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 3, "grid_resize");
-            events.Add(this.factory.CreateGridResizeEvent(
+            events.Add(new GridResizeEvent(
                 args[0].AsInt32(),
                 args[1].AsInt32(),
                 args[2].AsInt32()));
         }
     }
 
-    private void ParseGridLine(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseGridLine(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -416,47 +433,47 @@ public sealed class RedrawEventParser<TRedrawEvent>
             var rawCells = RequireList(args[3], "grid_line cells");
             bool wrap = args.Count > 4 && args[4].AsBoolean();
 
-            var cells = new Events.GridLineCell[rawCells.Count];
+            var cells = new GridLineCell[rawCells.Count];
             for (int c = 0; c < rawCells.Count; c++)
             {
                 var cellArray = RequireList(rawCells[c], $"grid_line cell[{c}]");
                 string text = cellArray[0].AsString();
                 int? hlId = cellArray.Count > 1 ? cellArray[1].AsInt32() : null;
                 int repeat = cellArray.Count > 2 ? cellArray[2].AsInt32() : 1;
-                cells[c] = new Events.GridLineCell(text, hlId, repeat);
+                cells[c] = new GridLineCell(text, hlId, repeat);
             }
 
-            events.Add(this.factory.CreateGridLineEvent(grid, row, colStart, cells, wrap));
+            events.Add(new GridLineEvent(grid, row, colStart, cells, wrap));
         }
     }
 
-    private void ParseGridClear(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseGridClear(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 1, "grid_clear");
-            events.Add(this.factory.CreateGridClearEvent(args[0].AsInt32()));
+            events.Add(new GridClearEvent(args[0].AsInt32()));
         }
     }
 
-    private void ParseGridCursorGoto(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseGridCursorGoto(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 3, "grid_cursor_goto");
-            events.Add(this.factory.CreateGridCursorGotoEvent(
+            events.Add(new GridCursorGotoEvent(
                 args[0].AsInt32(),
                 args[1].AsInt32(),
                 args[2].AsInt32()));
         }
     }
 
-    private void ParseGridScroll(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseGridScroll(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 7, "grid_scroll");
-            events.Add(this.factory.CreateGridScrollEvent(
+            events.Add(new GridScrollEvent(
                 args[0].AsInt32(),
                 args[1].AsInt32(),
                 args[2].AsInt32(),
@@ -467,7 +484,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParsePopupmenuShow(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParsePopupmenuShow(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -484,7 +501,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 items[j] = new AeroVim.Editor.PopupMenuItem(word, kind, menu, info);
             }
 
-            events.Add(this.factory.CreatePopupmenuShowEvent(
+            events.Add(new PopupmenuShowEvent(
                 items,
                 args[1].AsInt32(),
                 args[2].AsInt32(),
@@ -493,16 +510,16 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParsePopupmenuSelect(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParsePopupmenuSelect(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 1, "popupmenu_select");
-            events.Add(this.factory.CreatePopupmenuSelectEvent(args[0].AsInt32()));
+            events.Add(new PopupmenuSelectEvent(args[0].AsInt32()));
         }
     }
 
-    private void ParseCmdlineShow(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseCmdlineShow(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
@@ -517,7 +534,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
                 content.Add((hlId, text));
             }
 
-            events.Add(this.factory.CreateCmdlineShowEvent(
+            events.Add(new CmdlineShowEvent(
                 content,
                 args[1].AsInt32(),
                 args[2].AsString(),
@@ -527,12 +544,12 @@ public sealed class RedrawEventParser<TRedrawEvent>
         }
     }
 
-    private void ParseCmdlinePos(IList<MsgPack.MessagePackObject> command, ICollection<TRedrawEvent> events)
+    private void ParseCmdlinePos(IList<MsgPack.MessagePackObject> command, ICollection<IRedrawEvent> events)
     {
         for (int i = 1; i < command.Count; i++)
         {
             var args = RequireArgumentList(command, i, 2, "cmdline_pos");
-            events.Add(this.factory.CreateCmdlinePosEvent(args[0].AsInt32(), args[1].AsInt32()));
+            events.Add(new CmdlinePosEvent(args[0].AsInt32(), args[1].AsInt32()));
         }
     }
 }

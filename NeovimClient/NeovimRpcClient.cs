@@ -7,33 +7,30 @@ namespace AeroVim.NeovimClient;
 
 using System.Diagnostics;
 using AeroVim.Editor.Diagnostics;
+using AeroVim.NeovimClient.Events;
 
 /// <summary>
 /// Lowlevel neovim client that is responsible for communicate with Neovim.
 /// </summary>
-/// <typeparam name="TRedrawEvent">The base redraw event.</typeparam>
-public class NeovimRpcClient<TRedrawEvent> : IDisposable
+public class NeovimRpcClient : IDisposable
 {
     private readonly MsgPackRpc msgPackRpc;
-    private readonly IRedrawEventFactory<TRedrawEvent> factory;
-    private readonly RedrawEventParser<TRedrawEvent> redrawEventParser;
+    private readonly RedrawEventParser redrawEventParser;
     private readonly IComponentLogger log;
     private readonly Process process;
     private bool disposedValue = false;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="NeovimRpcClient{TRedrawEventFactory}"/> class.
+    /// Initializes a new instance of the <see cref="NeovimRpcClient"/> class.
     /// </summary>
     /// <param name="path">The path to neovim executable.</param>
-    /// <param name="factory">The painter used for drawing UI.</param>
     /// <param name="logger">Application logger.</param>
     /// <param name="workingDirectory">Optional working directory for Neovim.</param>
     /// <param name="fileArgs">Optional file paths to open on startup.</param>
-    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
+    public NeovimRpcClient(string path, IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
     {
-        this.factory = factory;
-        this.log = logger.For<NeovimRpcClient<TRedrawEvent>>();
-        this.redrawEventParser = new RedrawEventParser<TRedrawEvent>(factory, logger);
+        this.log = logger.For<NeovimRpcClient>();
+        this.redrawEventParser = new RedrawEventParser(logger);
 
         string arguments = @"--headless --embed --cmd ""let g:gui_aerovim = 1""";
         if (fileArgs is not null)
@@ -83,7 +80,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     /// A delegate type that indicates Neovim needs redrawing.
     /// </summary>
     /// <param name="events">The list of redraw event.</param>
-    public delegate void RedrawHandler(IList<TRedrawEvent> events);
+    public delegate void RedrawHandler(IList<IRedrawEvent> events);
 
     /// <summary>
     /// Gets or sets the callback functions that will be called when Neovim crashs.
