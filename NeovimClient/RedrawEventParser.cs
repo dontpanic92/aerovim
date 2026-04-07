@@ -512,7 +512,7 @@ public sealed class RedrawEventParser<TRedrawEvent>
             foreach (var chunk in rawContent)
             {
                 var chunkList = RequireList(chunk, "cmdline_show chunk");
-                int hlId = chunkList.Count > 2 ? chunkList[2].AsInt32() : 0;
+                int hlId = chunkList[0].AsInt32();
                 string text = chunkList.Count > 1 ? chunkList[1].AsString() : string.Empty;
                 content.Add((hlId, text));
             }

@@ -457,12 +457,11 @@ public class NeovimRedrawParserTests
     {
         var parser = new RedrawEventParser<IRedrawEvent>(new DefaultRedrawEventFactory(), NullLogger.Instance);
 
-        // content: [[{}, "set number", 0]]
+        // content: [[hlId, "set number"]] — per Neovim API: [attr_id, text]
         var chunk = new List<MsgPack.MessagePackObject>
         {
-            new MsgPack.MessagePackObject(new MsgPack.MessagePackObjectDictionary()),
+            new MsgPack.MessagePackObject(7),
             new MsgPack.MessagePackObject("set number"),
-            new MsgPack.MessagePackObject(0),
         };
         var content = new List<MsgPack.MessagePackObject>
         {
@@ -480,6 +479,7 @@ public class NeovimRedrawParserTests
         Assert.That(events[0], Is.TypeOf<CmdlineShowEvent>());
         var e = (CmdlineShowEvent)events[0];
         Assert.That(e.Content, Has.Count.EqualTo(1));
+        Assert.That(e.Content[0].HlId, Is.EqualTo(7));
         Assert.That(e.Content[0].Text, Is.EqualTo("set number"));
         Assert.That(e.Pos, Is.EqualTo(3));
         Assert.That(e.Firstc, Is.EqualTo(":"));
