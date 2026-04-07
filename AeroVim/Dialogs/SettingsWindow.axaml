@@ -42,7 +42,7 @@
 
                         <!-- Neovim Path -->
                         <TextBlock Grid.Row="1" Grid.Column="0" Name="NeovimPathLabel" Text="Neovim Path"
-                                   VerticalAlignment="Center" Margin="0,8,10,0" />
+                                   VerticalAlignment="Center" Margin="0,8,10,0" Width="64" />
                         <TextBox Grid.Row="1" Grid.Column="1" Name="NeovimPathBox" Margin="0,8,0,0" />
                         <StackPanel Grid.Row="2" Grid.Column="1" Name="NeovimPathPanel"
                                     Orientation="Horizontal" Margin="0,4,0,0">
@@ -52,7 +52,7 @@
 
                         <!-- Vim Path -->
                         <TextBlock Grid.Row="3" Grid.Column="0" Name="VimPathLabel" Text="Vim Path"
-                                   VerticalAlignment="Center" Margin="0,8,10,0" />
+                                   VerticalAlignment="Center" Margin="0,8,10,0"  Width="64" />
                         <TextBox Grid.Row="3" Grid.Column="1" Name="VimPathBox" Margin="0,8,0,0" />
                         <StackPanel Grid.Row="4" Grid.Column="1" Name="VimPathPanel"
                                     Orientation="Horizontal" Margin="0,4,0,0">
