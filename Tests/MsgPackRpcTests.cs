@@ -209,6 +209,48 @@ public class MsgPackRpcTests
         Assert.DoesNotThrow(() => rpc.Dispose());
     }
 
+    /// <summary>
+    /// Concurrent SendRequest calls should each receive a unique request ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Test]
+    public async Task ConcurrentSendRequests_ProduceUniqueRequestIds()
+    {
+        using var streams = new DuplexStreamPair();
+        using var rpc = new MsgPackRpc(streams.ClientWriter, streams.ClientReader, (_, _) => { }, NullLogger.Instance);
+
+        const int count = 50;
+        var tasks = new Task<(bool Success, object Value)>[count];
+        var barrier = new Barrier(count);
+
+        // Launch N requests concurrently, synchronized at a barrier.
+        for (int i = 0; i < count; i++)
+        {
+            int index = i;
+            tasks[index] = Task.Run(() =>
+            {
+                barrier.SignalAndWait();
+                return rpc.SendRequest($"method_{index}", new object[] { index });
+            });
+        }
+
+        // Read all N requests from the server side and collect their IDs.
+        var ids = new HashSet<uint>();
+        var serverReader = new MessagePackStreamReader(streams.ServerReader);
+        for (int i = 0; i < count; i++)
+        {
+            var payload = await serverReader.ReadAsync(CancellationToken.None);
+            Assert.That(payload.HasValue, Is.True);
+            var unpacker = new MessagePackReader(payload.Value);
+            Assert.That(unpacker.ReadArrayHeader(), Is.EqualTo(4));
+            unpacker.ReadInt32(); // type
+            uint requestId = unpacker.ReadUInt32();
+            ids.Add(requestId);
+        }
+
+        Assert.That(ids.Count, Is.EqualTo(count), "All request IDs must be unique.");
+    }
+
     private static async Task<(int Type, uint RequestId, string Method, object?[] Args)> ReadRequestAsync(Stream stream)
     {
         var reader = new MessagePackStreamReader(stream);

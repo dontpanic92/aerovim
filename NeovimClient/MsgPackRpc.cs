@@ -21,7 +21,8 @@ public sealed class MsgPackRpc : IDisposable
     private readonly IComponentLogger log;
     private readonly CancellationTokenSource disposeCancellation = new();
     private readonly Task readTask;
-    private uint nextRequestId = 0;
+    private readonly object writeLock = new();
+    private int nextRequestId;
     private bool disposed;
 
     private ConcurrentDictionary<uint, TaskCompletionSource<(bool Success, object Value)>> responseSignals
@@ -68,15 +69,7 @@ public sealed class MsgPackRpc : IDisposable
     /// </summary>
     public RpcErrorHandler? RpcErrorOccurred { get; set; }
 
-    private uint NextRequestId
-    {
-        get
-        {
-            uint ret = this.nextRequestId;
-            this.nextRequestId = (this.nextRequestId + 1) % uint.MaxValue;
-            return ret;
-        }
-    }
+    private uint NextRequestId => unchecked((uint)Interlocked.Increment(ref this.nextRequestId));
 
     /// <summary>
     /// Send a request to remote.
@@ -107,8 +100,12 @@ public sealed class MsgPackRpc : IDisposable
             this.WriteObject(ref packer, args);
             packer.Flush();
 
-            this.writer.Write(buffer.WrittenSpan);
-            this.writer.Flush();
+            lock (this.writeLock)
+            {
+                this.writer.Write(buffer.WrittenSpan);
+                this.writer.Flush();
+            }
+
             return responseSignal.Task;
         }
         catch (Exception ex)
