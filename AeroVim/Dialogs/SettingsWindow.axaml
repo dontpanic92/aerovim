@@ -172,7 +172,7 @@
                             <ListBox Name="FileAssocListBox" Grid.Column="0" Height="130" Margin="0,0,5,0"
                                      SelectionMode="Multiple">
                                 <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="dialogs:FileAssocItem">
+                                    <DataTemplate x:CompileBindings="True" x:DataType="dialogs:FileAssocItem">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
