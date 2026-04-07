@@ -22,6 +22,7 @@ internal sealed class EditorSessionCoordinator
     private readonly IComponentLogger log;
     private readonly IAppLogger logger;
     private readonly Func<string?, Task<Dialogs.SettingsWindow.Result>> showSettingsPrompt;
+    private IReadOnlyList<string>? initialFileArgs;
     private IEditorClient? editorClient;
     private EditorControl? editorControl;
 
@@ -35,15 +36,18 @@ internal sealed class EditorSessionCoordinator
     /// editor path. Receives an optional prompt message and returns the
     /// dialog result.
     /// </param>
+    /// <param name="fileArgs">Optional file paths to open at startup.</param>
     public EditorSessionCoordinator(
         AppSettings settings,
         IAppLogger logger,
-        Func<string?, Task<Dialogs.SettingsWindow.Result>> showSettingsPrompt)
+        Func<string?, Task<Dialogs.SettingsWindow.Result>> showSettingsPrompt,
+        IReadOnlyList<string>? fileArgs = null)
     {
         this.settings = settings;
         this.logger = logger;
         this.log = logger.For<EditorSessionCoordinator>();
         this.showSettingsPrompt = showSettingsPrompt;
+        this.initialFileArgs = fileArgs;
 
         this.settings.PropertyChanged += this.OnSettingsPropertyChanged;
     }
@@ -106,7 +110,8 @@ internal sealed class EditorSessionCoordinator
             try
             {
                 this.log.Info($"Creating {this.settings.EditorType} backend...");
-                this.editorClient = EditorClientFactory.Create(this.settings, this.logger);
+                this.editorClient = EditorClientFactory.Create(this.settings, this.logger, this.initialFileArgs);
+                this.initialFileArgs = null;
                 this.log.Info($"{this.settings.EditorType} backend created successfully.");
                 break;
             }
@@ -174,6 +179,25 @@ internal sealed class EditorSessionCoordinator
     public void Input(string text)
     {
         this.editorClient?.Input(text);
+    }
+
+    /// <summary>
+    /// Opens the specified files in the editor by sending <c>:edit</c>
+    /// commands. Paths containing special Vim characters are escaped.
+    /// </summary>
+    /// <param name="paths">The file paths to open.</param>
+    public void OpenFiles(IEnumerable<string> paths)
+    {
+        if (this.editorClient is null)
+        {
+            return;
+        }
+
+        foreach (var path in paths)
+        {
+            var escaped = path.Replace("\\", "/").Replace(" ", "\\ ");
+            this.editorClient.Command($"edit {escaped}");
+        }
     }
 
     /// <summary>

@@ -30,10 +30,10 @@ public partial class MainWindow : Window
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
     /// Used by the XAML designer; runtime code should use
-    /// <see cref="MainWindow(AppSettings)"/>.
+    /// <see cref="MainWindow(AppSettings, IReadOnlyList{string}?)"/>.
     /// </summary>
     public MainWindow()
-        : this(AppSettings.Default)
+        : this(AppSettings.Default, null)
     {
     }
 
@@ -41,14 +41,15 @@ public partial class MainWindow : Window
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
     /// </summary>
     /// <param name="settings">Application settings.</param>
-    public MainWindow(AppSettings settings)
+    /// <param name="fileArgs">Optional file paths from command-line arguments.</param>
+    public MainWindow(AppSettings settings, IReadOnlyList<string>? fileArgs = null)
     {
         this.settings = settings;
         this.InitializeComponent();
 
         this.effectsService = new WindowEffectsService(this, this.settings);
         this.effectsService.CurrentBackgroundColor = this.settings.BackgroundColor;
-        this.coordinator = new EditorSessionCoordinator(this.settings, AeroVim.Diagnostics.AppLogger.Instance, this.ShowSettingsDialogAsync);
+        this.coordinator = new EditorSessionCoordinator(this.settings, AeroVim.Diagnostics.AppLogger.Instance, this.ShowSettingsDialogAsync, fileArgs);
 
         this.effectsService.BackgroundBrushChanged += this.OnBackgroundBrushChanged;
         this.effectsService.MacOSFullScreenChanged += this.OnMacOSFullScreenChanged;
@@ -67,7 +68,21 @@ public partial class MainWindow : Window
 
         this.effectsService.SetupBlurBehind();
         WindowSettingsPersistence.Apply(this, this.settings);
+
+        this.AddHandler(DragDrop.DragOverEvent, this.OnDragOver);
+        this.AddHandler(DragDrop.DropEvent, this.OnDrop);
+
         this.Opened += this.OnWindowOpened;
+    }
+
+    /// <summary>
+    /// Opens the specified files in the editor. Used by drag-and-drop
+    /// and platform file-open events (e.g. macOS Finder).
+    /// </summary>
+    /// <param name="paths">The file paths to open.</param>
+    public void OpenFiles(IEnumerable<string> paths)
+    {
+        this.coordinator.OpenFiles(paths);
     }
 
     /// <summary>
@@ -225,6 +240,39 @@ public partial class MainWindow : Window
         this.Padding = state == WindowState.Maximized
             ? this.OffScreenMargin
             : default;
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (!this.settings.EnableDragDrop)
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+    }
+
+    private void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (!this.settings.EnableDragDrop || !e.DataTransfer.Contains(DataFormat.File))
+        {
+            return;
+        }
+
+        var files = e.DataTransfer.TryGetFiles();
+        if (files is null)
+        {
+            return;
+        }
+
+        var paths = files
+            .Select(f => f.Path.LocalPath)
+            .Where(p => !string.IsNullOrEmpty(p));
+
+        this.coordinator.OpenFiles(paths);
     }
 
     private async void OnWindowOpened(object? sender, EventArgs e)

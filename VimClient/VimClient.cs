@@ -20,6 +20,7 @@ public sealed class VimClient : IEditorClient
 {
     private readonly string vimPath;
     private readonly string? workingDirectory;
+    private readonly IReadOnlyList<string>? fileArgs;
     private readonly IComponentLogger log;
     private readonly TerminalBuffer buffer;
     private readonly VtParser parser;
@@ -47,11 +48,13 @@ public sealed class VimClient : IEditorClient
     /// <param name="logger">Application logger.</param>
     /// <param name="workingDirectory">Optional working directory for Vim.</param>
     /// <param name="initialBackgroundColor">Initial default background color in RGB format, e.g. from saved settings.</param>
-    public VimClient(string vimPath, IAppLogger logger, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF)
+    /// <param name="fileArgs">Optional file paths to open on startup.</param>
+    public VimClient(string vimPath, IAppLogger logger, string? workingDirectory = null, int initialBackgroundColor = 0xFFFFFF, IReadOnlyList<string>? fileArgs = null)
     {
         this.vimPath = vimPath ?? throw new ArgumentNullException(nameof(vimPath));
         this.log = logger.For<VimClient>();
         this.workingDirectory = workingDirectory;
+        this.fileArgs = fileArgs;
         this.buffer = new TerminalBuffer(80, 24);
         this.buffer.SetDetectedBackground(initialBackgroundColor);
         this.buffer.SetTerminalDefaultBackground(initialBackgroundColor);
@@ -453,9 +456,13 @@ public sealed class VimClient : IEditorClient
                 this.buffer.Resize((int)cols, (int)rows);
             }
 
+            var vimArgs = this.fileArgs is not null && this.fileArgs.Count > 0
+                ? this.fileArgs.ToArray()
+                : Array.Empty<string>();
+
             this.ptyConnection = PtyConnectionFactory.Create(
                 this.vimPath,
-                Array.Empty<string>(),
+                vimArgs,
                 env,
                 cwd,
                 (int)rows,

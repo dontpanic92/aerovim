@@ -75,7 +75,7 @@
         </ControlTemplate>
     </Window.Template>
 
-    <DockPanel LastChildFill="True">
+    <DockPanel LastChildFill="True" DragDrop.AllowDrop="True">
         <!-- Custom Title Bar -->
         <Grid DockPanel.Dock="Top" Height="28" Name="TitleBar" IsHitTestVisible="True"
               PointerPressed="TitleBar_PointerPressed">

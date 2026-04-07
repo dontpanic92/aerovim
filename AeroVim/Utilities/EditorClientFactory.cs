@@ -23,10 +23,11 @@ public static class EditorClientFactory
     /// </summary>
     /// <param name="settings">Application settings.</param>
     /// <param name="logger">Logger for the backend to use.</param>
+    /// <param name="fileArgs">Optional file paths to open on startup.</param>
     /// <returns>The created editor client.</returns>
     /// <exception cref="EditorNotFoundException">The editor path is missing or does not exist.</exception>
     /// <exception cref="EditorLaunchException">The process could not be started.</exception>
-    public static IEditorClient Create(AppSettings settings, IAppLogger logger)
+    public static IEditorClient Create(AppSettings settings, IAppLogger logger, IReadOnlyList<string>? fileArgs = null)
     {
         string editorName = settings.EditorType == EditorType.Vim ? "Vim" : "Neovim";
         string path = settings.EditorType == EditorType.Vim ? settings.VimPath : settings.NeovimPath;
@@ -41,8 +42,8 @@ public static class EditorClientFactory
         {
             return settings.EditorType switch
             {
-                EditorType.Vim => new VimClient.VimClient(settings.VimPath, logger, initialBackgroundColor: settings.BackgroundColor),
-                EditorType.Neovim => new NeovimClient.NeovimClient(settings.NeovimPath, logger),
+                EditorType.Vim => new VimClient.VimClient(settings.VimPath, logger, initialBackgroundColor: settings.BackgroundColor, fileArgs: fileArgs),
+                EditorType.Neovim => new NeovimClient.NeovimClient(settings.NeovimPath, logger, fileArgs),
                 _ => throw new InvalidOperationException($"Unsupported editor type: {settings.EditorType}"),
             };
         }

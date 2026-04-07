@@ -27,11 +27,21 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     /// <param name="path">The path to neovim executable.</param>
     /// <param name="factory">The painter used for drawing UI.</param>
     /// <param name="logger">Application logger.</param>
-    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger)
+    /// <param name="fileArgs">Optional file paths to open on startup.</param>
+    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger, IReadOnlyList<string>? fileArgs = null)
     {
         this.factory = factory;
         this.log = logger.For<NeovimRpcClient<TRedrawEvent>>();
         this.redrawEventParser = new RedrawEventParser<TRedrawEvent>(factory, logger);
+
+        string arguments = @"--headless --embed --cmd ""let g:gui_aerovim = 1""";
+        if (fileArgs is not null)
+        {
+            foreach (var file in fileArgs)
+            {
+                arguments += " " + QuoteArgument(file);
+            }
+        }
 
         this.process = new Process
         {
@@ -43,7 +53,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 WorkingDirectory = Path.GetDirectoryName(path),
-                Arguments = @"--headless --embed --cmd ""let g:gui_aerovim = 1""",
+                Arguments = arguments,
             },
 
             EnableRaisingEvents = true,
@@ -124,6 +134,16 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
 
             this.disposedValue = true;
         }
+    }
+
+    private static string QuoteArgument(string arg)
+    {
+        if (arg.Length > 0 && !arg.Contains(' ') && !arg.Contains('"'))
+        {
+            return arg;
+        }
+
+        return "\"" + arg.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
     private void NotificationDispatcher(string name, IList<MsgPack.MessagePackObject> rawEvents)

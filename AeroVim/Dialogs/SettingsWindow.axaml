@@ -24,6 +24,7 @@
                      SelectionChanged="PageListBox_SelectionChanged">
                 <ListBoxItem Content="General" Padding="8,4" />
                 <ListBoxItem Content="Appearance" Padding="8,4" />
+                <ListBoxItem Content="Shell Integration" Padding="8,4" />
                 <ListBoxItem Content="About" Padding="8,4" />
             </ListBox>
 
@@ -117,6 +118,57 @@
                     </StackPanel>
                 </controls:GroupBox>
 
+            </StackPanel>
+
+            <!-- Shell Integration Page -->
+            <StackPanel Name="ShellIntegrationPage" Grid.Column="1" IsVisible="False" Spacing="10">
+                <controls:GroupBox Header="Drag &amp; Drop" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+                    <StackPanel>
+                        <CheckBox Name="DragDropCheckBox" Content="Enable drag-and-drop file opening" Margin="0,0,0,5" />
+                        <TextBlock Text="Drop files onto the AeroVim window to open them in the editor."
+                                   FontSize="11" Foreground="Gray" Margin="20,0,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </controls:GroupBox>
+
+                <controls:GroupBox Name="WindowsShellGroup" Header="Windows Shell" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Per-user registry entries (no admin required). Changes take effect immediately."
+                                   FontSize="11" Foreground="Gray" Margin="0,0,0,4" TextWrapping="Wrap" />
+
+                        <!-- Context Menu -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="Explorer Context Menu" FontWeight="SemiBold" />
+                                <TextBlock Name="ContextMenuStatus" FontSize="11" Foreground="Gray"
+                                           Text="Checking..." />
+                            </StackPanel>
+                            <Button Grid.Column="1" Name="ContextMenuButton" Width="90"
+                                    Content="Integrate" Click="ContextMenu_Click" />
+                        </Grid>
+
+                        <Separator Margin="0,2" />
+
+                        <!-- File Associations -->
+                        <TextBlock Text="File Type Associations" FontWeight="SemiBold" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <ListBox Name="FileAssocListBox" Grid.Column="0" Height="140" Margin="0,0,5,0"
+                                     SelectionMode="Multiple" />
+
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <Button Name="FileAssocIntegrateAllBtn" Content="Integrate All" Width="90" Click="FileAssocIntegrateAll_Click" />
+                                <Button Name="FileAssocRemoveAllBtn" Content="Remove All" Width="90" Click="FileAssocRemoveAll_Click" />
+                                <Separator Margin="0,3" />
+                                <Button Name="FileAssocAddBtn" Content="Add..." Width="90" Click="FileAssocAdd_Click" />
+                                <Button Name="FileAssocRemoveBtn" Content="Remove" Width="90" Click="FileAssocRemove_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </controls:GroupBox>
             </StackPanel>
 
             <!-- About Page -->

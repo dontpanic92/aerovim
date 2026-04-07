@@ -32,5 +32,38 @@
     <string>public.app-category.developer-tools</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © aerovim Developers. Licensed under the GPLv2.</string>
+
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Text Document</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.plain-text</string>
+                <string>public.source-code</string>
+                <string>public.script</string>
+                <string>public.shell-script</string>
+                <string>public.python-script</string>
+                <string>public.ruby-script</string>
+                <string>public.xml</string>
+                <string>public.json</string>
+                <string>public.yaml</string>
+                <string>com.netscape.javascript-source</string>
+                <string>public.c-source</string>
+                <string>public.c-plus-plus-source</string>
+                <string>public.c-header</string>
+                <string>public.objective-c-source</string>
+                <string>public.swift-source</string>
+                <string>com.apple.log</string>
+                <string>public.comma-separated-values-text</string>
+                <string>public.data</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

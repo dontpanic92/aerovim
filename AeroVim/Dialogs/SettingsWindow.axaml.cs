@@ -103,7 +103,8 @@ public partial class SettingsWindow : Window
     {
         this.FindControl<StackPanel>("GeneralPage")!.IsVisible = index == 0;
         this.FindControl<StackPanel>("AppearancePage")!.IsVisible = index == 1;
-        this.FindControl<StackPanel>("AboutPage")!.IsVisible = index == 2;
+        this.FindControl<StackPanel>("ShellIntegrationPage")!.IsVisible = index == 2;
+        this.FindControl<StackPanel>("AboutPage")!.IsVisible = index == 3;
     }
 
     private void PageListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -229,6 +230,16 @@ public partial class SettingsWindow : Window
         {
             this.settings.EnableLigature = ligatureCheckBox.IsChecked == true;
         };
+
+        // Shell Integration page
+        this.FindControl<CheckBox>("DragDropCheckBox")!.IsChecked = this.settings.EnableDragDrop;
+
+        // Only show Windows shell group on Windows.
+        this.FindControl<Avalonia.Controls.Control>("WindowsShellGroup")!.IsVisible =
+            ShellIntegrationService.IsSupported;
+
+        this.PopulateFileAssociationList();
+        this.RefreshShellIntegrationStatus();
     }
 
     private void SaveUiToSettings()
@@ -269,6 +280,13 @@ public partial class SettingsWindow : Window
         {
             this.settings.BlurType = 2;
         }
+
+        // Shell Integration — drag-and-drop is the only save-on-close setting.
+        // Context menu and file associations are applied immediately via buttons.
+        this.settings.EnableDragDrop = this.FindControl<CheckBox>("DragDropCheckBox")!.IsChecked == true;
+
+        // Persist the extension list so it survives restart.
+        this.settings.FileAssociationExtensions = this.GetExtensionListFromUi();
     }
 
     private void Ok_Click(object? sender, RoutedEventArgs e)
@@ -475,6 +493,144 @@ public partial class SettingsWindow : Window
         this.FindControl<TextBlock>("VimPathLabel")!.IsVisible = isVim;
         this.FindControl<TextBox>("VimPathBox")!.IsVisible = isVim;
         this.FindControl<StackPanel>("VimPathPanel")!.IsVisible = isVim;
+    }
+
+    private void PopulateFileAssociationList()
+    {
+        if (!ShellIntegrationService.IsSupported)
+        {
+            return;
+        }
+
+        var listBox = this.FindControl<ListBox>("FileAssocListBox")!;
+        listBox.Items.Clear();
+
+        var extensions = this.settings.FileAssociationExtensions.Count > 0
+            ? this.settings.FileAssociationExtensions
+            : ShellIntegrationService.DefaultExtensions.ToList();
+
+        foreach (var ext in extensions.OrderBy(e => e, StringComparer.OrdinalIgnoreCase))
+        {
+            bool registered = ShellIntegrationService.IsExtensionRegistered(ext);
+            string label = registered ? $"{ext}  ✓" : ext;
+            listBox.Items.Add(label);
+        }
+    }
+
+    private List<string> GetExtensionListFromUi()
+    {
+        var listBox = this.FindControl<ListBox>("FileAssocListBox")!;
+        var result = new List<string>();
+        foreach (var item in listBox.Items)
+        {
+            if (item is string label)
+            {
+                var ext = label.Replace("✓", string.Empty).Trim();
+                if (!string.IsNullOrEmpty(ext))
+                {
+                    result.Add(ext);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private void RefreshShellIntegrationStatus()
+    {
+        if (!ShellIntegrationService.IsSupported)
+        {
+            return;
+        }
+
+        bool contextMenuRegistered = ShellIntegrationService.IsContextMenuRegistered();
+        this.FindControl<TextBlock>("ContextMenuStatus")!.Text = contextMenuRegistered
+            ? "Integrated — \"Open with AeroVim\" is in the Explorer right-click menu."
+            : "Not integrated.";
+        this.FindControl<Button>("ContextMenuButton")!.Content = contextMenuRegistered
+            ? "Remove"
+            : "Integrate";
+
+        this.PopulateFileAssociationList();
+    }
+
+    private void ContextMenu_Click(object? sender, RoutedEventArgs e)
+    {
+        bool isRegistered = ShellIntegrationService.IsContextMenuRegistered();
+        ShellIntegrationService.SetContextMenuRegistration(!isRegistered);
+        this.RefreshShellIntegrationStatus();
+    }
+
+    private void FileAssocIntegrateAll_Click(object? sender, RoutedEventArgs e)
+    {
+        var extensions = this.GetExtensionListFromUi();
+        ShellIntegrationService.RegisterAllExtensions(extensions);
+        this.PopulateFileAssociationList();
+    }
+
+    private void FileAssocRemoveAll_Click(object? sender, RoutedEventArgs e)
+    {
+        var extensions = this.GetExtensionListFromUi();
+        ShellIntegrationService.UnregisterAllExtensions(extensions);
+        this.PopulateFileAssociationList();
+    }
+
+    private async void FileAssocAdd_Click(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new InputWindow(
+            "Enter file extensions separated by comma or semicolon:",
+            "Add Extensions",
+            "e.g. .txt, .log, .cfg");
+        await dialog.ShowDialog(this);
+
+        if (string.IsNullOrWhiteSpace(dialog.InputText))
+        {
+            return;
+        }
+
+        var listBox = this.FindControl<ListBox>("FileAssocListBox")!;
+        var existing = this.GetExtensionListFromUi();
+
+        var parts = dialog.InputText.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var ext = ShellIntegrationService.NormaliseExtension(part);
+            if (ext is not null && !existing.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            {
+                existing.Add(ext);
+                bool registered = ShellIntegrationService.IsExtensionRegistered(ext);
+                string label = registered ? $"{ext}  ✓" : ext;
+                listBox.Items.Add(label);
+            }
+        }
+    }
+
+    private void FileAssocRemove_Click(object? sender, RoutedEventArgs e)
+    {
+        var listBox = this.FindControl<ListBox>("FileAssocListBox")!;
+
+        // Collect selected items to remove (iterate in reverse to preserve indices).
+        var toRemove = new List<int>();
+        foreach (var item in listBox.Selection.SelectedItems)
+        {
+            int index = listBox.Items.IndexOf(item);
+            if (index >= 0)
+            {
+                toRemove.Add(index);
+            }
+        }
+
+        // Unregister from registry and remove from list.
+        foreach (int index in toRemove.OrderByDescending(i => i))
+        {
+            if (listBox.Items[index] is string label)
+            {
+                var ext = label.Replace("✓", string.Empty).Trim();
+                ShellIntegrationService.SetExtensionRegistration(ext, false);
+            }
+
+            listBox.Items.RemoveAt(index);
+        }
     }
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)

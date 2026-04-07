@@ -27,7 +27,12 @@ public class App : Application
     {
         if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow(AppSettings.Default);
+            // Filter out Avalonia framework args; keep only file paths.
+            var fileArgs = desktop.Args?
+                .Where(a => !string.IsNullOrWhiteSpace(a) && !a.StartsWith('-'))
+                .ToList();
+
+            desktop.MainWindow = new MainWindow(AppSettings.Default, fileArgs);
         }
 
         base.OnFrameworkInitializationCompleted();

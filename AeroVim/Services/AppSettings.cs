@@ -32,6 +32,8 @@ public sealed class AppSettings : INotifyPropertyChanged
     private double backgroundOpacity = 0.75;
     private bool enableLigature = true;
     private bool enableBlurBehind = true;
+    private bool enableDragDrop = true;
+    private List<string> fileAssociationExtensions = new List<string>();
     private int blurType = 1;
     private bool isMaximized;
     private int windowWidth = 800;
@@ -116,6 +118,26 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => this.enableBlurBehind;
         set => this.SetField(ref this.enableBlurBehind, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether drag-and-drop file opening is enabled.
+    /// </summary>
+    public bool EnableDragDrop
+    {
+        get => this.enableDragDrop;
+        set => this.SetField(ref this.enableDragDrop, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the list of file extensions to associate with AeroVim.
+    /// When empty, the default set from <see cref="ShellIntegrationService.DefaultExtensions"/>
+    /// is used as the initial value in the Settings UI.
+    /// </summary>
+    public List<string> FileAssociationExtensions
+    {
+        get => this.fileAssociationExtensions;
+        set => this.SetField(ref this.fileAssociationExtensions, value);
     }
 
     /// <summary>
@@ -209,6 +231,8 @@ public sealed class AppSettings : INotifyPropertyChanged
         this.BackgroundOpacity = fresh.BackgroundOpacity;
         this.EnableLigature = fresh.EnableLigature;
         this.EnableBlurBehind = fresh.EnableBlurBehind;
+        this.EnableDragDrop = fresh.EnableDragDrop;
+        this.FileAssociationExtensions = fresh.FileAssociationExtensions;
         this.BlurType = fresh.BlurType;
         this.IsMaximized = fresh.IsMaximized;
         this.WindowWidth = fresh.WindowWidth;
