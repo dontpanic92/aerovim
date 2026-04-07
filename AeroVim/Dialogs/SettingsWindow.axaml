@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:Classic.Avalonia.Theme.Controls"
+        xmlns:dialogs="using:AeroVim.Dialogs"
         x:Class="AeroVim.Dialogs.SettingsWindow"
         Title="Settings" Height="520" Width="720"
         CanResize="False"
@@ -171,7 +172,7 @@
                             <ListBox Name="FileAssocListBox" Grid.Column="0" Height="130" Margin="0,0,5,0"
                                      SelectionMode="Multiple">
                                 <ListBox.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="dialogs:FileAssocItem">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
