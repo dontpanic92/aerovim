@@ -15,14 +15,11 @@
     <InternalsVisibleTo Include="Tests" />
   </ItemGroup>
 
-  <!-- Compile native PTY helper and include in output -->
+  <!-- Compile native PTY helper as a universal (fat) binary so a single dylib
+       works for both x86_64 and arm64 targets without needing RuntimeIdentifier. -->
   <Target Name="BuildNativePty" BeforeTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <PropertyGroup>
-      <_NativeArch Condition="$(RuntimeIdentifier.Contains('x64'))">-arch x86_64</_NativeArch>
-      <_NativeArch Condition="$(RuntimeIdentifier.Contains('arm64'))">-arch arm64</_NativeArch>
-    </PropertyGroup>
     <MakeDir Directories="$(OutputPath)" />
-    <Exec Command="cc -shared $(_NativeArch) -o $(OutputPath)libaerovim_pty.dylib %(NativePtySources.Identity)"
+    <Exec Command="cc -shared -arch x86_64 -arch arm64 -o $(OutputPath)libaerovim_pty.dylib %(NativePtySources.Identity)"
           WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
