@@ -27,8 +27,9 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
     /// <param name="path">The path to neovim executable.</param>
     /// <param name="factory">The painter used for drawing UI.</param>
     /// <param name="logger">Application logger.</param>
+    /// <param name="workingDirectory">Optional working directory for Neovim.</param>
     /// <param name="fileArgs">Optional file paths to open on startup.</param>
-    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger, IReadOnlyList<string>? fileArgs = null)
+    public NeovimRpcClient(string path, IRedrawEventFactory<TRedrawEvent> factory, IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
     {
         this.factory = factory;
         this.log = logger.For<NeovimRpcClient<TRedrawEvent>>();
@@ -52,7 +53,7 @@ public class NeovimRpcClient<TRedrawEvent> : IDisposable
                 CreateNoWindow = true,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
-                WorkingDirectory = Path.GetDirectoryName(path),
+                WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
                 Arguments = arguments,
             },
 

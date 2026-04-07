@@ -17,9 +17,10 @@ public class DefaultNeovimRpcClient : NeovimRpcClient<Events.IRedrawEvent>
     /// </summary>
     /// <param name="path">The path to neovim.</param>
     /// <param name="logger">Application logger.</param>
+    /// <param name="workingDirectory">Optional working directory for Neovim.</param>
     /// <param name="fileArgs">Optional file paths to open on startup.</param>
-    public DefaultNeovimRpcClient(string path, IAppLogger logger, IReadOnlyList<string>? fileArgs = null)
-        : base(path, new DefaultRedrawEventFactory(), logger, fileArgs)
+    public DefaultNeovimRpcClient(string path, IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
+        : base(path, new DefaultRedrawEventFactory(), logger, workingDirectory, fileArgs)
     {
     }
 }

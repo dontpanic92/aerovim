@@ -43,7 +43,7 @@ public static class EditorClientFactory
             return settings.EditorType switch
             {
                 EditorType.Vim => new VimClient.VimClient(settings.VimPath, logger, initialBackgroundColor: settings.BackgroundColor, fileArgs: fileArgs),
-                EditorType.Neovim => new NeovimClient.NeovimClient(settings.NeovimPath, logger, fileArgs),
+                EditorType.Neovim => new NeovimClient.NeovimClient(settings.NeovimPath, logger, fileArgs: fileArgs),
                 _ => throw new InvalidOperationException($"Unsupported editor type: {settings.EditorType}"),
             };
         }

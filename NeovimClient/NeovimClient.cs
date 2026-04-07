@@ -48,10 +48,11 @@ public sealed class NeovimClient : IEditorClient
     /// </summary>
     /// <param name="neovimPath">Neovim.</param>
     /// <param name="logger">Application logger.</param>
+    /// <param name="workingDirectory">Optional working directory for Neovim.</param>
     /// <param name="fileArgs">Optional file paths to open on startup.</param>
-    public NeovimClient(string neovimPath, AeroVim.Editor.Diagnostics.IAppLogger logger, IReadOnlyList<string>? fileArgs = null)
+    public NeovimClient(string neovimPath, AeroVim.Editor.Diagnostics.IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
     {
-        this.neovim = new DefaultNeovimRpcClient(neovimPath, logger, fileArgs);
+        this.neovim = new DefaultNeovimRpcClient(neovimPath, logger, workingDirectory, fileArgs);
         this.neovim.Redraw += this.OnNeovimRedraw;
         this.neovim.NeovimExited += (int exitCode) =>
         {
