@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// A event that does nothing.
 /// </summary>
-public class NopEvent : IRedrawEvent
-{
-}
+public record NopEvent() : IRedrawEvent;

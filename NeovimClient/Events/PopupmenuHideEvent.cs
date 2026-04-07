@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The <c>popupmenu_hide</c> event. Hides the popup completion menu.
 /// </summary>
-public class PopupmenuHideEvent : IRedrawEvent
-{
-}
+public record PopupmenuHideEvent() : IRedrawEvent;

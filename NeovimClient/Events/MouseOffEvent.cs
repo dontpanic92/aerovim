@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The mouse_off event — mouse support was disabled.
 /// </summary>
-public class MouseOffEvent : IRedrawEvent
-{
-}
+public record MouseOffEvent() : IRedrawEvent;

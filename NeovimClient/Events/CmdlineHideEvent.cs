@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The <c>cmdline_hide</c> event. Hides the externalized command line.
 /// </summary>
-public class CmdlineHideEvent : IRedrawEvent
-{
-}
+public record CmdlineHideEvent() : IRedrawEvent;

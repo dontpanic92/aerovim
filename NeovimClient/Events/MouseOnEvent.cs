@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The mouse_on event — mouse support was enabled.
 /// </summary>
-public class MouseOnEvent : IRedrawEvent
-{
-}
+public record MouseOnEvent() : IRedrawEvent;

@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The EolClear event.
 /// </summary>
-public class EolClearEvent : IRedrawEvent
-{
-}
+public record EolClearEvent() : IRedrawEvent;

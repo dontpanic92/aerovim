@@ -8,6 +8,4 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The Clear event.
 /// </summary>
-public class ClearEvent : IRedrawEvent
-{
-}
+public record ClearEvent() : IRedrawEvent;

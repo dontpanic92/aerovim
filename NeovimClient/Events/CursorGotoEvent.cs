@@ -8,26 +8,6 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The CursorGoto event.
 /// </summary>
-public class CursorGotoEvent : IRedrawEvent
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CursorGotoEvent"/> class.
-    /// </summary>
-    /// <param name="row">row.</param>
-    /// <param name="col">column.</param>
-    public CursorGotoEvent(uint row, uint col)
-    {
-        this.Row = row;
-        this.Col = col;
-    }
-
-    /// <summary>
-    /// Gets the row.
-    /// </summary>
-    public uint Row { get; }
-
-    /// <summary>
-    /// Gets the col.
-    /// </summary>
-    public uint Col { get; }
-}
+/// <param name="Row">The row.</param>
+/// <param name="Col">The column.</param>
+public record CursorGotoEvent(uint Row, uint Col) : IRedrawEvent;

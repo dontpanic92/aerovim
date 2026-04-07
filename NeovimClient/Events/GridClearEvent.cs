@@ -8,19 +8,5 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// The <c>grid_clear</c> event. Clears the specified grid.
 /// </summary>
-public class GridClearEvent : IRedrawEvent
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GridClearEvent"/> class.
-    /// </summary>
-    /// <param name="grid">The grid identifier.</param>
-    public GridClearEvent(int grid)
-    {
-        this.Grid = grid;
-    }
-
-    /// <summary>
-    /// Gets the grid identifier.
-    /// </summary>
-    public int Grid { get; }
-}
+/// <param name="Grid">The grid identifier.</param>
+public record GridClearEvent(int Grid) : IRedrawEvent;

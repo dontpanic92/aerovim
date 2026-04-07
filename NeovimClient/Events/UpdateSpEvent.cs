@@ -8,19 +8,5 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// UpdateFg event.
 /// </summary>
-public class UpdateSpEvent : IRedrawEvent
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateSpEvent"/> class.
-    /// </summary>
-    /// <param name="color">Special color.</param>
-    public UpdateSpEvent(int color)
-    {
-        this.Color = color;
-    }
-
-    /// <summary>
-    /// Gets the color.
-    /// </summary>
-    public int Color { get; }
-}
+/// <param name="Color">Special color.</param>
+public record UpdateSpEvent(int Color) : IRedrawEvent;

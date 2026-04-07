@@ -40,7 +40,7 @@ public class NeovimClientTests
             new ResizeEvent(2, 3),
             new UpdateFgEvent(0x112233),
             new UpdateBgEvent(0x445566),
-            new HighlightSetEvent(0xABCDEF, 0x123456, 0x654321, reverse: false, italic: true, bold: true, underline: true, undercurl: false),
+            new HighlightSetEvent(0xABCDEF, 0x123456, 0x654321, Reverse: false, Italic: true, Bold: true, Underline: true, Undercurl: false),
             new CursorGotoEvent(0, 0),
             new PutEvent(new string?[] { "A" }),
             new SetTitleEvent("AeroVim"),

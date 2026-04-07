@@ -9,6 +9,4 @@ namespace AeroVim.NeovimClient.Events;
 /// The <c>flush</c> event. Signals that a complete redraw batch is finished
 /// and the UI should present the current state to the user.
 /// </summary>
-public class FlushEvent : IRedrawEvent
-{
-}
+public record FlushEvent() : IRedrawEvent;

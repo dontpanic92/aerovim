@@ -8,19 +8,5 @@ namespace AeroVim.NeovimClient.Events;
 /// <summary>
 /// Scroll event.
 /// </summary>
-public class ScrollEvent : IRedrawEvent
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ScrollEvent"/> class.
-    /// </summary>
-    /// <param name="count">Scroll count.</param>
-    public ScrollEvent(int count)
-    {
-        this.Count = count;
-    }
-
-    /// <summary>
-    /// Gets the count of lines to scroll.
-    /// </summary>
-    public int Count { get; }
-}
+/// <param name="Count">The count of lines to scroll.</param>
+public record ScrollEvent(int Count) : IRedrawEvent;
