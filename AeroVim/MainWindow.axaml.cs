@@ -121,12 +121,25 @@ public partial class MainWindow : Window
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == WindowStateProperty && RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (change.Property == WindowStateProperty)
         {
             var newState = (WindowState)change.NewValue!;
-            Dispatcher.UIThread.Post(
-                () => this.effectsService.HandleMacOSFullScreenTransition(newState == WindowState.FullScreen),
-                DispatcherPriority.Background);
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Dispatcher.UIThread.Post(
+                    () => this.effectsService.HandleMacOSFullScreenTransition(newState == WindowState.FullScreen),
+                    DispatcherPriority.Background);
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                this.UpdateMaximizedPadding(newState);
+            }
+        }
+        else if (change.Property == OffScreenMarginProperty && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            this.UpdateMaximizedPadding(this.WindowState);
         }
     }
 
@@ -207,6 +220,13 @@ public partial class MainWindow : Window
         this.coordinator.Shutdown();
     }
 
+    private void UpdateMaximizedPadding(WindowState state)
+    {
+        this.Padding = state == WindowState.Maximized
+            ? this.OffScreenMargin
+            : default;
+    }
+
     private async void OnWindowOpened(object? sender, EventArgs e)
     {
         this.Opened -= this.OnWindowOpened;
@@ -260,14 +280,12 @@ public partial class MainWindow : Window
     private void OnForegroundColorChanged(int intColor)
     {
         var color = Helpers.GetAvaloniaColor(intColor);
-        var brush = new SolidColorBrush(color);
 
-        this.FindControl<TextBlock>("TitleText")?.Foreground = brush;
-        this.FindControl<TextBlock>("LogoText")?.Foreground = brush;
-        this.FindControl<Button>("SettingsButton")!.Foreground = brush;
-        this.FindControl<Button>("MinimizeButton")!.Foreground = brush;
-        this.FindControl<Button>("MaximizeButton")!.Foreground = brush;
-        this.FindControl<Button>("CloseButton")!.Foreground = brush;
+        this.Resources["TitleBarForegroundBrush"] = new SolidColorBrush(color);
+        this.Resources["TitleBarButtonHoverBrush"] = new SolidColorBrush(
+            Color.FromArgb(0x20, color.R, color.G, color.B));
+        this.Resources["TitleBarButtonPressedBrush"] = new SolidColorBrush(
+            Color.FromArgb(0x40, color.R, color.G, color.B));
     }
 
     private void OnBackgroundColorChanged(int intColor)

@@ -12,6 +12,36 @@
         SystemDecorations="Full"
         Icon="avares://aerovim/Assets/aerovim.ico">
 
+    <Window.Resources>
+        <SolidColorBrush x:Key="TitleBarForegroundBrush" Color="White" />
+        <SolidColorBrush x:Key="TitleBarButtonHoverBrush" Color="#20FFFFFF" />
+        <SolidColorBrush x:Key="TitleBarButtonPressedBrush" Color="#40FFFFFF" />
+        <SolidColorBrush x:Key="TitleBarCloseHoverBrush" Color="#C42B1C" />
+        <SolidColorBrush x:Key="TitleBarClosePressedBrush" Color="#B22A1C" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.titlebar-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TitleBarForegroundBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.titlebar-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource TitleBarButtonHoverBrush}" />
+        </Style>
+        <Style Selector="Button.titlebar-btn:pressed">
+            <Setter Property="Background" Value="{DynamicResource TitleBarButtonPressedBrush}" />
+        </Style>
+        <Style Selector="Button.titlebar-close:pointerover">
+            <Setter Property="Background" Value="{DynamicResource TitleBarCloseHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.titlebar-close:pressed">
+            <Setter Property="Background" Value="{DynamicResource TitleBarClosePressedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </Window.Styles>
+
     <!--
         Custom Window template that replaces Classic.Avalonia's default.
         Classic.Avalonia's template uses FontUtils.FontAliasing which forces
@@ -63,19 +93,21 @@
             <TextBlock Grid.Column="1" Name="LogoText"
                        Text="AeroVim" VerticalAlignment="Center"
                        Margin="8,0,8,0"
-                       Foreground="White" FontSize="12" FontWeight="Bold" />
+                       Foreground="{DynamicResource TitleBarForegroundBrush}"
+                       FontSize="12" FontWeight="Bold" />
 
             <!-- Title -->
             <TextBlock Grid.Column="2" Name="TitleText" Text="AeroVim"
                        VerticalAlignment="Center" HorizontalAlignment="Right"
                        Margin="8, 0" TextTrimming="CharacterEllipsis"
-                       Foreground="White" FontSize="12" />
+                       Foreground="{DynamicResource TitleBarForegroundBrush}"
+                       FontSize="12" />
 
             <!-- Settings Button -->
             <Button Grid.Column="3" Name="SettingsButton" Content="⚙"
+                    Classes="titlebar-btn"
                     Width="46" Height="28" FontSize="14"
-                    Background="Transparent" Foreground="White"
-                    BorderThickness="0" CornerRadius="0"
+                    CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Focusable="False"
@@ -83,9 +115,9 @@
 
             <!-- Minimize Button -->
             <Button Grid.Column="4" Name="MinimizeButton" Content="🗕"
+                    Classes="titlebar-btn"
                     Width="46" Height="28" FontSize="14"
-                    Background="Transparent" Foreground="White"
-                    BorderThickness="0" CornerRadius="0"
+                    CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Focusable="False"
@@ -93,9 +125,9 @@
 
             <!-- Maximize Button -->
             <Button Grid.Column="5" Name="MaximizeButton" Content="🗖"
+                    Classes="titlebar-btn"
                     Width="46" Height="28" FontSize="14"
-                    Background="Transparent" Foreground="White"
-                    BorderThickness="0" CornerRadius="0"
+                    CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Focusable="False"
@@ -103,9 +135,9 @@
 
             <!-- Close Button -->
             <Button Grid.Column="6" Name="CloseButton" Content="✕"
+                    Classes="titlebar-btn titlebar-close"
                     Width="46" Height="28" FontSize="14"
-                    Background="Transparent" Foreground="White"
-                    BorderThickness="0" CornerRadius="0"
+                    CornerRadius="0"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Focusable="False"
