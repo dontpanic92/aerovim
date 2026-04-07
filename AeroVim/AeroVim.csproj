@@ -6,7 +6,7 @@
     <AssemblyName>aerovim</AssemblyName>
     <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\aerovim.ico</ApplicationIcon>
-    <Platforms>x64;x86;ARM64</Platforms>
+    <Platforms>AnyCPU;x64;x86;ARM64</Platforms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishAot>true</PublishAot>
   </PropertyGroup>
