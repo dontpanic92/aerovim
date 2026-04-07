@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-aerovim is a cross-platform Neovim GUI featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering. Supported platforms: Windows, macOS, and Linux.
+aerovim is a cross-platform vim/neovim frontend featuring Blur/Acrylic/Mica effects and font ligature support. It is built on .NET 10 with Avalonia UI and SkiaSharp rendering. Supported platforms: Windows, macOS, and Linux.
 
 ## Repository Structure
 
