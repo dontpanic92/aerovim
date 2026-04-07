@@ -17,8 +17,12 @@
 
   <!-- Compile native PTY helper and include in output -->
   <Target Name="BuildNativePty" BeforeTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup>
+      <_NativeArch Condition="$(RuntimeIdentifier.Contains('x64'))">-arch x86_64</_NativeArch>
+      <_NativeArch Condition="$(RuntimeIdentifier.Contains('arm64'))">-arch arm64</_NativeArch>
+    </PropertyGroup>
     <MakeDir Directories="$(OutputPath)" />
-    <Exec Command="cc -shared -o $(OutputPath)libaerovim_pty.dylib %(NativePtySources.Identity)"
+    <Exec Command="cc -shared $(_NativeArch) -o $(OutputPath)libaerovim_pty.dylib %(NativePtySources.Identity)"
           WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
@@ -34,11 +38,11 @@
 
   <!-- Ensure the native library is copied to consuming projects -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-    <None Include="$(OutputPath)libaerovim_pty.dylib" CopyToOutputDirectory="PreserveNewest" Link="libaerovim_pty.dylib" Visible="false" />
+    <None Include="$(OutputPath)libaerovim_pty.dylib" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Link="libaerovim_pty.dylib" Visible="false" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <None Include="$(OutputPath)libaerovim_pty.so" CopyToOutputDirectory="PreserveNewest" Link="libaerovim_pty.so" Visible="false" />
+    <None Include="$(OutputPath)libaerovim_pty.so" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Link="libaerovim_pty.so" Visible="false" />
   </ItemGroup>
 
 </Project>
