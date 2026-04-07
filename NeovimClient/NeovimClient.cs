@@ -401,7 +401,6 @@ public sealed class NeovimClient : IEditorClient
 
                     // ---- ext_popupmenu events ----
                     case PopupmenuShowEvent e:
-                        Console.WriteLine("popupmenu");
                         this.popupItems = e.Items;
                         this.popupSelected = e.Selected;
                         this.popupAnchor = (e.Row, e.Col);
