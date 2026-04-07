@@ -5,7 +5,6 @@
 <h1 align="center">AeroVim</h1>
 
 <p align="center">
-  <strong>Neovim ❤️ Acrylic</strong><br>
   A fast, elegant, and cross-platform vim/neovim frontend
 </p>
 
