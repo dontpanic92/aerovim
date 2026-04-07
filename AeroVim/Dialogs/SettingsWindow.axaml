@@ -143,6 +143,7 @@
                                            Text="Checking..." />
                             </StackPanel>
                             <Button Grid.Column="1" Name="ContextMenuButton" Width="90"
+                                    VerticalAlignment="Center"
                                     Content="Integrate" Click="ContextMenu_Click" />
                         </Grid>
 
@@ -150,21 +151,47 @@
 
                         <!-- File Associations -->
                         <TextBlock Text="File Type Associations" FontWeight="SemiBold" />
+
+                        <!-- Column header -->
+                        <Grid Margin="0,0,100,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="100" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Extension" FontSize="11" Foreground="Gray" Margin="4,0" />
+                            <TextBlock Grid.Column="1" Text="Status" FontSize="11" Foreground="Gray" Margin="4,0" />
+                        </Grid>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <ListBox Name="FileAssocListBox" Grid.Column="0" Height="140" Margin="0,0,5,0"
-                                     SelectionMode="Multiple" />
+                            <ListBox Name="FileAssocListBox" Grid.Column="0" Height="130" Margin="0,0,5,0"
+                                     SelectionMode="Multiple">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="100" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Extension}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}"
+                                                       Foreground="{Binding StatusBrush}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
 
                             <StackPanel Grid.Column="1" Spacing="3">
-                                <Button Name="FileAssocIntegrateAllBtn" Content="Integrate All" Width="90" Click="FileAssocIntegrateAll_Click" />
-                                <Button Name="FileAssocRemoveAllBtn" Content="Remove All" Width="90" Click="FileAssocRemoveAll_Click" />
+                                <Button Name="FileAssocIntegrateAllBtn" Content="Register All" Width="90" Click="FileAssocIntegrateAll_Click" />
+                                <Button Name="FileAssocRemoveAllBtn" Content="Unregister All" Width="90" Click="FileAssocRemoveAll_Click" />
                                 <Separator Margin="0,3" />
                                 <Button Name="FileAssocAddBtn" Content="Add..." Width="90" Click="FileAssocAdd_Click" />
                                 <Button Name="FileAssocRemoveBtn" Content="Remove" Width="90" Click="FileAssocRemove_Click" />
+                                <Button Name="FileAssocClearBtn" Content="Clear All" Width="90" Click="FileAssocClear_Click" />
                             </StackPanel>
                         </Grid>
                     </StackPanel>

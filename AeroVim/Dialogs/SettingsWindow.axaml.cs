@@ -511,9 +511,7 @@ public partial class SettingsWindow : Window
 
         foreach (var ext in extensions.OrderBy(e => e, StringComparer.OrdinalIgnoreCase))
         {
-            bool registered = ShellIntegrationService.IsExtensionRegistered(ext);
-            string label = registered ? $"{ext}  ✓" : ext;
-            listBox.Items.Add(label);
+            listBox.Items.Add(FileAssocItem.Create(ext));
         }
     }
 
@@ -523,13 +521,9 @@ public partial class SettingsWindow : Window
         var result = new List<string>();
         foreach (var item in listBox.Items)
         {
-            if (item is string label)
+            if (item is FileAssocItem row)
             {
-                var ext = label.Replace("✓", string.Empty).Trim();
-                if (!string.IsNullOrEmpty(ext))
-                {
-                    result.Add(ext);
-                }
+                result.Add(row.Extension);
             }
         }
 
@@ -598,9 +592,7 @@ public partial class SettingsWindow : Window
             if (ext is not null && !existing.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
                 existing.Add(ext);
-                bool registered = ShellIntegrationService.IsExtensionRegistered(ext);
-                string label = registered ? $"{ext}  ✓" : ext;
-                listBox.Items.Add(label);
+                listBox.Items.Add(FileAssocItem.Create(ext));
             }
         }
     }
@@ -623,14 +615,30 @@ public partial class SettingsWindow : Window
         // Unregister from registry and remove from list.
         foreach (int index in toRemove.OrderByDescending(i => i))
         {
-            if (listBox.Items[index] is string label)
+            if (listBox.Items[index] is FileAssocItem row)
             {
-                var ext = label.Replace("✓", string.Empty).Trim();
-                ShellIntegrationService.SetExtensionRegistration(ext, false);
+                ShellIntegrationService.SetExtensionRegistration(row.Extension, false);
             }
 
             listBox.Items.RemoveAt(index);
         }
+    }
+
+    private async void FileAssocClear_Click(object? sender, RoutedEventArgs e)
+    {
+        var confirm = new ConfirmWindow(
+            "This will unregister all file associations and clear the list. Continue?",
+            "Clear All Extensions");
+        await confirm.ShowDialog(this);
+
+        if (!confirm.Confirmed)
+        {
+            return;
+        }
+
+        var extensions = this.GetExtensionListFromUi();
+        ShellIntegrationService.UnregisterAllExtensions(extensions);
+        this.FindControl<ListBox>("FileAssocListBox")!.Items.Clear();
     }
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
