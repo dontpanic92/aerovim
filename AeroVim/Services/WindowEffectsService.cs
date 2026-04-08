@@ -8,6 +8,7 @@ namespace AeroVim.Services;
 using System.Runtime.InteropServices;
 using AeroVim.Controls;
 using AeroVim.Diagnostics;
+using AeroVim.Settings;
 using AeroVim.Utilities;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -287,10 +288,10 @@ internal sealed class WindowEffectsService
     {
         return this.settings.BlurType switch
         {
-            0 => WindowTransparencyLevel.Blur,
-            1 => WindowTransparencyLevel.AcrylicBlur,
-            2 => WindowTransparencyLevel.Mica,
-            3 => WindowTransparencyLevel.Transparent,
+            BlurType.Gaussian => WindowTransparencyLevel.Blur,
+            BlurType.Acrylic => WindowTransparencyLevel.AcrylicBlur,
+            BlurType.Mica => WindowTransparencyLevel.Mica,
+            BlurType.Transparent => WindowTransparencyLevel.Transparent,
             _ => WindowTransparencyLevel.None,
         };
     }
@@ -311,8 +312,10 @@ internal sealed class WindowEffectsService
     {
         return this.settings.BlurType switch
         {
-            1 => 3, // AcrylicBlur → DWMSBT_TRANSIENTWINDOW
-            2 => 2, // Mica → DWMSBT_MAINWINDOW
+            BlurType.Gaussian => 0,
+            BlurType.Acrylic => 3, // DWMSBT_TRANSIENTWINDOW
+            BlurType.Mica => 2, // DWMSBT_MAINWINDOW
+            BlurType.Transparent => 0,
             _ => 0,
         };
     }

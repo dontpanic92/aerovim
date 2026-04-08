@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using AeroVim.Dialogs;
 using AeroVim.Editor.Utilities;
 using AeroVim.Services;
+using AeroVim.Settings;
 using AeroVim.Utilities;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -29,7 +30,7 @@ internal sealed partial class AppearancePageViewModel : SettingsPageViewModel
     private bool enableBlurBehind;
 
     [ObservableProperty]
-    private int blurType;
+    private BlurType blurType;
 
     [ObservableProperty]
     private double backgroundOpacity;
@@ -173,7 +174,7 @@ internal sealed partial class AppearancePageViewModel : SettingsPageViewModel
     }
 
     /// <inheritdoc/>
-    partial void OnBlurTypeChanged(int value)
+    partial void OnBlurTypeChanged(BlurType value)
     {
         this.settings.BlurType = value;
     }

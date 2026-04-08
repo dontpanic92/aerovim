@@ -35,7 +35,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool enableBlurBehind = true;
     private bool enableDragDrop = true;
     private List<string> fileAssociationExtensions = new List<string>();
-    private int blurType = 1;
+    private BlurType blurType = BlurType.Acrylic;
     private bool isMaximized;
     private int windowWidth = 800;
     private int windowHeight = 600;
@@ -144,7 +144,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     /// <summary>
     /// Gets or sets the blur type.
     /// </summary>
-    public int BlurType
+    public BlurType BlurType
     {
         get => this.blurType;
         set => this.SetField(ref this.blurType, value);

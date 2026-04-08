@@ -6,37 +6,39 @@
 namespace AeroVim.ViewModels;
 
 using System.Globalization;
+using AeroVim.Settings;
 using Avalonia.Data.Converters;
 
 /// <summary>
-/// Converter that maps a blur type integer to a boolean for radio button
-/// two-way binding. Each static instance corresponds to one blur type value.
+/// Converter that maps a <see cref="BlurType"/> enum value to a boolean for
+/// radio button two-way binding. Each static instance corresponds to one
+/// blur type value.
 /// </summary>
 internal sealed class BlurTypeConverter : IValueConverter
 {
     /// <summary>
-    /// Converter instance for the Transparent blur type (3).
+    /// Converter instance for the Transparent blur type.
     /// </summary>
-    public static readonly BlurTypeConverter Transparent = new(3);
+    public static readonly BlurTypeConverter Transparent = new(BlurType.Transparent);
 
     /// <summary>
-    /// Converter instance for the Gaussian blur type (0).
+    /// Converter instance for the Gaussian blur type.
     /// </summary>
-    public static readonly BlurTypeConverter Gaussian = new(0);
+    public static readonly BlurTypeConverter Gaussian = new(BlurType.Gaussian);
 
     /// <summary>
-    /// Converter instance for the Acrylic blur type (1).
+    /// Converter instance for the Acrylic blur type.
     /// </summary>
-    public static readonly BlurTypeConverter Acrylic = new(1);
+    public static readonly BlurTypeConverter Acrylic = new(BlurType.Acrylic);
 
     /// <summary>
-    /// Converter instance for the Mica blur type (2).
+    /// Converter instance for the Mica blur type.
     /// </summary>
-    public static readonly BlurTypeConverter Mica = new(2);
+    public static readonly BlurTypeConverter Mica = new(BlurType.Mica);
 
-    private readonly int targetValue;
+    private readonly BlurType targetValue;
 
-    private BlurTypeConverter(int targetValue)
+    private BlurTypeConverter(BlurType targetValue)
     {
         this.targetValue = targetValue;
     }
@@ -44,7 +46,7 @@ internal sealed class BlurTypeConverter : IValueConverter
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is int intVal && intVal == this.targetValue;
+        return value is BlurType blurType && blurType == this.targetValue;
     }
 
     /// <inheritdoc/>

@@ -6,6 +6,7 @@
 namespace AeroVim.Tests;
 
 using AeroVim.Services;
+using AeroVim.Settings;
 using AeroVim.Tests.Helpers;
 using NUnit.Framework;
 
@@ -29,7 +30,7 @@ public class AppSettingsTests
             BackgroundOpacity = 0.42,
             EnableLigature = false,
             EnableBlurBehind = false,
-            BlurType = 2,
+            BlurType = BlurType.Mica,
             IsMaximized = true,
             WindowWidth = 1440,
             WindowHeight = 900,
