@@ -129,7 +129,7 @@ public class NeovimClientTests
         Assert.That(client.ModeInfo.PointerShape, Is.EqualTo("beam"));
         Assert.That(client.ModeInfo.CursorStyleEnabled, Is.False);
         Assert.That(client.ModeInfo.CursorVisible, Is.True);
-        Assert.That(client.ModeInfo.PointerMode, Is.EqualTo(0));
+        Assert.That(client.ModeInfo.PointerMode, Is.EqualTo(PointerMode.NeverHide));
         Assert.That(client.MouseEnabled, Is.False);
 
         client.ProcessRedrawForTesting(new IRedrawEvent[] { new MouseOnEvent() });
@@ -584,7 +584,7 @@ public class NeovimClientTests
 
         screen = client.GetScreen();
         Assert.That(client.PopupItems, Is.Null);
-        Assert.That(client.PopupSelected, Is.EqualTo(-1));
+        Assert.That(client.PopupSelected, Is.Null);
         Assert.That(client.PopupAnchor, Is.Null);
     }
 

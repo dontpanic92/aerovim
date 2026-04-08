@@ -327,14 +327,15 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                     case PutEvent e:
                         this.Put(
                             e.Text,
-                            this.highlightSetEvent.Foreground ?? this.foregroundColor,
-                            this.highlightSetEvent.Background ?? this.backgroundColor,
-                            this.highlightSetEvent.Special ?? this.specialColor,
-                            this.highlightSetEvent.Reverse,
-                            this.highlightSetEvent.Italic,
-                            this.highlightSetEvent.Bold,
-                            this.highlightSetEvent.Underline,
-                            this.highlightSetEvent.Undercurl);
+                            new CellStyle(
+                                this.highlightSetEvent.Foreground ?? this.foregroundColor,
+                                this.highlightSetEvent.Background ?? this.backgroundColor,
+                                this.highlightSetEvent.Special ?? this.specialColor,
+                                this.highlightSetEvent.Reverse,
+                                this.highlightSetEvent.Italic,
+                                this.highlightSetEvent.Bold,
+                                this.highlightSetEvent.Underline,
+                                this.highlightSetEvent.Undercurl));
                         break;
                     case HighlightSetEvent e:
                         this.highlightSetEvent = e;
@@ -540,7 +541,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
         }
     }
 
-    private void Put(IList<string?> text, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
+    private void Put(IList<string?> text, CellStyle style)
     {
         if (this.dirtyRows is not null)
         {
@@ -549,7 +550,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
 
         foreach (var ch in text)
         {
-            this.cells![this.cursorPosition.Row, this.cursorPosition.Col].Set(ch, foreground, background, special, reverse, italic, bold, underline, undercurl);
+            this.cells![this.cursorPosition.Row, this.cursorPosition.Col].Set(ch, style);
             this.cursorPosition.Col++;
         }
     }
@@ -621,7 +622,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 lastHlId = cell.HlId.Value;
             }
 
-            this.ResolveHighlight(lastHlId, out int fg, out int bg, out int sp, out bool reverse, out bool italic, out bool bold, out bool underline, out bool undercurl);
+            var style = this.ResolveHighlight(lastHlId);
 
             for (int r = 0; r < cell.Repeat; r++)
             {
@@ -631,7 +632,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 }
 
                 string? text = cell.Text.Length > 0 ? cell.Text : null;
-                this.cells[row, col].Set(text, fg, bg, sp, reverse, italic, bold, underline, undercurl);
+                this.cells[row, col].Set(text, style);
                 col++;
             }
         }
@@ -706,30 +707,14 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
         }
     }
 
-    private void ResolveHighlight(int hlId, out int fg, out int bg, out int sp, out bool reverse, out bool italic, out bool bold, out bool underline, out bool undercurl)
+    private CellStyle ResolveHighlight(int hlId)
     {
         if (hlId != 0 && this.highlightTable.TryGetValue(hlId, out var attrs))
         {
-            fg = attrs.Foreground ?? this.foregroundColor;
-            bg = attrs.Background ?? this.backgroundColor;
-            sp = attrs.Special ?? this.specialColor;
-            reverse = attrs.Reverse;
-            italic = attrs.Italic;
-            bold = attrs.Bold;
-            underline = attrs.Underline;
-            undercurl = attrs.Undercurl;
+            return attrs.ToCellStyle(this.foregroundColor, this.backgroundColor, this.specialColor);
         }
-        else
-        {
-            fg = this.foregroundColor;
-            bg = this.backgroundColor;
-            sp = this.specialColor;
-            reverse = false;
-            italic = false;
-            bold = false;
-            underline = false;
-            undercurl = false;
-        }
+
+        return new CellStyle(this.foregroundColor, this.backgroundColor, this.specialColor, false, false, false, false, false);
     }
 
     private void ClearCell(ref Cell cell)

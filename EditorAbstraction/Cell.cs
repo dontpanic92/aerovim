@@ -14,6 +14,16 @@ public struct Cell
     /// Initializes a new instance of the <see cref="Cell"/> struct.
     /// </summary>
     /// <param name="character">The character in the cell.</param>
+    /// <param name="style">The visual attributes.</param>
+    public Cell(string? character, CellStyle style)
+    {
+        this.Set(character, style);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Cell"/> struct.
+    /// </summary>
+    /// <param name="character">The character in the cell.</param>
     /// <param name="foreground">Foreground color.</param>
     /// <param name="background">Background color.</param>
     /// <param name="special">Special color.</param>
@@ -22,6 +32,7 @@ public struct Cell
     /// <param name="bold">IsBold.</param>
     /// <param name="underline">IsUnderline.</param>
     /// <param name="undercurl">IsUnderCurl.</param>
+    [Obsolete("Use Cell(string?, CellStyle) constructor instead.")]
     public Cell(string? character, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
     {
         this.ForegroundColor = foreground;
@@ -111,6 +122,29 @@ public struct Cell
     public bool Overline { get; internal set; }
 
     /// <summary>
+    /// Set cell properties from a <see cref="CellStyle"/>.
+    /// </summary>
+    /// <param name="character">The character in the cell.</param>
+    /// <param name="style">The visual attributes.</param>
+    public void Set(string? character, CellStyle style)
+    {
+        this.ForegroundColor = style.ForegroundColor;
+        this.BackgroundColor = style.BackgroundColor;
+        this.SpecialColor = style.SpecialColor;
+        this.Reverse = style.Reverse;
+        this.Italic = style.Italic;
+        this.Bold = style.Bold;
+        this.Underline = style.Underline;
+        this.Undercurl = style.Undercurl;
+        this.Dim = false;
+        this.Strikethrough = false;
+        this.Hidden = false;
+        this.Blink = false;
+        this.Overline = false;
+        this.Character = character;
+    }
+
+    /// <summary>
     /// Set cell properties.
     /// </summary>
     /// <param name="character">The character in the cell.</param>
@@ -122,6 +156,7 @@ public struct Cell
     /// <param name="bold">IsBold.</param>
     /// <param name="underline">IsUnderline.</param>
     /// <param name="undercurl">IsUnderCurl.</param>
+    [Obsolete("Use Set(string?, CellStyle) overload instead.")]
     public void Set(string? character, int foreground, int background, int special, bool reverse, bool italic, bool bold, bool underline, bool undercurl)
     {
         this.ForegroundColor = foreground;
@@ -148,6 +183,6 @@ public struct Cell
     /// <param name="special">special color.</param>
     public void Clear(int foreground, int background, int special)
     {
-        this.Set(" ", foreground, background, special, false, false, false, false, false);
+        this.Set(" ", new CellStyle(foreground, background, special, false, false, false, false, false));
     }
 }

@@ -331,14 +331,15 @@ public class TerminalBuffer
             {
                 this.cells[this.cursorRow, this.cursorCol - 1].Set(
                     " ",
-                    this.ResolveFg(),
-                    this.ResolveBg(),
-                    this.currentSpecial,
-                    false,
-                    false,
-                    false,
-                    false,
-                    false);
+                    new CellStyle(
+                        this.ResolveFg(),
+                        this.ResolveBg(),
+                        this.currentSpecial,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false));
             }
 
             // If we're overwriting the first half of an existing wide char,
@@ -348,26 +349,28 @@ public class TerminalBuffer
             {
                 this.cells[this.cursorRow, this.cursorCol + 1].Set(
                     " ",
-                    this.ResolveFg(),
-                    this.ResolveBg(),
-                    this.currentSpecial,
-                    false,
-                    false,
-                    false,
-                    false,
-                    false);
+                    new CellStyle(
+                        this.ResolveFg(),
+                        this.ResolveBg(),
+                        this.currentSpecial,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false));
             }
 
             this.cells[this.cursorRow, this.cursorCol].Set(
                 char.ConvertFromUtf32(codePoint),
-                this.ResolveFg(),
-                this.ResolveBg(),
-                this.currentSpecial,
-                this.reverse,
-                this.italic,
-                this.bold,
-                this.underline,
-                this.undercurl);
+                new CellStyle(
+                    this.ResolveFg(),
+                    this.ResolveBg(),
+                    this.currentSpecial,
+                    this.reverse,
+                    this.italic,
+                    this.bold,
+                    this.underline,
+                    this.undercurl));
             this.ApplyExtendedAttrs(ref this.cells[this.cursorRow, this.cursorCol]);
             this.MarkDirty(this.cursorRow);
 
@@ -376,14 +379,15 @@ public class TerminalBuffer
                 this.cursorCol++;
                 this.cells[this.cursorRow, this.cursorCol].Set(
                     null,
-                    this.ResolveFg(),
-                    this.ResolveBg(),
-                    this.currentSpecial,
-                    this.reverse,
-                    this.italic,
-                    this.bold,
-                    this.underline,
-                    this.undercurl);
+                    new CellStyle(
+                        this.ResolveFg(),
+                        this.ResolveBg(),
+                        this.currentSpecial,
+                        this.reverse,
+                        this.italic,
+                        this.bold,
+                        this.underline,
+                        this.undercurl));
             }
 
             // Advance cursor; set pending wrap if at end of line.
@@ -1135,14 +1139,15 @@ public class TerminalBuffer
                 {
                     this.cells[i, j].Set(
                         "E",
-                        this.defaultFg,
-                        this.defaultBg,
-                        0,
-                        false,
-                        false,
-                        false,
-                        false,
-                        false);
+                        new CellStyle(
+                            this.defaultFg,
+                            this.defaultBg,
+                            0,
+                            false,
+                            false,
+                            false,
+                            false,
+                            false));
                 }
 
                 this.MarkDirty(i);

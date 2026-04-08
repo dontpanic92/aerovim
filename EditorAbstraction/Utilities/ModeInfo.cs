@@ -27,7 +27,7 @@ public class ModeInfo
         string? pointerShape = null,
         bool cursorVisible = true,
         bool cursorStyleEnabled = true,
-        int pointerMode = 0)
+        PointerMode pointerMode = PointerMode.NeverHide)
     {
         this.CursorShape = cursorShape;
         this.CellPercentage = cellPercentage;
@@ -70,7 +70,6 @@ public class ModeInfo
 
     /// <summary>
     /// Gets the pointer auto-hide mode using terminal-style semantics.
-    /// 0 = never hide, 1 = hide when tracking is disabled, 2 = always hide, 3 = always hide even on leave.
     /// </summary>
-    public int PointerMode { get; }
+    public PointerMode PointerMode { get; }
 }

@@ -18,10 +18,10 @@ public interface IExternalPopupMenu
     PopupMenuItem[]? PopupItems { get; }
 
     /// <summary>
-    /// Gets the currently selected popup menu item index, or -1 if no item
-    /// is selected.
+    /// Gets the currently selected popup menu item index, or <c>null</c> if
+    /// no item is selected.
     /// </summary>
-    int PopupSelected { get; }
+    int? PopupSelected { get; }
 
     /// <summary>
     /// Gets the popup menu anchor position (row, col) in the grid, or

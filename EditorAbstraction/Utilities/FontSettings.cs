@@ -8,10 +8,10 @@ namespace AeroVim.Editor.Utilities;
 /// <summary>
 /// Represents the settings of guifont.
 /// </summary>
-public struct FontSettings
+public sealed class FontSettings
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="FontSettings"/> struct.
+    /// Initializes a new instance of the <see cref="FontSettings"/> class.
     /// </summary>
     public FontSettings()
     {
@@ -29,7 +29,7 @@ public struct FontSettings
     /// </summary>
     public string FontName
     {
-        readonly get => this.FontNames.Count > 0 ? this.FontNames[0] : string.Empty;
+        get => this.FontNames.Count > 0 ? this.FontNames[0] : string.Empty;
         set
         {
             this.FontNames.Clear();

@@ -181,12 +181,7 @@ public static class Helpers
     /// <returns>Whether Mica is available.</returns>
     public static bool MicaAvailable()
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return false;
-        }
-
-        return Environment.OSVersion.Version.Build >= 22621;
+        return Windows11BackdropAvailable();
     }
 
     /// <summary>

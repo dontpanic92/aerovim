@@ -69,6 +69,6 @@ internal static class TestScreenBuilder
         bool underline = false,
         bool undercurl = false)
     {
-        screen.Cells[row, col].Set(character, foreground, background, special, reverse, italic, bold, underline, undercurl);
+        screen.Cells[row, col].Set(character, new CellStyle(foreground, background, special, reverse, italic, bold, underline, undercurl));
     }
 }

@@ -148,12 +148,12 @@ internal sealed class CursorStateManager : IDisposable
     {
         return modeInfo.PointerMode switch
         {
-            1 => !mouseEnabled,
-            2 => true,
+            PointerMode.HideWhenTrackingDisabled => !mouseEnabled,
+            PointerMode.AlwaysHide => true,
 
             // Avalonia cannot keep the cursor hidden after it leaves the control,
             // so "always hide even on leave" degrades to "always hide over the editor".
-            3 => true,
+            PointerMode.AlwaysHideOnLeave => true,
             _ => false,
         };
     }

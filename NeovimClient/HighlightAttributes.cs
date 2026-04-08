@@ -5,6 +5,8 @@
 
 namespace AeroVim.NeovimClient;
 
+using AeroVim.Editor;
+
 /// <summary>
 /// Highlight attributes defined by the <c>hl_attr_define</c> event in the
 /// <c>ext_linegrid</c> UI protocol. Each instance maps to a numeric highlight
@@ -58,4 +60,24 @@ public sealed class HighlightAttributes
     /// Gets or sets a value indicating whether the text has strikethrough.
     /// </summary>
     public bool Strikethrough { get; set; }
+
+    /// <summary>
+    /// Converts to a <see cref="CellStyle"/> using the supplied defaults for unset colors.
+    /// </summary>
+    /// <param name="defaultFg">Default foreground color.</param>
+    /// <param name="defaultBg">Default background color.</param>
+    /// <param name="defaultSp">Default special color.</param>
+    /// <returns>A resolved <see cref="CellStyle"/>.</returns>
+    public CellStyle ToCellStyle(int defaultFg, int defaultBg, int defaultSp)
+    {
+        return new CellStyle(
+            ForegroundColor: this.Foreground ?? defaultFg,
+            BackgroundColor: this.Background ?? defaultBg,
+            SpecialColor: this.Special ?? defaultSp,
+            Reverse: this.Reverse,
+            Italic: this.Italic,
+            Bold: this.Bold,
+            Underline: this.Underline,
+            Undercurl: this.Undercurl);
+    }
 }
