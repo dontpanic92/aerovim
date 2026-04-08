@@ -573,6 +573,42 @@ public class EditorControlTests
             "Subsequent empty guifont events should not reset the fallback font.");
     }
 
+    /// <summary>
+    /// User-configured fallback fonts should take priority over guifont
+    /// names (including Neovim 0.12+ defaults like SF Mono, Menlo, etc.)
+    /// when both are present.
+    /// </summary>
+    [Test]
+    public void SetFallbackFonts_WithNonEmptyGuifont_FallbackTakesPriority()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        // Pick a guifont that is a platform default (simulates Neovim 0.12+ defaults)
+        string guiFont = platformDefaults[0];
+
+        var screen = CreateAsciiScreen("Hello");
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+
+        control.SetFallbackFonts(new List<string> { fallbackFont! });
+
+        // Simulate Neovim sending a non-empty guifont (e.g. default in 0.12+)
+        editorClient.RaiseFontChanged(new FontSettings
+        {
+            FontNames = new List<string> { guiFont },
+            FontPointSize = 11,
+        });
+
+        RenderToPng(control, 480, 120);
+
+        Assert.That(
+            control.GetPrimaryFontNameForTesting(),
+            Is.EqualTo(fallbackFont).IgnoreCase,
+            "User fallback font should take priority over guifont.");
+    }
+
     private static Screen CreateAsciiScreen(string text, bool bold = false)
     {
         var screen = TestScreenBuilder.CreateScreen(1, text.Length + 2);

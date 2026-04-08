@@ -36,12 +36,14 @@ public sealed class FontFallbackChain : IDisposable
 
     /// <summary>
     /// Rebuilds the chain from the given font name lists. Each list is
-    /// appended in priority order: <paramref name="guiFontNames"/> first,
-    /// then <paramref name="userFontNames"/>, then <paramref name="platformDefaults"/>.
+    /// appended in priority order. When the user has configured fallback
+    /// fonts, they take highest priority (the user explicitly chose them
+    /// in AeroVim settings). Otherwise, guifont names come first. Platform
+    /// defaults are always appended last as a safety net.
     /// Only fonts that are actually available on the system are included.
     /// </summary>
-    /// <param name="guiFontNames">Font names from Neovim guifont (highest priority).</param>
-    /// <param name="userFontNames">User-configured fallback font names.</param>
+    /// <param name="guiFontNames">Font names from Neovim guifont.</param>
+    /// <param name="userFontNames">User-configured fallback font names (highest priority when present).</param>
     /// <param name="platformDefaults">Platform default font names (monospace + emoji).</param>
     public void Rebuild(
         IReadOnlyList<string> guiFontNames,
@@ -52,8 +54,20 @@ public sealed class FontFallbackChain : IDisposable
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        this.AddFonts(guiFontNames, seen);
-        this.AddFonts(userFontNames, seen);
+        // User-configured fonts take highest priority when present.
+        // In Neovim 0.12+, guifont has a non-empty default value even
+        // when the user hasn't set it, so the AeroVim fallback font
+        // setting is the only reliable way for users to choose a font.
+        if (userFontNames.Count > 0)
+        {
+            this.AddFonts(userFontNames, seen);
+            this.AddFonts(guiFontNames, seen);
+        }
+        else
+        {
+            this.AddFonts(guiFontNames, seen);
+        }
+
         this.AddFonts(platformDefaults, seen);
 
         AppLogger.For<FontFallbackChain>().Debug(
