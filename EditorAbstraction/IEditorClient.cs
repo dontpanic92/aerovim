@@ -82,6 +82,11 @@ public interface IEditorClient : IDisposable
     bool MouseEnabled { get; }
 
     /// <summary>
+    /// Gets the current mouse tracking mode.
+    /// </summary>
+    MouseTrackingMode MouseTrackingMode => this.MouseEnabled ? MouseTrackingMode.ButtonEvent : MouseTrackingMode.None;
+
+    /// <summary>
     /// Gets the current font settings.
     /// </summary>
     FontSettings FontSettings { get; }

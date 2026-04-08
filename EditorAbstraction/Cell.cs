@@ -32,6 +32,11 @@ public struct Cell
         this.Bold = bold;
         this.Underline = underline;
         this.Undercurl = undercurl;
+        this.Dim = false;
+        this.Strikethrough = false;
+        this.Hidden = false;
+        this.Blink = false;
+        this.Overline = false;
         this.Character = character;
     }
 
@@ -81,6 +86,31 @@ public struct Cell
     public bool Undercurl { get; private set; }
 
     /// <summary>
+    /// Gets a value indicating whether the text is dim (faint).
+    /// </summary>
+    public bool Dim { get; internal set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the text has strikethrough.
+    /// </summary>
+    public bool Strikethrough { get; internal set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the text is hidden (concealed).
+    /// </summary>
+    public bool Hidden { get; internal set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the text is blinking.
+    /// </summary>
+    public bool Blink { get; internal set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the text has an overline.
+    /// </summary>
+    public bool Overline { get; internal set; }
+
+    /// <summary>
     /// Set cell properties.
     /// </summary>
     /// <param name="character">The character in the cell.</param>
@@ -102,6 +132,11 @@ public struct Cell
         this.Bold = bold;
         this.Underline = underline;
         this.Undercurl = undercurl;
+        this.Dim = false;
+        this.Strikethrough = false;
+        this.Hidden = false;
+        this.Blink = false;
+        this.Overline = false;
         this.Character = character;
     }
 

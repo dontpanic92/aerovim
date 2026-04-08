@@ -57,12 +57,24 @@ public static class TerminalInputEncoder
         { "End", "F" },
     };
 
+    // Application cursor keys mode (DECCKM) sends SS3 instead of CSI for unmodified arrow keys.
+    private static readonly Dictionary<string, string> ApplicationCursorSequences = new()
+    {
+        { "Up", "\x1BOA" },
+        { "Down", "\x1BOB" },
+        { "Right", "\x1BOC" },
+        { "Left", "\x1BOD" },
+        { "Home", "\x1BOH" },
+        { "End", "\x1BOF" },
+    };
+
     /// <summary>
     /// Converts a Vim-notation key sequence to a terminal escape sequence.
     /// </summary>
     /// <param name="vimNotation">The key in Vim notation (e.g. "&lt;CR&gt;", "&lt;C-a&gt;", "x").</param>
+    /// <param name="applicationCursorKeys">Whether DECCKM (application cursor keys) mode is active.</param>
     /// <returns>The terminal escape sequence string.</returns>
-    public static string Encode(string vimNotation)
+    public static string Encode(string vimNotation, bool applicationCursorKeys = false)
     {
         if (string.IsNullOrEmpty(vimNotation))
         {
@@ -73,14 +85,14 @@ public static class TerminalInputEncoder
         if (vimNotation.Length > 2 && vimNotation[0] == '<' && vimNotation[vimNotation.Length - 1] == '>')
         {
             string inner = vimNotation.Substring(1, vimNotation.Length - 2);
-            return EncodeSpecial(inner);
+            return EncodeSpecial(inner, applicationCursorKeys);
         }
 
         // Regular character
         return vimNotation;
     }
 
-    private static string EncodeSpecial(string inner)
+    private static string EncodeSpecial(string inner, bool applicationCursorKeys)
     {
         // Parse modifiers: C- (Ctrl), S- (Shift), A- (Alt)
         bool ctrl = false;
@@ -116,6 +128,13 @@ public static class TerminalInputEncoder
         {
             int mod = GetXtermModifier(ctrl, shift, alt);
             return $"\x1B[1;{mod}{arrowFinal}";
+        }
+
+        // Unmodified arrow/cursor keys in DECCKM (application cursor) mode
+        if (!ctrl && !shift && !alt && applicationCursorKeys
+            && ApplicationCursorSequences.TryGetValue(keyName, out string? appSequence))
+        {
+            return appSequence;
         }
 
         // Handle Ctrl + single character

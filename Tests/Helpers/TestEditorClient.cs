@@ -64,6 +64,9 @@ internal sealed class TestEditorClient : IEditorClient
     public bool MouseEnabled { get; set; } = true;
 
     /// <inheritdoc />
+    public MouseTrackingMode MouseTrackingMode { get; set; } = MouseTrackingMode.ButtonEvent;
+
+    /// <inheritdoc />
     public FontSettings FontSettings { get; private set; } = new FontSettings
     {
         FontNames = new List<string> { "Consolas" },

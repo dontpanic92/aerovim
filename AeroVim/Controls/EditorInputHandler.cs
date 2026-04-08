@@ -6,6 +6,7 @@
 namespace AeroVim.Controls;
 
 using AeroVim.Editor;
+using AeroVim.Editor.Utilities;
 using Avalonia;
 using Avalonia.Input;
 
@@ -69,19 +70,26 @@ internal sealed class EditorInputHandler
     /// <returns>True if the event was handled.</returns>
     public bool HandlePointerMoved(int row, int col, KeyModifiers modifiers)
     {
-        if (this.pressedMouseButton is null)
-        {
-            return false;
-        }
-
         if (!this.editorClient.MouseEnabled)
         {
             this.pressedMouseButton = null;
             return false;
         }
 
-        this.editorClient.InputMouse(this.pressedMouseButton, "drag", GetModifierString(modifiers), 0, row, col);
-        return true;
+        string modifier = GetModifierString(modifiers);
+        if (this.pressedMouseButton is not null)
+        {
+            this.editorClient.InputMouse(this.pressedMouseButton, "drag", modifier, 0, row, col);
+            return true;
+        }
+
+        if (this.editorClient.MouseTrackingMode == MouseTrackingMode.AnyEvent)
+        {
+            this.editorClient.InputMouse("move", "move", modifier, 0, row, col);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

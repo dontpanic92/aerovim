@@ -148,6 +148,18 @@ public sealed class VimClient : IEditorClient
     public bool MouseEnabled => this.buffer.SgrMouseEnabled;
 
     /// <summary>
+    /// Gets a value indicating whether bracketed paste mode is enabled.
+    /// When true, the frontend should wrap pasted text in ESC[200~ ... ESC[201~.
+    /// </summary>
+    public bool BracketedPasteEnabled => this.buffer.BracketedPasteEnabled;
+
+    /// <summary>
+    /// Gets a value indicating whether focus event reporting is enabled.
+    /// When true, the frontend should send ESC[I on focus-in and ESC[O on focus-out.
+    /// </summary>
+    public bool FocusEventsEnabled => this.buffer.FocusEventsEnabled;
+
+    /// <summary>
     /// Gets the current font settings.
     /// </summary>
     public FontSettings FontSettings { get; private set; }
@@ -205,7 +217,7 @@ public sealed class VimClient : IEditorClient
             return;
         }
 
-        string encoded = TerminalInputEncoder.Encode(text);
+        string encoded = TerminalInputEncoder.Encode(text, this.buffer.ApplicationCursorKeys);
         byte[] bytes = Encoding.UTF8.GetBytes(encoded);
         lock (this.writeLock)
         {
@@ -530,7 +542,7 @@ public sealed class VimClient : IEditorClient
                 // preventing partial screen updates such as ghost
                 // status-bar rows during split resize.
                 readTask = this.ptyConnection.ReaderStream.ReadAsync(readBuffer, 0, readBuffer.Length);
-                if (!readTask.IsCompleted)
+                if (!readTask.IsCompleted && !this.buffer.SynchronizedOutput)
                 {
                     this.Redraw?.Invoke();
                 }

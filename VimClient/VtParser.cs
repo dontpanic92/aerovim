@@ -46,6 +46,8 @@ public class VtParser
     private readonly TerminalBuffer buffer;
     private readonly Action<string> titleChanged;
     private readonly Action<byte[]>? writeBack;
+    private readonly Func<string>? clipboardRead;
+    private readonly Action<string>? clipboardWrite;
     private readonly List<int> parameters = new();
     private readonly List<int> subParameters = new();
     private readonly StringBuilder oscString = new();
@@ -64,27 +66,48 @@ public class VtParser
     private int utf8BytesRemaining;
     private int utf8CodePoint;
 
+    // Last printed character for REP (CSI b) support
+    private int lastPrintedCodePoint;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="VtParser"/> class.
     /// </summary>
     /// <param name="buffer">The terminal buffer to update.</param>
     /// <param name="titleChanged">Callback invoked when the window title changes.</param>
     /// <param name="writeBack">Optional callback to write response bytes back to the PTY.</param>
-    public VtParser(TerminalBuffer buffer, Action<string> titleChanged, Action<byte[]>? writeBack = null)
+    /// <param name="clipboardRead">Optional callback to read system clipboard text.</param>
+    /// <param name="clipboardWrite">Optional callback to write text to the system clipboard.</param>
+    public VtParser(
+        TerminalBuffer buffer,
+        Action<string> titleChanged,
+        Action<byte[]>? writeBack = null,
+        Func<string>? clipboardRead = null,
+        Action<string>? clipboardWrite = null)
     {
         this.buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
         this.titleChanged = titleChanged;
         this.writeBack = writeBack;
+        this.clipboardRead = clipboardRead;
+        this.clipboardWrite = clipboardWrite;
     }
 
     private enum VtState
     {
         Ground,
         Escape,
+        EscapeIntermediate,
+        EscapeCharsetG0,
+        EscapeCharsetG1,
+        EscapeCharsetG2,
+        EscapeCharsetG3,
         CsiParam,
         CsiIntermediate,
         OscString,
         OscStringEsc,
+        DcsString,
+        DcsStringEsc,
+        IgnoreString,
+        IgnoreStringEsc,
     }
 
     /// <summary>
@@ -104,6 +127,21 @@ public class VtParser
                 case VtState.Escape:
                     this.ProcessEscape(b);
                     break;
+                case VtState.EscapeIntermediate:
+                    this.ProcessEscapeIntermediate(b);
+                    break;
+                case VtState.EscapeCharsetG0:
+                    this.ProcessEscapeCharset(b, 0);
+                    break;
+                case VtState.EscapeCharsetG1:
+                    this.ProcessEscapeCharset(b, 1);
+                    break;
+                case VtState.EscapeCharsetG2:
+                    this.ProcessEscapeCharset(b, 2);
+                    break;
+                case VtState.EscapeCharsetG3:
+                    this.ProcessEscapeCharset(b, 3);
+                    break;
                 case VtState.CsiParam:
                     this.ProcessCsiParam(b);
                     break;
@@ -115,6 +153,18 @@ public class VtParser
                     break;
                 case VtState.OscStringEsc:
                     this.ProcessOscStringEsc(b);
+                    break;
+                case VtState.DcsString:
+                    this.ProcessDcsString(b);
+                    break;
+                case VtState.DcsStringEsc:
+                    this.ProcessDcsStringEsc(b);
+                    break;
+                case VtState.IgnoreString:
+                    this.ProcessIgnoreString(b);
+                    break;
+                case VtState.IgnoreStringEsc:
+                    this.ProcessIgnoreStringEsc(b);
                     break;
             }
         }
@@ -227,6 +277,7 @@ public class VtParser
                 this.utf8BytesRemaining--;
                 if (this.utf8BytesRemaining == 0)
                 {
+                    this.lastPrintedCodePoint = this.utf8CodePoint;
                     this.buffer.PutChar(this.utf8CodePoint);
                 }
 
@@ -239,6 +290,7 @@ public class VtParser
 
         if (b >= 0x20 && b <= 0x7E)
         {
+            this.lastPrintedCodePoint = b;
             this.buffer.PutChar(b);
         }
         else if (b >= 0xC0 && b <= 0xDF)
@@ -284,6 +336,12 @@ public class VtParser
             case 0x0D: // CR
                 this.buffer.CarriageReturn();
                 break;
+            case 0x0E: // SO — shift out (activate G1)
+                this.buffer.ShiftOut();
+                break;
+            case 0x0F: // SI — shift in (activate G0)
+                this.buffer.ShiftIn();
+                break;
             case 0x07: // BEL — ignore in ground state
                 break;
         }
@@ -300,6 +358,29 @@ public class VtParser
                 this.oscString.Clear();
                 this.state = VtState.OscString;
                 break;
+            case (byte)'P': // DCS — device control string
+                this.state = VtState.DcsString;
+                break;
+            case (byte)'^': // PM — privacy message (consume and ignore)
+            case (byte)'_': // APC — application program command (consume and ignore)
+                this.state = VtState.IgnoreString;
+                break;
+            case (byte)'(': // G0 charset designation
+                this.state = VtState.EscapeCharsetG0;
+                break;
+            case (byte)')': // G1 charset designation
+                this.state = VtState.EscapeCharsetG1;
+                break;
+            case (byte)'*': // G2 charset designation
+                this.state = VtState.EscapeCharsetG2;
+                break;
+            case (byte)'+': // G3 charset designation
+                this.state = VtState.EscapeCharsetG3;
+                break;
+            case (byte)'#': // DEC private sequences (e.g. ESC # 8 DECALN)
+                this.intermediateChar = (byte)'#';
+                this.state = VtState.EscapeIntermediate;
+                break;
             case (byte)'7': // DECSC — save cursor
             case (byte)'s':
                 this.buffer.SaveCursor();
@@ -314,12 +395,29 @@ public class VtParser
                 this.buffer.ReverseIndex();
                 this.state = VtState.Ground;
                 break;
+            case (byte)'N': // SS2 — single shift G2
+                this.buffer.SingleShift(2);
+                this.state = VtState.Ground;
+                break;
+            case (byte)'O': // SS3 — single shift G3
+                this.buffer.SingleShift(3);
+                this.state = VtState.Ground;
+                break;
             case (byte)'D': // IND — index
+                this.buffer.LineFeed();
+                this.state = VtState.Ground;
+                break;
+            case (byte)'E': // NEL — next line
+                this.buffer.CarriageReturn();
                 this.buffer.LineFeed();
                 this.state = VtState.Ground;
                 break;
             case (byte)'c': // RIS — full reset
                 this.buffer.Reset();
+                this.state = VtState.Ground;
+                break;
+            case (byte)'H': // HTS — set tab stop at current cursor column
+                this.buffer.SetTabStopAtCursor();
                 this.state = VtState.Ground;
                 break;
             case 0x5C: // '\' — ST (string terminator, ignore if no active string)
@@ -330,6 +428,33 @@ public class VtParser
                 this.state = VtState.Ground;
                 break;
         }
+    }
+
+    private void ProcessEscapeIntermediate(byte b)
+    {
+        if (this.intermediateChar == (byte)'#' && b == (byte)'8')
+        {
+            // DECALN — fill screen with 'E' for alignment test
+            this.buffer.FillWithE();
+        }
+
+        this.state = VtState.Ground;
+    }
+
+    private void ProcessEscapeCharset(byte b, int gSet)
+    {
+        switch (b)
+        {
+            case (byte)'0': // DEC Special Graphics
+                this.buffer.DesignateCharset(gSet, true);
+                break;
+            case (byte)'B': // ASCII
+            default:
+                this.buffer.DesignateCharset(gSet, false);
+                break;
+        }
+
+        this.state = VtState.Ground;
     }
 
     private void ProcessCsiParam(byte b)
@@ -438,6 +563,60 @@ public class VtParser
         }
     }
 
+    private void ProcessDcsString(byte b)
+    {
+        if (b == 0x07)
+        {
+            // BEL — string terminator (non-standard but common)
+            this.state = VtState.Ground;
+        }
+        else if (b == 0x1B)
+        {
+            this.state = VtState.DcsStringEsc;
+        }
+
+        // Currently consume and ignore all DCS content
+    }
+
+    private void ProcessDcsStringEsc(byte b)
+    {
+        if (b == 0x5C)
+        {
+            // '\' — ST
+            this.state = VtState.Ground;
+        }
+        else
+        {
+            this.state = VtState.Escape;
+            this.ProcessEscape(b);
+        }
+    }
+
+    private void ProcessIgnoreString(byte b)
+    {
+        if (b == 0x07)
+        {
+            this.state = VtState.Ground;
+        }
+        else if (b == 0x1B)
+        {
+            this.state = VtState.IgnoreStringEsc;
+        }
+    }
+
+    private void ProcessIgnoreStringEsc(byte b)
+    {
+        if (b == 0x5C)
+        {
+            this.state = VtState.Ground;
+        }
+        else
+        {
+            this.state = VtState.Escape;
+            this.ProcessEscape(b);
+        }
+    }
+
     private void EnterCsi()
     {
         this.parameters.Clear();
@@ -476,6 +655,12 @@ public class VtParser
     {
         switch (final)
         {
+            case '`': // HPA — horizontal position absolute (like CHA)
+                this.buffer.SetCursorPosition(this.buffer.CursorRow, this.GetParam(0, 1) - 1);
+                break;
+            case 'a': // HPR — horizontal position relative (like CUF)
+                this.buffer.MoveCursorForward(this.GetParam(0, 1));
+                break;
             case 'A': // CUU — cursor up
                 this.buffer.MoveCursorUp(this.GetParam(0, 1));
                 break;
@@ -488,12 +673,30 @@ public class VtParser
             case 'D': // CUB — cursor back
                 this.buffer.MoveCursorBack(this.GetParam(0, 1));
                 break;
+            case 'E': // CNL — cursor next line
+                this.buffer.MoveCursorDown(this.GetParam(0, 1));
+                this.buffer.CarriageReturn();
+                break;
+            case 'F': // CPL — cursor preceding line
+                this.buffer.MoveCursorUp(this.GetParam(0, 1));
+                this.buffer.CarriageReturn();
+                break;
             case 'G': // CHA — cursor character absolute (column)
                 this.buffer.SetCursorPosition(this.buffer.CursorRow, this.GetParam(0, 1) - 1);
                 break;
             case 'H': // CUP — cursor position
             case 'f':
                 this.buffer.SetCursorPosition(this.GetParam(0, 1) - 1, this.GetParam(1, 1) - 1);
+                break;
+            case 'I': // CHT — cursor horizontal tabulation
+                {
+                    int n = this.GetParam(0, 1);
+                    for (int i = 0; i < n; i++)
+                    {
+                        this.buffer.AdvanceToNextTabStop();
+                    }
+                }
+
                 break;
             case 'J': // ED — erase in display
                 this.buffer.EraseInDisplay(this.GetParam(0, 0));
@@ -519,11 +722,49 @@ public class VtParser
             case 'X': // ECH — erase characters
                 this.buffer.EraseCharacters(this.GetParam(0, 1));
                 break;
+            case 'Z': // CBT — cursor backward tabulation
+                {
+                    int n = this.GetParam(0, 1);
+                    for (int i = 0; i < n; i++)
+                    {
+                        this.buffer.BackTab();
+                    }
+                }
+
+                break;
             case '@': // ICH — insert characters
                 this.buffer.InsertCharacters(this.GetParam(0, 1));
                 break;
+            case 'b': // REP — repeat preceding graphic character
+                if (this.lastPrintedCodePoint != 0)
+                {
+                    int count = this.GetParam(0, 1);
+                    for (int i = 0; i < count; i++)
+                    {
+                        this.buffer.PutChar(this.lastPrintedCodePoint);
+                    }
+                }
+
+                break;
             case 'd': // VPA — line position absolute (row)
                 this.buffer.SetCursorPosition(this.GetParam(0, 1) - 1, this.buffer.CursorCol);
+                break;
+            case 'e': // VPR — vertical position relative (like CUD)
+                this.buffer.MoveCursorDown(this.GetParam(0, 1));
+                break;
+            case 'g': // TBC — tab clear
+                {
+                    int ps = this.GetParam(0, 0);
+                    if (ps == 0)
+                    {
+                        this.buffer.ClearTabStopAtCursor();
+                    }
+                    else if (ps == 3)
+                    {
+                        this.buffer.ClearAllTabStops();
+                    }
+                }
+
                 break;
             case 'm': // SGR — select graphic rendition
                 if (!this.privateMarker && !this.greaterThanMarker)
@@ -547,7 +788,22 @@ public class VtParser
                 this.buffer.PointerMode = this.GetParam(0, 1);
                 break;
             case 't': // Window manipulation — ignore
-            case 'n': // DSR — device status report — ignore
+                break;
+            case 'n': // DSR — device status report
+                this.DispatchDsr();
+                break;
+            case 'c': // DA1 / DA2 — device attributes
+                if (!this.privateMarker && !this.greaterThanMarker)
+                {
+                    // DA1: Respond as VT520 with ANSI color support
+                    this.writeBack?.Invoke(Encoding.ASCII.GetBytes("\x1B[?64;22c"));
+                }
+                else if (this.greaterThanMarker && !this.privateMarker)
+                {
+                    // DA2: Secondary device attributes — report as VT100, version 10, no hardware options
+                    this.writeBack?.Invoke(Encoding.ASCII.GetBytes("\x1B[>1;10;0c"));
+                }
+
                 break;
         }
     }
@@ -563,8 +819,38 @@ public class VtParser
         {
             switch (this.parameters[i])
             {
+                case 1: // DECCKM — application cursor keys
+                    this.buffer.ApplicationCursorKeys = enable;
+                    break;
+                case 5: // DECSCNM — screen reverse video
+                    this.buffer.ReverseVideo = enable;
+                    break;
+                case 6: // DECOM — origin mode
+                    this.buffer.OriginMode = enable;
+                    this.buffer.SetCursorPosition(0, 0);
+                    break;
+                case 7: // DECAWM — auto-wrap mode
+                    this.buffer.AutoWrap = enable;
+                    break;
+                case 12: // Cursor blink toggle
+                    this.buffer.RequestedCursorBlinking = enable
+                        ? CursorBlinking.BlinkOn
+                        : CursorBlinking.BlinkOff;
+                    break;
                 case 25: // DECTCEM — cursor visibility
                     this.buffer.CursorVisible = enable;
+                    break;
+                case 1000: // Normal mouse tracking
+                    this.buffer.MouseTrackingMode = enable ? MouseTrackingMode.Normal : MouseTrackingMode.None;
+                    break;
+                case 1002: // Button-event mouse tracking
+                    this.buffer.MouseTrackingMode = enable ? MouseTrackingMode.ButtonEvent : MouseTrackingMode.None;
+                    break;
+                case 1003: // Any-event mouse tracking
+                    this.buffer.MouseTrackingMode = enable ? MouseTrackingMode.AnyEvent : MouseTrackingMode.None;
+                    break;
+                case 1004: // Focus events
+                    this.buffer.FocusEventsEnabled = enable;
                     break;
                 case 1006: // SGR mouse mode
                     this.buffer.SgrMouseEnabled = enable;
@@ -580,7 +866,66 @@ public class VtParser
                     }
 
                     break;
+                case 47: // Alternate screen (without cursor save/restore)
+                    if (enable)
+                    {
+                        this.buffer.SwitchToAlternateBuffer();
+                    }
+                    else
+                    {
+                        this.buffer.SwitchToMainBuffer();
+                    }
+
+                    break;
+                case 1047: // Alternate screen (clears alt on switch)
+                    if (enable)
+                    {
+                        this.buffer.SwitchToAlternateBuffer();
+                    }
+                    else
+                    {
+                        this.buffer.SwitchToMainBuffer();
+                    }
+
+                    break;
+                case 1048: // Save/restore cursor (like DECSC/DECRC)
+                    if (enable)
+                    {
+                        this.buffer.SaveCursor();
+                    }
+                    else
+                    {
+                        this.buffer.RestoreCursor();
+                    }
+
+                    break;
+                case 2004: // Bracketed paste
+                    this.buffer.BracketedPasteEnabled = enable;
+                    break;
+                case 2026: // Synchronized output
+                    this.buffer.SynchronizedOutput = enable;
+                    break;
             }
+        }
+    }
+
+    private void DispatchDsr()
+    {
+        if (this.privateMarker)
+        {
+            return;
+        }
+
+        int ps = this.GetParam(0, 0);
+        switch (ps)
+        {
+            case 5: // Status report — respond "terminal OK"
+                this.writeBack?.Invoke(Encoding.ASCII.GetBytes("\x1B[0n"));
+                break;
+            case 6: // Cursor position report
+                string cpr = $"\x1B[{this.buffer.CursorRow + 1};{this.buffer.CursorCol + 1}R";
+                this.writeBack?.Invoke(Encoding.ASCII.GetBytes(cpr));
+                break;
         }
     }
 
@@ -622,6 +967,39 @@ public class VtParser
                     break;
             }
         }
+        else if (this.intermediateChar == (byte)'$' && final == 'p')
+        {
+            // DECRQM — request mode
+            int ps = this.GetParam(0, 0);
+            if (this.privateMarker)
+            {
+                int status = this.GetPrivateModeStatus(ps);
+                string response = $"\x1B[?{ps};{status}$y";
+                this.writeBack?.Invoke(Encoding.ASCII.GetBytes(response));
+            }
+        }
+    }
+
+    private int GetPrivateModeStatus(int mode)
+    {
+        return mode switch
+        {
+            1 => this.buffer.ApplicationCursorKeys ? 1 : 2,
+            5 => this.buffer.ReverseVideo ? 1 : 2,
+            6 => this.buffer.OriginMode ? 1 : 2,
+            7 => this.buffer.AutoWrap ? 1 : 2,
+            12 => this.buffer.RequestedCursorBlinking == CursorBlinking.BlinkOn ? 1 : 2,
+            25 => this.buffer.CursorVisible ? 1 : 2,
+            47 or 1047 or 1049 => 2,
+            1000 => this.buffer.MouseTrackingMode == MouseTrackingMode.Normal ? 1 : 2,
+            1002 => this.buffer.MouseTrackingMode == MouseTrackingMode.ButtonEvent ? 1 : 2,
+            1003 => this.buffer.MouseTrackingMode == MouseTrackingMode.AnyEvent ? 1 : 2,
+            1004 => this.buffer.FocusEventsEnabled ? 1 : 2,
+            1006 => this.buffer.SgrMouseEnabled ? 1 : 2,
+            2004 => this.buffer.BracketedPasteEnabled ? 1 : 2,
+            2026 => this.buffer.SynchronizedOutput ? 1 : 2,
+            _ => 0, // unknown mode
+        };
     }
 
     private void DispatchSgr()
@@ -642,6 +1020,9 @@ public class VtParser
                     break;
                 case 1:
                     this.buffer.SetBold(true);
+                    break;
+                case 2:
+                    this.buffer.SetDim(true);
                     break;
                 case 3:
                     this.buffer.SetItalic(true);
@@ -668,8 +1049,22 @@ public class VtParser
                 case 7:
                     this.buffer.SetReverse(true);
                     break;
+                case 5: // Slow blink
+                case 6: // Rapid blink
+                    this.buffer.SetBlink(true);
+                    break;
+                case 8:
+                    this.buffer.SetHidden(true);
+                    break;
+                case 9:
+                    this.buffer.SetStrikethrough(true);
+                    break;
+                case 21: // Double underline — treat as underline
+                    this.buffer.SetUnderline(true);
+                    break;
                 case 22:
                     this.buffer.SetBold(false);
+                    this.buffer.SetDim(false);
                     break;
                 case 23:
                     this.buffer.SetItalic(false);
@@ -680,6 +1075,21 @@ public class VtParser
                     break;
                 case 27:
                     this.buffer.SetReverse(false);
+                    break;
+                case 25:
+                    this.buffer.SetBlink(false);
+                    break;
+                case 28:
+                    this.buffer.SetHidden(false);
+                    break;
+                case 29:
+                    this.buffer.SetStrikethrough(false);
+                    break;
+                case 53:
+                    this.buffer.SetOverline(true);
+                    break;
+                case 55:
+                    this.buffer.SetOverline(false);
                     break;
 
                 // Standard foreground colors (30-37)
@@ -708,6 +1118,14 @@ public class VtParser
                     this.buffer.SetDefaultBackground();
                     break;
 
+                case 58: // Extended special (underline) color
+                    i = this.ParseExtendedColor(i, isForeground: false, isSpecial: true);
+                    break;
+
+                case 59: // Default special (underline) color
+                    this.buffer.SetDefaultSpecial();
+                    break;
+
                 // Bright foreground colors (90-97)
                 case int n when n >= 90 && n <= 97:
                     this.buffer.SetForegroundColor(BrightColors[n - 90]);
@@ -724,7 +1142,7 @@ public class VtParser
     /// <summary>
     /// Parse extended color (38;5;N or 38;2;R;G;B) and return the updated parameter index.
     /// </summary>
-    private int ParseExtendedColor(int index, bool isForeground)
+    private int ParseExtendedColor(int index, bool isForeground, bool isSpecial = false)
     {
         if (index + 1 >= this.parameters.Count)
         {
@@ -737,15 +1155,7 @@ public class VtParser
             // 256-color: 38;5;N
             int colorIndex = Math.Clamp(this.parameters[index + 2], 0, 255);
             int color = Convert256Color(colorIndex);
-            if (isForeground)
-            {
-                this.buffer.SetForegroundColor(color);
-            }
-            else
-            {
-                this.buffer.SetBackgroundColor(color);
-            }
-
+            this.ApplyExtendedColor(color, isForeground, isSpecial);
             return index + 2;
         }
 
@@ -756,27 +1166,56 @@ public class VtParser
             int g = Math.Clamp(this.parameters[index + 3], 0, 255);
             int b = Math.Clamp(this.parameters[index + 4], 0, 255);
             int color = PackRgb(r, g, b);
-            if (isForeground)
-            {
-                this.buffer.SetForegroundColor(color);
-            }
-            else
-            {
-                this.buffer.SetBackgroundColor(color);
-            }
-
+            this.ApplyExtendedColor(color, isForeground, isSpecial);
             return index + 4;
         }
 
         return index + 1;
     }
 
+    private void ApplyExtendedColor(int color, bool isForeground, bool isSpecial)
+    {
+        if (isSpecial)
+        {
+            this.buffer.SetSpecialColor(color);
+        }
+        else if (isForeground)
+        {
+            this.buffer.SetForegroundColor(color);
+        }
+        else
+        {
+            this.buffer.SetBackgroundColor(color);
+        }
+    }
+
     private void DispatchOsc()
     {
         string text = this.oscString.ToString();
         int semicolonIndex = text.IndexOf(';');
+
+        // OSC commands without a payload (e.g. OSC 104 ; ST to reset all palette)
         if (semicolonIndex < 0)
         {
+            if (int.TryParse(text, out int bareCommand))
+            {
+                switch (bareCommand)
+                {
+                    case 104: // Reset all palette colors
+                        this.buffer.ResetPaletteColors();
+                        break;
+                    case 110: // Reset default foreground
+                        this.buffer.ResetTerminalDefaultForeground();
+                        break;
+                    case 111: // Reset default background
+                        this.buffer.ResetTerminalDefaultBackground();
+                        break;
+                    case 112: // Reset cursor color
+                        this.buffer.ResetTerminalCursorColor();
+                        break;
+                }
+            }
+
             return;
         }
 
@@ -792,6 +1231,10 @@ public class VtParser
                     this.titleChanged?.Invoke(payload);
                     break;
 
+                case 4: // Set/query 256-color palette entry
+                    this.HandleOscPalette(payload);
+                    break;
+
                 case 10: // Set/query foreground color
                     this.HandleOscColor(payload, isForeground: true);
                     break;
@@ -800,8 +1243,32 @@ public class VtParser
                     this.HandleOscColor(payload, isForeground: false);
                     break;
 
+                case 12: // Set/query cursor color
+                    this.HandleOscCursorColor(payload);
+                    break;
+
                 case 22: // Set pointer cursor shape
                     this.buffer.PointerShape = payload;
+                    break;
+
+                case 52: // Clipboard access
+                    this.HandleOscClipboard(payload);
+                    break;
+
+                case 104: // Reset palette color(s)
+                    this.HandleOscResetPalette(payload);
+                    break;
+
+                case 110: // Reset default foreground
+                    this.buffer.ResetTerminalDefaultForeground();
+                    break;
+
+                case 111: // Reset default background
+                    this.buffer.ResetTerminalDefaultBackground();
+                    break;
+
+                case 112: // Reset cursor color
+                    this.buffer.ResetTerminalCursorColor();
                     break;
             }
         }
@@ -813,12 +1280,8 @@ public class VtParser
         {
             // Query: respond with current default color (stored as RGB).
             int color = isForeground ? this.buffer.DefaultForeground : this.buffer.DefaultBackground;
-            byte r = (byte)((color >> 16) & 0xFF);
-            byte g = (byte)((color >> 8) & 0xFF);
-            byte b = (byte)(color & 0xFF);
             int oscCommand = isForeground ? 10 : 11;
-            string response = $"\x1B]{oscCommand};rgb:{r:x2}{r:x2}/{g:x2}{g:x2}/{b:x2}{b:x2}\x1B\\";
-            this.writeBack?.Invoke(Encoding.ASCII.GetBytes(response));
+            this.WriteBackOscColorResponse(oscCommand, color);
             return;
         }
 
@@ -832,6 +1295,120 @@ public class VtParser
             else
             {
                 this.buffer.SetTerminalDefaultBackground(parsed);
+            }
+        }
+    }
+
+    private void HandleOscCursorColor(string payload)
+    {
+        if (payload == "?")
+        {
+            this.WriteBackOscColorResponse(12, this.buffer.CursorColor);
+            return;
+        }
+
+        int parsed = ParseOscColorSpec(payload);
+        if (parsed >= 0)
+        {
+            this.buffer.SetTerminalCursorColor(parsed);
+        }
+    }
+
+    private void HandleOscPalette(string payload)
+    {
+        // Format: index;spec  or  index;?  (may repeat: index;spec;index;spec)
+        string[] parts = payload.Split(';');
+        for (int i = 0; i + 1 < parts.Length; i += 2)
+        {
+            if (int.TryParse(parts[i], out int index) && index >= 0 && index <= 255)
+            {
+                if (parts[i + 1] == "?")
+                {
+                    int color = this.buffer.GetPaletteColor(index);
+                    byte r = (byte)((color >> 16) & 0xFF);
+                    byte g = (byte)((color >> 8) & 0xFF);
+                    byte b = (byte)(color & 0xFF);
+                    string response = $"\x1B]4;{index};rgb:{r:x2}{r:x2}/{g:x2}{g:x2}/{b:x2}{b:x2}\x1B\\";
+                    this.writeBack?.Invoke(Encoding.ASCII.GetBytes(response));
+                }
+                else
+                {
+                    int parsed = ParseOscColorSpec(parts[i + 1]);
+                    if (parsed >= 0)
+                    {
+                        this.buffer.SetPaletteColor(index, parsed);
+                    }
+                }
+            }
+        }
+    }
+
+    private void HandleOscResetPalette(string payload)
+    {
+        if (string.IsNullOrEmpty(payload))
+        {
+            this.buffer.ResetPaletteColors();
+            return;
+        }
+
+        // Format: index[;index...] — reset specific entries
+        string[] parts = payload.Split(';');
+        foreach (string part in parts)
+        {
+            if (int.TryParse(part, out int index) && index >= 0 && index <= 255)
+            {
+                this.buffer.ResetPaletteColor(index);
+            }
+        }
+    }
+
+    private void WriteBackOscColorResponse(int oscCommand, int color)
+    {
+        byte r = (byte)((color >> 16) & 0xFF);
+        byte g = (byte)((color >> 8) & 0xFF);
+        byte b = (byte)(color & 0xFF);
+        string response = $"\x1B]{oscCommand};rgb:{r:x2}{r:x2}/{g:x2}{g:x2}/{b:x2}{b:x2}\x1B\\";
+        this.writeBack?.Invoke(Encoding.ASCII.GetBytes(response));
+    }
+
+    private void HandleOscClipboard(string payload)
+    {
+        // Format: selection;base64-data  (selection is e.g. "c" for clipboard, "p" for primary)
+        int semicolonIndex = payload.IndexOf(';');
+        if (semicolonIndex < 0)
+        {
+            return;
+        }
+
+        string selection = payload.Substring(0, semicolonIndex);
+        string data = payload.Substring(semicolonIndex + 1);
+
+        if (data == "?")
+        {
+            // Query clipboard
+            if (this.clipboardRead is not null && this.writeBack is not null)
+            {
+                string text = this.clipboardRead();
+                string base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(text));
+                string response = $"\x1B]52;{selection};{base64}\x1B\\";
+                this.writeBack(Encoding.UTF8.GetBytes(response));
+            }
+        }
+        else
+        {
+            // Set clipboard
+            if (this.clipboardWrite is not null)
+            {
+                try
+                {
+                    byte[] decoded = Convert.FromBase64String(data);
+                    string text = Encoding.UTF8.GetString(decoded);
+                    this.clipboardWrite(text);
+                }
+                catch (FormatException)
+                {
+                    // Invalid base64 — ignore
+                }
             }
         }
     }

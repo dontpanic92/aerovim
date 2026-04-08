@@ -212,6 +212,66 @@ public class TerminalBufferTests
         Assert.That(screen!.AllDirty, Is.True);
     }
 
+    /// <summary>
+    /// With auto-wrap on, pending wrap should defer the actual wrap until the next character.
+    /// </summary>
+    [Test]
+    public void PutChar_PendingWrap_DefersWrapUntilNextChar()
+    {
+        var buffer = new TerminalBuffer(3, 2);
+        buffer.PutChar('A');
+        buffer.PutChar('B');
+        buffer.PutChar('C'); // fills last column — should set pending wrap
+
+        Assert.That(buffer.PendingWrap, Is.True);
+        Assert.That(buffer.CursorRow, Is.EqualTo(0));
+
+        buffer.PutChar('D'); // this triggers the actual wrap
+
+        Assert.That(buffer.PendingWrap, Is.False);
+        Assert.That(buffer.CursorRow, Is.EqualTo(1));
+        Assert.That(buffer.CursorCol, Is.EqualTo(1));
+
+        var screen = buffer.GetScreen();
+        Assert.That(screen!.Cells[0, 2].Character, Is.EqualTo("C"));
+        Assert.That(screen.Cells[1, 0].Character, Is.EqualTo("D"));
+    }
+
+    /// <summary>
+    /// With auto-wrap off, writing at the last column should overwrite in place.
+    /// </summary>
+    [Test]
+    public void PutChar_AutoWrapOff_OverwritesLastColumn()
+    {
+        var buffer = new TerminalBuffer(3, 2);
+        buffer.AutoWrap = false;
+        buffer.PutChar('A');
+        buffer.PutChar('B');
+        buffer.PutChar('C'); // at last column
+        buffer.PutChar('D'); // should overwrite column 2
+
+        Assert.That(buffer.CursorRow, Is.EqualTo(0));
+
+        var screen = buffer.GetScreen();
+        Assert.That(screen!.Cells[0, 2].Character, Is.EqualTo("D"));
+    }
+
+    /// <summary>
+    /// Cursor movement should clear pending wrap state.
+    /// </summary>
+    [Test]
+    public void SetCursorPosition_ClearsPendingWrap()
+    {
+        var buffer = new TerminalBuffer(3, 2);
+        buffer.PutChar('A');
+        buffer.PutChar('B');
+        buffer.PutChar('C');
+        Assert.That(buffer.PendingWrap, Is.True);
+
+        buffer.SetCursorPosition(0, 0);
+        Assert.That(buffer.PendingWrap, Is.False);
+    }
+
     private static void FillRow(TerminalBuffer buffer, int row, char value)
     {
         buffer.SetCursorPosition(row, 0);

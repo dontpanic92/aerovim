@@ -113,6 +113,11 @@ public sealed class NeovimClient : IEditorClient
     /// </summary>
     public bool MouseEnabled { get; private set; } = true;
 
+    /// <summary>
+    /// Gets the current mouse tracking mode.
+    /// </summary>
+    public MouseTrackingMode MouseTrackingMode => this.MouseEnabled ? MouseTrackingMode.ButtonEvent : MouseTrackingMode.None;
+
     private int Height => this.cells!.GetLength(0);
 
     private int Width => this.cells!.GetLength(1);
