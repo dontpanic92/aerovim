@@ -34,6 +34,7 @@ public class EditorControl : Control, IDisposable
     private readonly EditorRenderer renderer;
     private readonly EditorInputHandler inputHandler;
     private readonly CursorStateManager cursorState;
+    private readonly EditorDrawOperation drawOperation;
 
     private TextLayoutParameters textParam;
     private List<string> currentGuiFontNames = new List<string>();
@@ -58,6 +59,7 @@ public class EditorControl : Control, IDisposable
         this.renderer = new EditorRenderer(this.fontChain, this.ligatureTextShaper, this.imeClient);
         this.inputHandler = new EditorInputHandler(editorClient);
         this.cursorState = new CursorStateManager(this.InvalidateVisual, () => this.editorClient.ModeInfo);
+        this.drawOperation = new EditorDrawOperation(this, default);
         this.AddHandler(
             InputElement.TextInputMethodClientRequestedEvent,
             (_, e) =>
@@ -149,8 +151,8 @@ public class EditorControl : Control, IDisposable
     /// <inheritdoc />
     public override void Render(DrawingContext context)
     {
-        var customOp = new EditorDrawOperation(this, new Rect(0, 0, this.Bounds.Width, this.Bounds.Height));
-        context.Custom(customOp);
+        this.drawOperation.Bounds = new Rect(0, 0, this.Bounds.Width, this.Bounds.Height);
+        context.Custom(this.drawOperation);
     }
 
     /// <summary>
@@ -369,7 +371,6 @@ public class EditorControl : Control, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             this.ApplyEditorUiState(this.editorClient.ModeInfo, resetCursorBlink: true);
-            this.UpdateImeCursorRectangle();
             this.InvalidateVisual();
             Interlocked.Exchange(ref this.redrawQueued, 0);
         });
@@ -415,6 +416,21 @@ public class EditorControl : Control, IDisposable
         }
 
         Interlocked.Exchange(ref this.redrawQueued, 0);
+
+        // Update IME cursor position from the screen we just obtained,
+        // avoiding a second GetScreen() call and lock acquisition.
+        var cursorPos = args.CursorPosition;
+        var tp = this.textParam;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!this.isDisposed)
+            {
+                float x = cursorPos.Col * tp.CharWidth;
+                float y = cursorPos.Row * tp.LineHeight;
+                this.imeClient.UpdateCursorRectangle(new Rect(x, y, tp.CharWidth, tp.LineHeight));
+            }
+        });
+
         this.renderer.Render(
             canvas,
             args,
@@ -425,19 +441,6 @@ public class EditorControl : Control, IDisposable
             this.cursorState.ShouldDrawCursor(this.editorClient.ModeInfo),
             this.editorClient as IExternalPopupMenu,
             this.editorClient as IExternalCmdline);
-    }
-
-    private void UpdateImeCursorRectangle()
-    {
-        var screen = this.editorClient.GetScreen();
-        if (screen is null)
-        {
-            return;
-        }
-
-        float x = screen.CursorPosition.Col * this.textParam.CharWidth;
-        float y = screen.CursorPosition.Row * this.textParam.LineHeight;
-        this.imeClient.UpdateCursorRectangle(new Rect(x, y, this.textParam.CharWidth, this.textParam.LineHeight));
     }
 
     private void DisposeCachedResources()
@@ -472,6 +475,7 @@ public class EditorControl : Control, IDisposable
 
     /// <summary>
     /// Custom draw operation for rendering the editor grid with SkiaSharp.
+    /// Reused across frames to avoid per-frame allocation.
     /// </summary>
     private sealed class EditorDrawOperation : ICustomDrawOperation
     {
@@ -483,7 +487,7 @@ public class EditorControl : Control, IDisposable
             this.Bounds = bounds;
         }
 
-        public Rect Bounds { get; }
+        public Rect Bounds { get; set; }
 
         public void Dispose()
         {

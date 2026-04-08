@@ -27,6 +27,16 @@ internal sealed class EditorRenderer : IDisposable
     private readonly SKPaint undercurlPaint = new() { StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint cursorPaint = new() { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
     private readonly SKPaint preeditUnderlinePaint = new() { StrokeWidth = 2, IsAntialias = true, Color = SKColors.White };
+    private readonly SKPaint overlayBgPaint = new() { Style = SKPaintStyle.Fill, IsAntialias = false };
+    private readonly SKPaint overlayBorderPaint = new() { Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
+    private readonly SKPaint overlayTextPaint = new() { IsAntialias = true };
+    private readonly SKPaint overlaySelectedBgPaint = new() { Style = SKPaintStyle.Fill, IsAntialias = false };
+    private readonly SKPath undercurlPath = new();
+    private readonly List<PlainGlyphEntry> plainGlyphBatch = new();
+    private readonly StringBuilder batchTextBuilder = new();
+    private readonly List<ResolvedTypefaceRun> resolvedRuns = new();
+    private readonly StringBuilder runTextBuilder = new();
+    private readonly List<TextCellSpan> runCellSpans = new();
     private bool isDisposed;
 
     /// <summary>
@@ -170,6 +180,11 @@ internal sealed class EditorRenderer : IDisposable
             this.undercurlPaint.Dispose();
             this.cursorPaint.Dispose();
             this.preeditUnderlinePaint.Dispose();
+            this.overlayBgPaint.Dispose();
+            this.overlayBorderPaint.Dispose();
+            this.overlayTextPaint.Dispose();
+            this.overlaySelectedBgPaint.Dispose();
+            this.undercurlPath.Dispose();
             this.isDisposed = true;
         }
     }
@@ -255,16 +270,16 @@ internal sealed class EditorRenderer : IDisposable
             int specialColor = cells[row, colStart].SpecialColor;
             this.undercurlPaint.Color = Helpers.GetSkColor(specialColor);
             float curlY = ((row + 1) * textParam.LineHeight) - 2;
-            using var path = new SKPath();
+            this.undercurlPath.Reset();
             float startX = colStart * textParam.CharWidth;
             float endX = colEnd * textParam.CharWidth;
-            path.MoveTo(startX, curlY);
+            this.undercurlPath.MoveTo(startX, curlY);
             for (float cx = startX; cx < endX; cx += 4)
             {
-                path.QuadTo(cx + 2, curlY - 2, cx + 4, curlY);
+                this.undercurlPath.QuadTo(cx + 2, curlY - 2, cx + 4, curlY);
             }
 
-            canvas.DrawPath(path, this.undercurlPaint);
+            canvas.DrawPath(this.undercurlPath, this.undercurlPaint);
         }
     }
 
@@ -342,6 +357,10 @@ internal sealed class EditorRenderer : IDisposable
         float baselineY,
         TextLayoutParameters textParam)
     {
+        bool bold = this.textPaint.FakeBoldText;
+        this.plainGlyphBatch.Clear();
+        SKTypeface? batchTypeface = null;
+
         int cellIndex = colStart;
         while (cellIndex < colEnd)
         {
@@ -355,14 +374,81 @@ internal sealed class EditorRenderer : IDisposable
             string text = cell.Character;
             int codePoint = char.ConvertToUtf32(text, 0);
             float x = cellIndex * textParam.CharWidth;
+            var typeface = this.fontChain.GetTypefaceForGlyph(codePoint, text, weight, slant);
 
-            this.textPaint.Typeface = this.fontChain.GetTypefaceForGlyph(codePoint, text, weight, slant);
-            canvas.DrawText(text, x, baselineY, this.textPaint);
+            if (batchTypeface is not null && batchTypeface.Handle != typeface.Handle)
+            {
+                this.FlushPlainTextBatch(canvas, batchTypeface, bold, baselineY, textParam);
+                this.plainGlyphBatch.Clear();
+            }
 
-            this.textPaint.Typeface = styledTypeface;
+            batchTypeface = typeface;
+            this.plainGlyphBatch.Add(new PlainGlyphEntry(text, x));
 
             int charWidth = GetCharWidth(cells, row, cellIndex);
             cellIndex += charWidth;
+        }
+
+        if (batchTypeface is not null && this.plainGlyphBatch.Count > 0)
+        {
+            this.FlushPlainTextBatch(canvas, batchTypeface, bold, baselineY, textParam);
+        }
+    }
+
+    private void FlushPlainTextBatch(
+        SKCanvas canvas,
+        SKTypeface typeface,
+        bool bold,
+        float baselineY,
+        TextLayoutParameters textParam)
+    {
+        int count = this.plainGlyphBatch.Count;
+        if (count == 0)
+        {
+            return;
+        }
+
+        this.batchTextBuilder.Clear();
+        for (int i = 0; i < count; i++)
+        {
+            this.batchTextBuilder.Append(this.plainGlyphBatch[i].Text);
+        }
+
+        using var font = new SKFont(typeface, textParam.SkiaFontSize, 1f, 0f);
+        font.Embolden = bold;
+
+        string batchText = this.batchTextBuilder.ToString();
+        int glyphCount = font.CountGlyphs(batchText);
+
+        if (glyphCount != count)
+        {
+            // Glyph count mismatch (e.g. multi-glyph grapheme clusters):
+            // fall back to per-cell drawing.
+            this.textPaint.Typeface = typeface;
+            for (int i = 0; i < count; i++)
+            {
+                var entry = this.plainGlyphBatch[i];
+                canvas.DrawText(entry.Text, entry.X, baselineY, this.textPaint);
+            }
+
+            return;
+        }
+
+        ushort[] glyphIds = new ushort[glyphCount];
+        font.GetGlyphs(batchText, glyphIds);
+
+        SKPoint[] positions = new SKPoint[glyphCount];
+        for (int i = 0; i < count; i++)
+        {
+            positions[i] = new SKPoint(this.plainGlyphBatch[i].X, baselineY);
+        }
+
+        using var builder = new SKTextBlobBuilder();
+        builder.AddPositionedRun(glyphIds, font, positions);
+        using var blob = builder.Build();
+        if (blob is not null)
+        {
+            canvas.DrawText(blob, 0, 0, this.textPaint);
         }
     }
 
@@ -399,6 +485,8 @@ internal sealed class EditorRenderer : IDisposable
         bool embolden,
         TextLayoutParameters textParam)
     {
+        Span<ushort> glyphBuffer = stackalloc ushort[16];
+        Span<SKPoint> pointBuffer = stackalloc SKPoint[16];
         int glyphStart = 0;
         while (glyphStart < shapedRun.GlyphCount)
         {
@@ -417,10 +505,11 @@ internal sealed class EditorRenderer : IDisposable
                 return false;
             }
 
-            ushort[] glyphIds = new ushort[glyphEnd - glyphStart];
-            SKPoint[] points = new SKPoint[glyphIds.Length];
+            int count = glyphEnd - glyphStart;
+            Span<ushort> glyphIds = count <= 16 ? glyphBuffer[..count] : new ushort[count];
+            Span<SKPoint> points = count <= 16 ? pointBuffer[..count] : new SKPoint[count];
             float clusterOriginX = shapedRun.Points[glyphStart].X;
-            for (int i = 0; i < glyphIds.Length; i++)
+            for (int i = 0; i < count; i++)
             {
                 glyphIds[i] = shapedRun.GlyphIds[glyphStart + i];
                 var point = shapedRun.Points[glyphStart + i];
@@ -448,21 +537,21 @@ internal sealed class EditorRenderer : IDisposable
         SKFontStyleWeight weight,
         SKFontStyleSlant slant)
     {
-        List<ResolvedTypefaceRun> runs = new();
+        this.resolvedRuns.Clear();
         SKTypeface? currentTypeface = null;
-        StringBuilder? currentText = null;
-        List<TextCellSpan>? currentCellSpans = null;
+        this.runTextBuilder.Clear();
+        this.runCellSpans.Clear();
         int runStart = colStart;
         int runEnd = colStart;
 
         void FlushCurrentRun()
         {
-            if (currentTypeface is null || currentText is null || currentText.Length == 0 || currentCellSpans is null)
+            if (currentTypeface is null || this.runTextBuilder.Length == 0)
             {
                 return;
             }
 
-            runs.Add(new ResolvedTypefaceRun(runStart, runEnd, currentText.ToString(), currentTypeface, currentCellSpans.ToArray()));
+            this.resolvedRuns.Add(new ResolvedTypefaceRun(runStart, runEnd, this.runTextBuilder.ToString(), currentTypeface, this.runCellSpans.ToArray()));
         }
 
         int cellIndex = colStart;
@@ -484,20 +573,20 @@ internal sealed class EditorRenderer : IDisposable
             {
                 FlushCurrentRun();
                 currentTypeface = typeface;
-                currentText = new StringBuilder();
-                currentCellSpans = new List<TextCellSpan>();
+                this.runTextBuilder.Clear();
+                this.runCellSpans.Clear();
                 runStart = cellIndex;
             }
 
-            int textStart = currentText!.Length;
-            currentText!.Append(text);
-            currentCellSpans!.Add(new TextCellSpan(textStart, text.Length, cellIndex, charWidth));
+            int textStart = this.runTextBuilder.Length;
+            this.runTextBuilder.Append(text);
+            this.runCellSpans.Add(new TextCellSpan(textStart, text.Length, cellIndex, charWidth));
             runEnd = cellIndex + charWidth;
             cellIndex += charWidth;
         }
 
         FlushCurrentRun();
-        return runs;
+        return this.resolvedRuns;
     }
 
     private void DrawPopupMenu(SKCanvas canvas, EditorScreen screen, TextLayoutParameters textParam, IExternalPopupMenu popup)
@@ -512,15 +601,15 @@ internal sealed class EditorRenderer : IDisposable
         float totalHeight = items.Length * itemHeight;
         float maxWidth = 0;
 
-        using var measurePaint = new SKPaint { TextSize = textParam.SkiaFontSize, IsAntialias = true };
-        measurePaint.Typeface = this.fontChain.PrimaryTypeface;
+        this.overlayTextPaint.TextSize = textParam.SkiaFontSize;
+        this.overlayTextPaint.Typeface = this.fontChain.PrimaryTypeface;
 
         foreach (var item in items)
         {
             string label = string.IsNullOrEmpty(item.Kind)
                 ? item.Word
                 : $"{item.Word}  {item.Kind}";
-            float w = measurePaint.MeasureText(label);
+            float w = this.overlayTextPaint.MeasureText(label);
             if (w > maxWidth)
             {
                 maxWidth = w;
@@ -547,15 +636,15 @@ internal sealed class EditorRenderer : IDisposable
         int selectedBg = menuFg;
         int selectedFg = menuBg;
 
-        using var bgPaint = new SKPaint { Color = Helpers.GetSkColor(menuBg), Style = SKPaintStyle.Fill, IsAntialias = false };
-        using var borderPaint = new SKPaint { Color = Helpers.GetSkColor(menuFg, (byte)0x80), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
-        using var selectedBgPaint = new SKPaint { Color = Helpers.GetSkColor(selectedBg), Style = SKPaintStyle.Fill, IsAntialias = false };
+        this.overlayBgPaint.Color = Helpers.GetSkColor(menuBg);
+        this.overlayBorderPaint.Color = Helpers.GetSkColor(menuFg, (byte)0x80);
+        this.overlaySelectedBgPaint.Color = Helpers.GetSkColor(selectedBg);
 
         var menuRect = new SKRect(anchorX, anchorY, anchorX + menuWidth, anchorY + totalHeight);
-        canvas.DrawRect(menuRect, bgPaint);
-        canvas.DrawRect(menuRect, borderPaint);
+        canvas.DrawRect(menuRect, this.overlayBgPaint);
+        canvas.DrawRect(menuRect, this.overlayBorderPaint);
 
-        measurePaint.Color = Helpers.GetSkColor(menuFg);
+        this.overlayTextPaint.Color = Helpers.GetSkColor(menuFg);
         float textBaseline = textParam.LineHeight * 0.8f;
 
         for (int i = 0; i < items.Length; i++)
@@ -564,18 +653,18 @@ internal sealed class EditorRenderer : IDisposable
 
             if (i == popup.PopupSelected)
             {
-                canvas.DrawRect(anchorX, itemY, menuWidth, itemHeight, selectedBgPaint);
-                measurePaint.Color = Helpers.GetSkColor(selectedFg);
+                canvas.DrawRect(anchorX, itemY, menuWidth, itemHeight, this.overlaySelectedBgPaint);
+                this.overlayTextPaint.Color = Helpers.GetSkColor(selectedFg);
             }
             else
             {
-                measurePaint.Color = Helpers.GetSkColor(menuFg);
+                this.overlayTextPaint.Color = Helpers.GetSkColor(menuFg);
             }
 
             string label = string.IsNullOrEmpty(items[i].Kind)
                 ? items[i].Word
                 : $"{items[i].Word}  {items[i].Kind}";
-            canvas.DrawText(label, anchorX + padding, itemY + textBaseline, measurePaint);
+            canvas.DrawText(label, anchorX + padding, itemY + textBaseline, this.overlayTextPaint);
         }
     }
 
@@ -590,22 +679,22 @@ internal sealed class EditorRenderer : IDisposable
         int cmdBg = screen.BackgroundColor;
         int cmdFg = screen.ForegroundColor;
 
-        using var bgPaint = new SKPaint { Color = Helpers.GetSkColor(cmdBg), Style = SKPaintStyle.Fill, IsAntialias = false };
-        using var borderPaint = new SKPaint { Color = Helpers.GetSkColor(cmdFg, (byte)0x80), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
-        using var textPaint = new SKPaint { TextSize = textParam.SkiaFontSize, IsAntialias = true };
-        textPaint.Typeface = this.fontChain.PrimaryTypeface;
-        textPaint.Color = Helpers.GetSkColor(cmdFg);
+        this.overlayBgPaint.Color = Helpers.GetSkColor(cmdBg);
+        this.overlayBorderPaint.Color = Helpers.GetSkColor(cmdFg, (byte)0x80);
+        this.overlayTextPaint.TextSize = textParam.SkiaFontSize;
+        this.overlayTextPaint.Typeface = this.fontChain.PrimaryTypeface;
+        this.overlayTextPaint.Color = Helpers.GetSkColor(cmdFg);
 
         var cmdRect = new SKRect(0, cmdY, canvasWidth, canvasHeight);
-        canvas.DrawRect(cmdRect, bgPaint);
-        canvas.DrawRect(cmdRect, borderPaint);
+        canvas.DrawRect(cmdRect, this.overlayBgPaint);
+        canvas.DrawRect(cmdRect, this.overlayBorderPaint);
 
         string prefix = cmdline.FirstChar;
         string text = string.Join(string.Empty, cmdline.Content.Select(c => c.Text));
         string fullText = prefix + text;
 
         float textBaseline = cmdY + (cmdHeight * 0.5f) + (textParam.LineHeight * 0.3f);
-        canvas.DrawText(fullText, padding, textBaseline, textPaint);
+        canvas.DrawText(fullText, padding, textBaseline, this.overlayTextPaint);
     }
 
     private readonly struct ResolvedTypefaceRun
@@ -647,5 +736,22 @@ internal sealed class EditorRenderer : IDisposable
         public int ColumnStart { get; }
 
         public int ColumnWidth { get; }
+    }
+
+    /// <summary>
+    /// Accumulates a cell's character text and x position for batched
+    /// <see cref="SKTextBlob"/> drawing in the plain-text path.
+    /// </summary>
+    private readonly struct PlainGlyphEntry
+    {
+        public PlainGlyphEntry(string text, float x)
+        {
+            this.Text = text;
+            this.X = x;
+        }
+
+        public string Text { get; }
+
+        public float X { get; }
     }
 }

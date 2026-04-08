@@ -71,11 +71,9 @@ public static class Helpers
     /// <returns>Avalonia Color.</returns>
     public static Avalonia.Media.Color GetAvaloniaColor(int color, float alpha = 1)
     {
-        byte b = (byte)(color % 256);
-        color /= 256;
-        byte g = (byte)(color % 256);
-        color /= 256;
-        byte r = (byte)(color % 256);
+        byte r = (byte)((color >> 16) & 0xFF);
+        byte g = (byte)((color >> 8) & 0xFF);
+        byte b = (byte)(color & 0xFF);
 
         return Avalonia.Media.Color.FromArgb((byte)(alpha * 255), r, g, b);
     }
@@ -88,11 +86,9 @@ public static class Helpers
     /// <returns>SkiaSharp Color.</returns>
     public static SKColor GetSkColor(int color, byte alpha = 255)
     {
-        byte b = (byte)(color % 256);
-        color /= 256;
-        byte g = (byte)(color % 256);
-        color /= 256;
-        byte r = (byte)(color % 256);
+        byte r = (byte)((color >> 16) & 0xFF);
+        byte g = (byte)((color >> 8) & 0xFF);
+        byte b = (byte)(color & 0xFF);
 
         return new SKColor(r, g, b, alpha);
     }
