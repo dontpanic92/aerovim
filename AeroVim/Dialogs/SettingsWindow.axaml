@@ -95,11 +95,11 @@
                     </StackPanel>
                 </controls:GroupBox>
 
-                <!-- Fallback Fonts -->
-                <controls:GroupBox Header="Fallback Fonts" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+                <!-- Font Priority -->
+                <controls:GroupBox Header="Font Priority" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
                     <StackPanel>
-                        <TextBlock Text="Searched in order after guifont, before platform defaults."
-                                   FontSize="11" Foreground="Gray" Margin="0,0,0,5" />
+                        <TextBlock Text="Fonts are searched top to bottom. Drag the placeholder items to control where Neovim guifont and system defaults appear in the priority."
+                                   FontSize="11" Foreground="Gray" Margin="0,0,0,5" TextWrapping="Wrap" />
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -107,7 +107,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <ListBox Name="FontListBox" Grid.Column="0" Height="90" Margin="0,0,5,0" />
+                            <ListBox Name="FontListBox" Grid.Column="0" Height="120" Margin="0,0,5,0" />
 
                             <StackPanel Grid.Column="1" Spacing="3">
                                 <Button Name="FontAddButton" Content="Add..." Width="76" Click="FontAdd_Click" />

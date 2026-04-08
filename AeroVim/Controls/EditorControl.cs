@@ -38,7 +38,12 @@ public class EditorControl : Control, IDisposable
 
     private TextLayoutParameters textParam;
     private List<string> currentGuiFontNames = new List<string>();
-    private List<string> currentUserFallbackFonts = new List<string>();
+    private List<string> currentFontPriorityList = new List<string>
+    {
+        AeroVim.Editor.Utilities.FontPriorityList.GuiFontSentinel,
+        AeroVim.Editor.Utilities.FontPriorityList.SystemMonoSentinel,
+    };
+
     private volatile bool isDisposed;
     private int redrawQueued;
 
@@ -67,7 +72,7 @@ public class EditorControl : Control, IDisposable
                 e.Client = this.imeClient;
             });
 
-        this.RebuildFontChain([]);
+        this.RebuildFontChain();
         this.textParam = new TextLayoutParameters(this.fontChain.PrimaryFontName, 11);
     }
 
@@ -116,23 +121,23 @@ public class EditorControl : Control, IDisposable
     internal StandardCursorType? ResolvedPointerCursorType => this.cursorState.ResolvedPointerCursorType;
 
     /// <summary>
-    /// Sets the user-configured fallback font list and rebuilds the font chain.
+    /// Sets the font priority list (user fonts + sentinels) and rebuilds the font chain.
     /// </summary>
-    /// <param name="fonts">Ordered list of user fallback font names.</param>
-    public void SetFallbackFonts(List<string> fonts)
+    /// <param name="priorityList">Ordered list that may contain user font names and sentinels.</param>
+    public void SetFontPriorityList(List<string> priorityList)
     {
-        this.currentUserFallbackFonts = fonts;
+        this.currentFontPriorityList = priorityList;
         AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
-            $"SetFallbackFonts called with [{string.Join(", ", fonts)}].");
+            $"SetFontPriorityList called with [{string.Join(", ", priorityList)}].");
         this.pendingActions.Enqueue(() =>
         {
             this.fontChain.Rebuild(
+                this.currentFontPriorityList,
                 this.currentGuiFontNames,
-                this.currentUserFallbackFonts,
                 Utilities.Helpers.GetDefaultFallbackFontNames());
 
             AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
-                $"SetFallbackFonts rebuild: primary='{this.fontChain.PrimaryFontName}', pointSize={this.textParam.PointSize}.");
+                $"SetFontPriorityList rebuild: primary='{this.fontChain.PrimaryFontName}', pointSize={this.textParam.PointSize}.");
 
             if (this.fontChain.PrimaryFontName.Length > 0)
             {
@@ -142,6 +147,17 @@ public class EditorControl : Control, IDisposable
         });
 
         Dispatcher.UIThread.Post(() => this.InvalidateVisual());
+    }
+
+    /// <summary>
+    /// Sets the user-configured fallback font list and rebuilds the font chain.
+    /// This is a convenience wrapper that accepts a plain font list (without
+    /// sentinels) for backward compatibility.
+    /// </summary>
+    /// <param name="fonts">Ordered list of user fallback font names.</param>
+    public void SetFallbackFonts(List<string> fonts)
+    {
+        this.SetFontPriorityList(AeroVim.Editor.Utilities.FontPriorityList.Normalize(fonts));
     }
 
     /// <summary>
@@ -408,7 +424,7 @@ public class EditorControl : Control, IDisposable
         this.pendingActions.Enqueue(() =>
         {
             this.currentGuiFontNames = font.FontNames;
-            this.RebuildFontChain(font.FontNames);
+            this.RebuildFontChain();
 
             if (this.fontChain.PrimaryFontName.Length == 0)
             {
@@ -419,7 +435,7 @@ public class EditorControl : Control, IDisposable
 
             AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
                 $"OnFontChanged rebuild: primary='{this.fontChain.PrimaryFontName}', pointSize={font.FontPointSize}, "
-                + $"userFallbacks=[{string.Join(", ", this.currentUserFallbackFonts)}].");
+                + $"priorityList=[{string.Join(", ", this.currentFontPriorityList)}].");
 
             this.textParam = new TextLayoutParameters(this.fontChain.PrimaryFontName, font.FontPointSize);
             this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
@@ -483,13 +499,13 @@ public class EditorControl : Control, IDisposable
         this.fontChain.Dispose();
     }
 
-    private void RebuildFontChain(IReadOnlyList<string>? guiFontNames = null)
+    private void RebuildFontChain()
     {
         this.ligatureTextShaper.ClearCache();
         this.renderer.DiscardBackbuffer();
         this.fontChain.Rebuild(
-            guiFontNames ?? this.currentGuiFontNames,
-            this.currentUserFallbackFonts,
+            this.currentFontPriorityList,
+            this.currentGuiFontNames,
             Utilities.Helpers.GetDefaultFallbackFontNames());
     }
 

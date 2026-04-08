@@ -161,15 +161,9 @@ internal sealed class EditorSessionCoordinator
 
         this.editorControl = new EditorControl(this.editorClient);
         this.editorControl.EnableLigature = this.settings.EnableLigature;
-        if (this.settings.FallbackFonts.Count > 0)
-        {
-            this.log.Info($"Applying {this.settings.FallbackFonts.Count} fallback font(s): [{string.Join(", ", this.settings.FallbackFonts)}].");
-            this.editorControl.SetFallbackFonts(this.settings.FallbackFonts);
-        }
-        else
-        {
-            this.log.Info("No fallback fonts configured.");
-        }
+
+        this.log.Info($"Font priority list ({this.settings.FallbackFonts.Count} entries): [{string.Join(", ", this.settings.FallbackFonts)}].");
+        this.editorControl.SetFontPriorityList(this.settings.FallbackFonts);
 
         this.WireClientEvents();
         this.editorClient.Command("set mouse=a");
@@ -348,7 +342,7 @@ internal sealed class EditorSessionCoordinator
                 break;
 
             case nameof(AppSettings.FallbackFonts):
-                this.editorControl?.SetFallbackFonts(this.settings.FallbackFonts);
+                this.editorControl?.SetFontPriorityList(this.settings.FallbackFonts);
                 break;
         }
     }

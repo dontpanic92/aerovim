@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AeroVim.Diagnostics;
+using AeroVim.Editor.Utilities;
 using AeroVim.Settings;
 
 /// <summary>
@@ -39,7 +40,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     private int windowWidth = 800;
     private int windowHeight = 600;
     private int backgroundColor = 0xFFFFFF;
-    private List<string> fallbackFonts = new List<string>();
+    private List<string> fallbackFonts = new List<string> { FontPriorityList.GuiFontSentinel, FontPriorityList.SystemMonoSentinel };
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -293,7 +294,9 @@ public sealed class AppSettings : INotifyPropertyChanged
             if (File.Exists(settingsPath))
             {
                 var json = File.ReadAllText(settingsPath);
-                return JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings) as AppSettings ?? new AppSettings();
+                var settings = JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings) as AppSettings ?? new AppSettings();
+                settings.fallbackFonts = FontPriorityList.Normalize(settings.fallbackFonts);
+                return settings;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or JsonException)

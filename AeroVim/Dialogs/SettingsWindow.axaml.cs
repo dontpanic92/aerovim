@@ -8,6 +8,7 @@ namespace AeroVim.Dialogs;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using AeroVim.Editor.Utilities;
 using AeroVim.Services;
 using AeroVim.Utilities;
 using Avalonia.Controls;
@@ -99,6 +100,21 @@ public partial class SettingsWindow : Window
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
 
+    private static string? GetRawFontEntry(object? item)
+    {
+        if (item is FontPriorityItem sentinel)
+        {
+            return sentinel.Sentinel;
+        }
+
+        if (item is string fontName)
+        {
+            return fontName;
+        }
+
+        return null;
+    }
+
     private void ShowPage(int index)
     {
         this.FindControl<StackPanel>("GeneralPage")!.IsVisible = index == 0;
@@ -149,11 +165,11 @@ public partial class SettingsWindow : Window
 
         editorTypeCombo.SelectionChanged += (s, e) => this.UpdatePathPanelVisibility();
 
-        // Fallback fonts
+        // Font priority list
         var fontListBox = this.FindControl<ListBox>("FontListBox")!;
-        foreach (var font in this.settings.FallbackFonts)
+        foreach (var entry in this.settings.FallbackFonts)
         {
-            fontListBox.Items.Add(font);
+            fontListBox.Items.Add(this.CreateFontListDisplayItem(entry));
         }
 
         this.FindControl<CheckBox>("LigatureCheckBox")!.IsChecked = this.settings.EnableLigature;
@@ -251,14 +267,15 @@ public partial class SettingsWindow : Window
         this.settings.EnableBlurBehind = this.FindControl<CheckBox>("BlurBehindCheckBox")!.IsChecked == true;
         this.settings.BackgroundOpacity = this.FindControl<Slider>("OpacitySlider")!.Value;
 
-        // Fallback fonts
+        // Font priority list
         var fontListBox = this.FindControl<ListBox>("FontListBox")!;
         var fonts = new List<string>();
         foreach (var item in fontListBox.Items)
         {
-            if (item is string fontName)
+            string? raw = GetRawFontEntry(item);
+            if (raw is not null)
             {
-                fonts.Add(fontName);
+                fonts.Add(raw);
             }
         }
 
@@ -425,8 +442,13 @@ public partial class SettingsWindow : Window
 
         if (!string.IsNullOrWhiteSpace(dialog.SelectedFontName))
         {
-            fontListBox.Items.Add(dialog.SelectedFontName);
-            this.UpdateFallbackFontsLive();
+            // Insert before the selected item, or at the end if nothing selected.
+            int insertIndex = fontListBox.SelectedIndex >= 0
+                ? fontListBox.SelectedIndex
+                : fontListBox.Items.Count;
+            fontListBox.Items.Insert(insertIndex, dialog.SelectedFontName);
+            fontListBox.SelectedIndex = insertIndex;
+            this.UpdateFontPriorityLive();
         }
     }
 
@@ -435,8 +457,14 @@ public partial class SettingsWindow : Window
         var fontListBox = this.FindControl<ListBox>("FontListBox")!;
         if (fontListBox.SelectedIndex >= 0)
         {
+            string? raw = GetRawFontEntry(fontListBox.SelectedItem);
+            if (raw is not null && FontPriorityList.IsSentinel(raw))
+            {
+                return;
+            }
+
             fontListBox.Items.RemoveAt(fontListBox.SelectedIndex);
-            this.UpdateFallbackFontsLive();
+            this.UpdateFontPriorityLive();
         }
     }
 
@@ -450,7 +478,7 @@ public partial class SettingsWindow : Window
             fontListBox.Items.RemoveAt(index);
             fontListBox.Items.Insert(index - 1, item);
             fontListBox.SelectedIndex = index - 1;
-            this.UpdateFallbackFontsLive();
+            this.UpdateFontPriorityLive();
         }
     }
 
@@ -464,23 +492,60 @@ public partial class SettingsWindow : Window
             fontListBox.Items.RemoveAt(index);
             fontListBox.Items.Insert(index + 1, item);
             fontListBox.SelectedIndex = index + 1;
-            this.UpdateFallbackFontsLive();
+            this.UpdateFontPriorityLive();
         }
     }
 
-    private void UpdateFallbackFontsLive()
+    private void UpdateFontPriorityLive()
     {
         var fontListBox = this.FindControl<ListBox>("FontListBox")!;
         var fonts = new List<string>();
         foreach (var item in fontListBox.Items)
         {
-            if (item is string fontName)
+            string? raw = GetRawFontEntry(item);
+            if (raw is not null)
             {
-                fonts.Add(fontName);
+                fonts.Add(raw);
             }
         }
 
         this.settings.FallbackFonts = fonts;
+    }
+
+    /// <summary>
+    /// Creates a display item for the font list. Sentinel entries are
+    /// shown with a descriptive label and resolved font names; user
+    /// font entries are plain strings.
+    /// </summary>
+    private object CreateFontListDisplayItem(string entry)
+    {
+        if (FontPriorityList.IsGuiFontSentinel(entry))
+        {
+            string resolved = string.Join(", ", this.GetCurrentGuiFontNames());
+            string label = string.IsNullOrEmpty(resolved)
+                ? "[Neovim guifont]"
+                : $"[Neovim guifont]  ({resolved})";
+            return new FontPriorityItem(FontPriorityList.GuiFontSentinel, label);
+        }
+
+        if (FontPriorityList.IsSystemMonoSentinel(entry))
+        {
+            string resolved = string.Join(", ", Helpers.GetDefaultFallbackFontNames());
+            return new FontPriorityItem(FontPriorityList.SystemMonoSentinel, $"[System Monospace]  ({resolved})");
+        }
+
+        return entry;
+    }
+
+    private IReadOnlyList<string> GetCurrentGuiFontNames()
+    {
+        var client = (this.Owner as MainWindow)?.Coordinator?.EditorClient;
+        if (client is not null)
+        {
+            return client.FontSettings.FontNames;
+        }
+
+        return Array.Empty<string>();
     }
 
     private void UpdatePathPanelVisibility()

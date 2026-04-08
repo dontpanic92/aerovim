@@ -576,10 +576,10 @@ public class EditorControlTests
     /// <summary>
     /// User-configured fallback fonts should take priority over guifont
     /// names (including Neovim 0.12+ defaults like SF Mono, Menlo, etc.)
-    /// when both are present.
+    /// when placed before the $GUIFONT sentinel in the priority list.
     /// </summary>
     [Test]
-    public void SetFallbackFonts_WithNonEmptyGuifont_FallbackTakesPriority()
+    public void FontPriorityList_UserFontBeforeGuifont_TakesPriority()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
         string? fallbackFont = FindNonDefaultFont(platformDefaults);
@@ -592,7 +592,13 @@ public class EditorControlTests
         var editorClient = new TestEditorClient { CurrentScreen = screen };
         using var control = new EditorControl(editorClient);
 
-        control.SetFallbackFonts(new List<string> { fallbackFont! });
+        // User font placed BEFORE the $GUIFONT sentinel
+        control.SetFontPriorityList(new List<string>
+        {
+            fallbackFont!,
+            AeroVim.Editor.Utilities.FontPriorityList.GuiFontSentinel,
+            AeroVim.Editor.Utilities.FontPriorityList.SystemMonoSentinel,
+        });
 
         // Simulate Neovim sending a non-empty guifont (e.g. default in 0.12+)
         editorClient.RaiseFontChanged(new FontSettings
@@ -606,7 +612,46 @@ public class EditorControlTests
         Assert.That(
             control.GetPrimaryFontNameForTesting(),
             Is.EqualTo(fallbackFont).IgnoreCase,
-            "User fallback font should take priority over guifont.");
+            "User font before $GUIFONT sentinel should take priority over guifont.");
+    }
+
+    /// <summary>
+    /// When the user places $GUIFONT before their fonts in the priority
+    /// list, guifont should take priority over user fonts.
+    /// </summary>
+    [Test]
+    public void FontPriorityList_GuifontBeforeUserFont_GuifontTakesPriority()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        string guiFont = platformDefaults[0];
+
+        var screen = CreateAsciiScreen("Hello");
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+
+        // $GUIFONT placed BEFORE the user font
+        control.SetFontPriorityList(new List<string>
+        {
+            AeroVim.Editor.Utilities.FontPriorityList.GuiFontSentinel,
+            fallbackFont!,
+            AeroVim.Editor.Utilities.FontPriorityList.SystemMonoSentinel,
+        });
+
+        editorClient.RaiseFontChanged(new FontSettings
+        {
+            FontNames = new List<string> { guiFont },
+            FontPointSize = 11,
+        });
+
+        RenderToPng(control, 480, 120);
+
+        Assert.That(
+            control.GetPrimaryFontNameForTesting(),
+            Is.EqualTo(guiFont).IgnoreCase,
+            "Guifont should take priority when $GUIFONT sentinel is before user font.");
     }
 
     private static Screen CreateAsciiScreen(string text, bool bold = false)

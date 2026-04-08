@@ -34,7 +34,7 @@ public class AppSettingsTests
             WindowWidth = 1440,
             WindowHeight = 900,
             BackgroundColor = 0x102030,
-            FallbackFonts = new List<string> { "Fira Code", "Noto Sans Mono" },
+            FallbackFonts = new List<string> { "Fira Code", "$GUIFONT", "Noto Sans Mono", "$SYSTEM_MONO" },
         };
 
         Assert.That(settings.Save(), Is.True);

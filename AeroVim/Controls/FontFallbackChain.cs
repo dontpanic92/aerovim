@@ -12,9 +12,9 @@ using SkiaSharp;
 
 /// <summary>
 /// Manages an ordered list of typefaces and provides per-glyph font lookup
-/// with caching. The chain is searched from highest to lowest priority:
-/// guifont fonts, user-configured fallback fonts, platform defaults, and
-/// finally the OS font matcher as a last resort.
+/// with caching. The chain is built from the user's font priority list,
+/// which may contain sentinel entries for the Neovim guifont and platform
+/// system-monospace font lists. The OS font matcher is used as a last resort.
 /// </summary>
 public sealed class FontFallbackChain : IDisposable
 {
@@ -35,40 +35,39 @@ public sealed class FontFallbackChain : IDisposable
     public string PrimaryFontName => this.PrimaryTypeface?.FamilyName ?? string.Empty;
 
     /// <summary>
-    /// Rebuilds the chain from the given font name lists. Each list is
-    /// appended in priority order. When the user has configured fallback
-    /// fonts, they take highest priority (the user explicitly chose them
-    /// in AeroVim settings). Otherwise, guifont names come first. Platform
-    /// defaults are always appended last as a safety net.
+    /// Rebuilds the chain from a unified priority list. Each entry is
+    /// either a user font name or a sentinel (<c>$GUIFONT</c>,
+    /// <c>$SYSTEM_MONO</c>) that is expanded to the corresponding font
+    /// name list. The order of the list is the priority order.
     /// Only fonts that are actually available on the system are included.
     /// </summary>
-    /// <param name="guiFontNames">Font names from Neovim guifont.</param>
-    /// <param name="userFontNames">User-configured fallback font names (highest priority when present).</param>
-    /// <param name="platformDefaults">Platform default font names (monospace + emoji).</param>
+    /// <param name="priorityList">The ordered font priority list (may contain sentinels).</param>
+    /// <param name="guiFontNames">Font names to substitute for the <c>$GUIFONT</c> sentinel.</param>
+    /// <param name="platformDefaults">Font names to substitute for the <c>$SYSTEM_MONO</c> sentinel.</param>
     public void Rebuild(
+        IReadOnlyList<string> priorityList,
         IReadOnlyList<string> guiFontNames,
-        IReadOnlyList<string> userFontNames,
         IReadOnlyList<string> platformDefaults)
     {
         this.DisposeAll();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // User-configured fonts take highest priority when present.
-        // In Neovim 0.12+, guifont has a non-empty default value even
-        // when the user hasn't set it, so the AeroVim fallback font
-        // setting is the only reliable way for users to choose a font.
-        if (userFontNames.Count > 0)
+        foreach (var entry in priorityList)
         {
-            this.AddFonts(userFontNames, seen);
-            this.AddFonts(guiFontNames, seen);
+            if (AeroVim.Editor.Utilities.FontPriorityList.IsGuiFontSentinel(entry))
+            {
+                this.AddFonts(guiFontNames, seen);
+            }
+            else if (AeroVim.Editor.Utilities.FontPriorityList.IsSystemMonoSentinel(entry))
+            {
+                this.AddFonts(platformDefaults, seen);
+            }
+            else if (!string.IsNullOrWhiteSpace(entry))
+            {
+                this.AddFont(entry, seen);
+            }
         }
-        else
-        {
-            this.AddFonts(guiFontNames, seen);
-        }
-
-        this.AddFonts(platformDefaults, seen);
 
         AppLogger.For<FontFallbackChain>().Debug(
             $"Rebuild: chain=[{string.Join(", ", this.chain.Select(t => t.FamilyName))}], "
@@ -186,16 +185,21 @@ public sealed class FontFallbackChain : IDisposable
     {
         foreach (var name in fontNames)
         {
-            if (string.IsNullOrWhiteSpace(name) || !seen.Add(name))
-            {
-                continue;
-            }
+            this.AddFont(name, seen);
+        }
+    }
 
-            var typeface = CreateValidatedTypeface(name);
-            if (typeface is not null)
-            {
-                this.chain.Add(typeface);
-            }
+    private void AddFont(string name, HashSet<string> seen)
+    {
+        if (string.IsNullOrWhiteSpace(name) || !seen.Add(name))
+        {
+            return;
+        }
+
+        var typeface = CreateValidatedTypeface(name);
+        if (typeface is not null)
+        {
+            this.chain.Add(typeface);
         }
     }
 

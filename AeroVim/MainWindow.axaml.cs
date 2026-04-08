@@ -79,6 +79,11 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Gets the editor session coordinator for dialog access to runtime state.
+    /// </summary>
+    internal EditorSessionCoordinator Coordinator => this.coordinator;
+
+    /// <summary>
     /// Opens the specified files in the editor. Used by drag-and-drop
     /// and platform file-open events (e.g. macOS Finder).
     /// </summary>
