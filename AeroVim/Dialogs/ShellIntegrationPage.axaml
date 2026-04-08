@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Classic.Avalonia.Theme.Controls"
+             xmlns:dialogs="using:AeroVim.Dialogs"
+             xmlns:vm="using:AeroVim.ViewModels"
+             x:Class="AeroVim.Dialogs.ShellIntegrationPage"
+             x:DataType="vm:ShellIntegrationPageViewModel">
+    <StackPanel Spacing="10">
+        <controls:GroupBox Header="Drag &amp; Drop" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+            <StackPanel>
+                <CheckBox IsChecked="{Binding EnableDragDrop, Mode=TwoWay}" Content="Enable drag-and-drop file opening" Margin="0,0,0,5" />
+                <TextBlock Text="Drop files onto the AeroVim window to open them in the editor."
+                           FontSize="11" Foreground="Gray" Margin="20,0,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </controls:GroupBox>
+
+        <controls:GroupBox Header="Windows Shell" BorderBrush="Gray" BorderThickness="1" Padding="8, 16"
+                           IsVisible="{Binding IsShellIntegrationSupported}">
+            <StackPanel Spacing="10">
+                <TextBlock Text="Per-user registry entries (no admin required). Changes take effect immediately."
+                           FontSize="11" Foreground="Gray" Margin="0,0,0,4" TextWrapping="Wrap" />
+
+                <!-- Context Menu -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="Explorer Context Menu" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ContextMenuStatusText}" FontSize="11" Foreground="Gray" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Width="90" VerticalAlignment="Center"
+                            Content="{Binding ContextMenuButtonText}"
+                            Command="{Binding ToggleContextMenuCommand}" />
+                </Grid>
+
+                <Separator Margin="0,2" />
+
+                <!-- File Associations -->
+                <TextBlock Text="File Type Associations" FontWeight="SemiBold" />
+
+                <!-- Column header -->
+                <Grid Margin="0,0,100,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="100" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Extension" FontSize="11" Foreground="Gray" Margin="4,0" />
+                    <TextBlock Grid.Column="1" Text="Status" FontSize="11" Foreground="Gray" Margin="4,0" />
+                </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox Name="FileAssocListBox" Grid.Column="0" Height="130" Margin="0,0,5,0"
+                             ItemsSource="{Binding FileAssociations}"
+                             SelectionMode="Multiple">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:CompileBindings="True" x:DataType="dialogs:FileAssocItem">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="100" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Extension}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Status}"
+                                               Foreground="{Binding StatusBrush}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Column="1" Spacing="3">
+                        <Button Content="Register All" Width="90" Command="{Binding RegisterAllExtensionsCommand}" />
+                        <Button Content="Unregister All" Width="90" Command="{Binding UnregisterAllExtensionsCommand}" />
+                        <Separator Margin="0,3" />
+                        <Button Content="Add..." Width="90" Command="{Binding AddExtensionCommand}" />
+                        <Button Name="FileAssocRemoveBtn" Content="Remove" Width="90" Click="FileAssocRemove_Click" />
+                        <Button Content="Clear All" Width="90" Command="{Binding ClearAllExtensionsCommand}" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </controls:GroupBox>
+    </StackPanel>
+</UserControl>

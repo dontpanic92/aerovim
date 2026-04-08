@@ -26,6 +26,9 @@ public partial class MainWindow : Window
     private readonly AppSettings settings;
     private readonly WindowEffectsService effectsService;
     private readonly EditorSessionCoordinator coordinator;
+    private readonly Grid titleBar;
+    private readonly TextBlock titleText;
+    private readonly Border neovimBorder;
     private bool isSettingsDialogOpen;
 
     /// <summary>
@@ -47,6 +50,10 @@ public partial class MainWindow : Window
     {
         this.settings = settings;
         this.InitializeComponent();
+
+        this.titleBar = this.FindControl<Grid>("TitleBar")!;
+        this.titleText = this.FindControl<TextBlock>("TitleText")!;
+        this.neovimBorder = this.FindControl<Border>("NeovimBorder")!;
 
         this.effectsService = new WindowEffectsService(this, this.settings);
         this.effectsService.CurrentBackgroundColor = this.settings.BackgroundColor;
@@ -327,18 +334,14 @@ public partial class MainWindow : Window
     private void OnEditorReady(Controls.EditorControl editorControl)
     {
         this.effectsService.EditorControl = editorControl;
-        this.FindControl<Border>("NeovimBorder")!.Child = editorControl;
+        this.neovimBorder.Child = editorControl;
         this.effectsService.UpdateBackgroundOpacity();
     }
 
     private void OnTitleChanged(string title)
     {
         this.Title = title;
-        var titleText = this.FindControl<TextBlock>("TitleText");
-        if (titleText is not null)
-        {
-            titleText.Text = title;
-        }
+        this.titleText.Text = title;
     }
 
     private void OnForegroundColorChanged(int intColor)
@@ -362,13 +365,13 @@ public partial class MainWindow : Window
 
     private void OnBackgroundBrushChanged(IBrush brush)
     {
-        this.FindControl<Grid>("TitleBar")!.Background = brush;
-        this.FindControl<Border>("NeovimBorder")!.Background = brush;
+        this.titleBar.Background = brush;
+        this.neovimBorder.Background = brush;
     }
 
     private void OnMacOSFullScreenChanged(bool isFullScreen)
     {
-        this.FindControl<Grid>("TitleBar")!.IsVisible = !isFullScreen;
+        this.titleBar.IsVisible = !isFullScreen;
     }
 
     private async void OnEditorExitedAbnormally(string message)
@@ -390,9 +393,8 @@ public partial class MainWindow : Window
         this.FindControl<Button>("SettingsButton")!.IsVisible = false;
         this.FindControl<TextBlock>("LogoText")!.IsVisible = false;
 
-        var titleText = this.FindControl<TextBlock>("TitleText")!;
-        titleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        titleText.FontWeight = FontWeight.Bold;
+        this.titleText.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        this.titleText.FontWeight = FontWeight.Bold;
     }
 
     private async void SettingsButton_Click(object? sender, RoutedEventArgs e)

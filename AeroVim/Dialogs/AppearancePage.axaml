@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Classic.Avalonia.Theme.Controls"
+             xmlns:vm="using:AeroVim.ViewModels"
+             x:Class="AeroVim.Dialogs.AppearancePage"
+             x:DataType="vm:AppearancePageViewModel">
+    <StackPanel Spacing="10">
+        <!-- Window Effects -->
+        <controls:GroupBox Header="Window" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+            <StackPanel>
+                <CheckBox IsChecked="{Binding EnableLigature, Mode=TwoWay}" Content="Enable Font Ligature" Margin="0,0,0,5" />
+
+                <CheckBox IsChecked="{Binding EnableBlurBehind, Mode=TwoWay}" Content="Enable Window Transparency" Margin="0,0,0,5" />
+
+                <RadioButton Content="Transparent" GroupName="BlurKind" Margin="20,0,0,3"
+                             IsEnabled="{Binding IsTransparentEnabled}"
+                             IsChecked="{Binding BlurType, Converter={x:Static vm:BlurTypeConverter.Transparent}, Mode=TwoWay}" />
+
+                <RadioButton Content="Blur" GroupName="BlurKind" Margin="20,0,0,3"
+                             IsEnabled="{Binding IsGaussianEnabled}"
+                             IsChecked="{Binding BlurType, Converter={x:Static vm:BlurTypeConverter.Gaussian}, Mode=TwoWay}" />
+
+                <RadioButton Content="Acrylic Blur" GroupName="BlurKind" Margin="20,0,0,3"
+                             IsEnabled="{Binding IsAcrylicEnabled}"
+                             IsChecked="{Binding BlurType, Converter={x:Static vm:BlurTypeConverter.Acrylic}, Mode=TwoWay}" />
+
+                <RadioButton Content="Mica (Windows only)" GroupName="BlurKind" Margin="20,0,0,5"
+                             IsEnabled="{Binding IsMicaEnabled}"
+                             IsChecked="{Binding BlurType, Converter={x:Static vm:BlurTypeConverter.Mica}, Mode=TwoWay}" />
+
+                <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
+                    <TextBlock Text="Background Color Opacity" VerticalAlignment="Center" />
+                    <Slider Value="{Binding BackgroundOpacity, Mode=TwoWay}" Width="200" Minimum="0.01" Maximum="1"
+                            TickFrequency="0.01" IsSnapToTickEnabled="True" Margin="10,0"
+                            IsEnabled="{Binding IsOpacityEnabled}" />
+                    <TextBlock Text="{Binding OpacityLabel}" Width="40" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </controls:GroupBox>
+
+        <!-- Font Priority -->
+        <controls:GroupBox Header="Font Priority" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+            <StackPanel>
+                <TextBlock Text="Fonts are searched top to bottom. Drag the placeholder items to control where Neovim guifont and system defaults appear in the priority."
+                           FontSize="11" Foreground="Gray" Margin="0,0,0,5" TextWrapping="Wrap" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox Grid.Column="0" ItemsSource="{Binding FontItems}"
+                             SelectedIndex="{Binding SelectedFontIndex, Mode=TwoWay}"
+                             Height="120" Margin="0,0,5,0" />
+
+                    <StackPanel Grid.Column="1" Spacing="3">
+                        <Button Content="Add..." Width="76" Command="{Binding FontAddCommand}" />
+                        <Button Content="Remove" Width="76" Command="{Binding FontRemoveCommand}"
+                                IsEnabled="{Binding CanRemoveFont}" />
+                        <Button Content="Move Up" Width="76" Command="{Binding FontMoveUpCommand}"
+                                IsEnabled="{Binding CanMoveUp}" />
+                        <Button Content="Move Down" Width="76" Command="{Binding FontMoveDownCommand}"
+                                IsEnabled="{Binding CanMoveDown}" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </controls:GroupBox>
+    </StackPanel>
+</UserControl>

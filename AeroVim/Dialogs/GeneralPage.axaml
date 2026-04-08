@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Classic.Avalonia.Theme.Controls"
+             xmlns:vm="using:AeroVim.ViewModels"
+             x:Class="AeroVim.Dialogs.GeneralPage"
+             x:DataType="vm:GeneralPageViewModel">
+    <StackPanel Spacing="10">
+        <controls:GroupBox Header="Editor Backend" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+                <!-- Backend -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Backend"
+                           VerticalAlignment="Center" Margin="0,0,10,0" />
+                <ComboBox Grid.Row="0" Grid.Column="1" SelectedIndex="{Binding EditorTypeIndex, Mode=TwoWay}"
+                          Width="120" HorizontalAlignment="Left">
+                    <ComboBoxItem Content="Neovim" />
+                    <ComboBoxItem Content="Vim" />
+                </ComboBox>
+
+                <!-- Neovim Path -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Neovim Path"
+                           IsVisible="{Binding !IsVimSelected}"
+                           VerticalAlignment="Center" Margin="0,8,10,0" Width="64" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NeovimPath, Mode=TwoWay}"
+                         IsVisible="{Binding !IsVimSelected}" Margin="0,8,0,0" />
+                <StackPanel Grid.Row="2" Grid.Column="1"
+                            IsVisible="{Binding !IsVimSelected}"
+                            Orientation="Horizontal" Margin="0,4,0,0">
+                    <Button Width="76" Content="Browse..." Command="{Binding BrowseNeovimCommand}" />
+                    <Button Width="76" Content="Detect" Margin="5,0,0,0" Command="{Binding DetectNeovimCommand}" />
+                </StackPanel>
+
+                <!-- Vim Path -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Vim Path"
+                           IsVisible="{Binding IsVimSelected}"
+                           VerticalAlignment="Center" Margin="0,8,10,0" Width="64" />
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding VimPath, Mode=TwoWay}"
+                         IsVisible="{Binding IsVimSelected}" Margin="0,8,0,0" />
+                <StackPanel Grid.Row="4" Grid.Column="1"
+                            IsVisible="{Binding IsVimSelected}"
+                            Orientation="Horizontal" Margin="0,4,0,0">
+                    <Button Width="76" Content="Browse..." Command="{Binding BrowseVimCommand}" />
+                    <Button Width="76" Content="Detect" Margin="5,0,0,0" Command="{Binding DetectVimCommand}" />
+                </StackPanel>
+            </Grid>
+        </controls:GroupBox>
+    </StackPanel>
+</UserControl>

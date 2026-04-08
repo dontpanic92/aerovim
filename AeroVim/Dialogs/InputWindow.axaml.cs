@@ -5,6 +5,7 @@
 
 namespace AeroVim.Dialogs;
 
+using AeroVim.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -29,16 +30,10 @@ public partial class InputWindow : Window
     /// <param name="watermark">Optional watermark text for the input field.</param>
     public InputWindow(string prompt, string title, string? watermark = null)
     {
+        this.DataContext = new InputViewModel(prompt, title, watermark);
         this.InitializeComponent();
-        this.Title = title;
-        this.FindControl<TextBlock>("PromptTextBlock")!.Text = prompt;
 
         var inputBox = this.FindControl<TextBox>("InputTextBox")!;
-        if (watermark is not null)
-        {
-            inputBox.Watermark = watermark;
-        }
-
         inputBox.AttachedToVisualTree += (s, e) => inputBox.Focus();
     }
 
@@ -47,9 +42,11 @@ public partial class InputWindow : Window
     /// </summary>
     public string? InputText { get; private set; }
 
+    private InputViewModel? ViewModel => this.DataContext as InputViewModel;
+
     private void Ok_Click(object? sender, RoutedEventArgs e)
     {
-        this.InputText = this.FindControl<TextBox>("InputTextBox")!.Text;
+        this.InputText = this.ViewModel?.InputText;
         this.Close();
     }
 

@@ -5,6 +5,7 @@
 
 namespace AeroVim.Dialogs;
 
+using AeroVim.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -28,9 +29,8 @@ public partial class MessageWindow : Window
     /// <param name="title">Dialog title.</param>
     public MessageWindow(string message, string title)
     {
+        this.DataContext = new MessageViewModel(message, title);
         this.InitializeComponent();
-        this.Title = title;
-        this.FindControl<TextBlock>("MessageTextBlock")!.Text = message;
     }
 
     private void Ok_Click(object? sender, RoutedEventArgs e)

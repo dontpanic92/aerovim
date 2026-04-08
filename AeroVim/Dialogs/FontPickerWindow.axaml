@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AeroVim.ViewModels"
         x:Class="AeroVim.Dialogs.FontPickerWindow"
+        x:DataType="vm:FontPickerViewModel"
         Title="Add Font" Height="400" Width="400"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
@@ -11,10 +13,12 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBox Name="FilterTextBox" Grid.Row="0" Watermark="Type to filter..."
-                 Margin="0,0,0,5" />
+        <TextBox Grid.Row="0" Text="{Binding FilterText, Mode=TwoWay}"
+                 Watermark="Type to filter..." Margin="0,0,0,5" />
 
-        <ListBox Name="FontListBox" Grid.Row="1" Margin="0,0,0,10" />
+        <ListBox Grid.Row="1" ItemsSource="{Binding FilteredFonts}"
+                 SelectedItem="{Binding SelectedFontName, Mode=TwoWay}"
+                 Margin="0,0,0,10" />
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="OK" Width="76" Margin="0,0,5,0" Click="Ok_Click" />

@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AeroVim.ViewModels"
+             x:Class="AeroVim.Dialogs.AboutPage"
+             x:DataType="vm:AboutPageViewModel">
+    <StackPanel Spacing="12">
+        <Image Source="avares://aerovim/Assets/aerovim.ico" Width="64" Height="64"
+               HorizontalAlignment="Left" />
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="AeroVim" FontSize="24" FontWeight="Bold" />
+            <TextBlock Text="{Binding VersionText}" FontSize="14" Foreground="Gray" />
+        </StackPanel>
+        <TextBlock Text="Neovim ❤ Acrylic" FontSize="14" Margin="0,4,0,0" />
+        <TextBlock Text="Licensed under the GNU General Public License v2.0"
+                   Margin="0,8,0,0" TextWrapping="Wrap" />
+
+        <StackPanel Spacing="4" Margin="0,8,0,0">
+            <TextBlock Text="Links" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock Text="GitHub Repository"
+                       Foreground="Blue" TextDecorations="Underline"
+                       Cursor="Hand" PointerPressed="GitHubLink_PointerPressed" />
+            <TextBlock Text="Report an Issue"
+                       Foreground="Blue" TextDecorations="Underline"
+                       Cursor="Hand" PointerPressed="IssuesLink_PointerPressed" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

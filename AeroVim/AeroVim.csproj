@@ -15,6 +15,7 @@
     <PackageReference Include="Avalonia" Version="11.3.12" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
     <PackageReference Include="Classic.Avalonia.Theme" Version="11.3.0.3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.1" />
   </ItemGroup>
 

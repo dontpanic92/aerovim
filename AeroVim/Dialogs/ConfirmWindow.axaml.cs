@@ -5,6 +5,7 @@
 
 namespace AeroVim.Dialogs;
 
+using AeroVim.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -28,9 +29,8 @@ public partial class ConfirmWindow : Window
     /// <param name="title">Dialog title.</param>
     public ConfirmWindow(string message, string title)
     {
+        this.DataContext = new ConfirmViewModel(message, title);
         this.InitializeComponent();
-        this.Title = title;
-        this.FindControl<TextBlock>("MessageTextBlock")!.Text = message;
     }
 
     /// <summary>

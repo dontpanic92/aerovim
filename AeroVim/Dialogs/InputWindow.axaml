@@ -1,7 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AeroVim.ViewModels"
         x:Class="AeroVim.Dialogs.InputWindow"
-        Title="Input"
+        x:DataType="vm:InputViewModel"
+        Title="{Binding Title}"
         Width="420"
         Height="170"
         CanResize="False"
@@ -13,13 +15,15 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Name="PromptTextBlock"
-                   Grid.Row="0"
+        <TextBlock Grid.Row="0"
+                   Text="{Binding Prompt}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,8" />
 
         <TextBox Name="InputTextBox"
                  Grid.Row="1"
+                 Text="{Binding InputText, Mode=TwoWay}"
+                 Watermark="{Binding Watermark}"
                  VerticalAlignment="Center" />
 
         <StackPanel Grid.Row="2"
