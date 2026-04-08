@@ -22,6 +22,7 @@ public sealed class MsgPackRpc : IDisposable
     private readonly CancellationTokenSource disposeCancellation = new();
     private readonly Task readTask;
     private readonly object writeLock = new();
+    private readonly ArrayBufferWriter<byte> sendBuffer = new();
     private int nextRequestId;
     private bool disposed;
 
@@ -91,18 +92,18 @@ public sealed class MsgPackRpc : IDisposable
 
         try
         {
-            var buffer = new ArrayBufferWriter<byte>();
-            var packer = new MessagePackWriter(buffer);
-            packer.WriteArrayHeader(4);
-            packer.Write(0);
-            packer.Write(requestId);
-            packer.Write(name);
-            this.WriteObject(ref packer, args);
-            packer.Flush();
-
             lock (this.writeLock)
             {
-                this.writer.Write(buffer.WrittenSpan);
+                this.sendBuffer.Clear();
+                var packer = new MessagePackWriter(this.sendBuffer);
+                packer.WriteArrayHeader(4);
+                packer.Write(0);
+                packer.Write(requestId);
+                packer.Write(name);
+                this.WriteObject(ref packer, args);
+                packer.Flush();
+
+                this.writer.Write(this.sendBuffer.WrittenSpan);
                 this.writer.Flush();
             }
 

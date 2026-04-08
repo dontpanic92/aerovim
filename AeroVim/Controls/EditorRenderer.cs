@@ -5,6 +5,8 @@
 
 namespace AeroVim.Controls;
 
+using System.Buffers;
+using System.Runtime.InteropServices;
 using System.Text;
 using AeroVim.Editor;
 using AeroVim.Editor.Capabilities;
@@ -37,6 +39,7 @@ internal sealed class EditorRenderer : IDisposable
     private readonly List<ResolvedTypefaceRun> resolvedRuns = new();
     private readonly StringBuilder runTextBuilder = new();
     private readonly List<TextCellSpan> runCellSpans = new();
+    private readonly List<TextCellSpan> allCellSpans = new();
     private bool isDisposed;
 
     /// <summary>
@@ -189,7 +192,7 @@ internal sealed class EditorRenderer : IDisposable
         }
     }
 
-    private static bool TryGetClusterStartColumn(TextCellSpan[] cellSpans, int clusterStart, int clusterEnd, out int startColumn)
+    private static bool TryGetClusterStartColumn(ReadOnlySpan<TextCellSpan> cellSpans, int clusterStart, int clusterEnd, out int startColumn)
     {
         foreach (var cellSpan in cellSpans)
         {
@@ -434,21 +437,45 @@ internal sealed class EditorRenderer : IDisposable
             return;
         }
 
-        ushort[] glyphIds = new ushort[glyphCount];
-        font.GetGlyphs(batchText, glyphIds);
-
-        SKPoint[] positions = new SKPoint[glyphCount];
-        for (int i = 0; i < count; i++)
+        ushort[]? glyphRented = null;
+        SKPoint[]? posRented = null;
+        try
         {
-            positions[i] = new SKPoint(this.plainGlyphBatch[i].X, baselineY);
+            Span<ushort> glyphStackBuf = stackalloc ushort[64];
+            Span<SKPoint> posStackBuf = stackalloc SKPoint[64];
+            Span<ushort> glyphIds = glyphCount <= 64
+                ? glyphStackBuf[..glyphCount]
+                : (glyphRented = ArrayPool<ushort>.Shared.Rent(glyphCount)).AsSpan(0, glyphCount);
+            Span<SKPoint> positions = glyphCount <= 64
+                ? posStackBuf[..glyphCount]
+                : (posRented = ArrayPool<SKPoint>.Shared.Rent(glyphCount)).AsSpan(0, glyphCount);
+
+            font.GetGlyphs(batchText, glyphIds);
+
+            for (int i = 0; i < count; i++)
+            {
+                positions[i] = new SKPoint(this.plainGlyphBatch[i].X, baselineY);
+            }
+
+            using var builder = new SKTextBlobBuilder();
+            builder.AddPositionedRun(glyphIds, font, positions);
+            using var blob = builder.Build();
+            if (blob is not null)
+            {
+                canvas.DrawText(blob, 0, 0, this.textPaint);
+            }
         }
-
-        using var builder = new SKTextBlobBuilder();
-        builder.AddPositionedRun(glyphIds, font, positions);
-        using var blob = builder.Build();
-        if (blob is not null)
+        finally
         {
-            canvas.DrawText(blob, 0, 0, this.textPaint);
+            if (glyphRented is not null)
+            {
+                ArrayPool<ushort>.Shared.Return(glyphRented);
+            }
+
+            if (posRented is not null)
+            {
+                ArrayPool<SKPoint>.Shared.Return(posRented);
+            }
         }
     }
 
@@ -487,6 +514,8 @@ internal sealed class EditorRenderer : IDisposable
     {
         Span<ushort> glyphBuffer = stackalloc ushort[16];
         Span<SKPoint> pointBuffer = stackalloc SKPoint[16];
+        var cellSpans = CollectionsMarshal.AsSpan(this.allCellSpans)
+            .Slice(run.CellSpanOffset, run.CellSpanCount);
         int glyphStart = 0;
         while (glyphStart < shapedRun.GlyphCount)
         {
@@ -500,29 +529,51 @@ internal sealed class EditorRenderer : IDisposable
             int clusterEnd = glyphEnd < shapedRun.GlyphCount
                 ? checked((int)shapedRun.Clusters[glyphEnd])
                 : run.Text.Length;
-            if (!TryGetClusterStartColumn(run.CellSpans, checked((int)clusterStart), clusterEnd, out int startColumn))
+            if (!TryGetClusterStartColumn(cellSpans, checked((int)clusterStart), clusterEnd, out int startColumn))
             {
                 return false;
             }
 
             int count = glyphEnd - glyphStart;
-            Span<ushort> glyphIds = count <= 16 ? glyphBuffer[..count] : new ushort[count];
-            Span<SKPoint> points = count <= 16 ? pointBuffer[..count] : new SKPoint[count];
-            float clusterOriginX = shapedRun.Points[glyphStart].X;
-            for (int i = 0; i < count; i++)
+            ushort[]? rentedGlyphs = null;
+            SKPoint[]? rentedPoints = null;
+            try
             {
-                glyphIds[i] = shapedRun.GlyphIds[glyphStart + i];
-                var point = shapedRun.Points[glyphStart + i];
-                points[i] = new SKPoint(point.X - clusterOriginX, point.Y);
+                Span<ushort> glyphIds = count <= 16
+                    ? glyphBuffer[..count]
+                    : (rentedGlyphs = ArrayPool<ushort>.Shared.Rent(count)).AsSpan(0, count);
+                Span<SKPoint> points = count <= 16
+                    ? pointBuffer[..count]
+                    : (rentedPoints = ArrayPool<SKPoint>.Shared.Rent(count)).AsSpan(0, count);
+                float clusterOriginX = shapedRun.Points[glyphStart].X;
+                for (int i = 0; i < count; i++)
+                {
+                    glyphIds[i] = shapedRun.GlyphIds[glyphStart + i];
+                    var point = shapedRun.Points[glyphStart + i];
+                    points[i] = new SKPoint(point.X - clusterOriginX, point.Y);
+                }
+
+                using var blob = this.ligatureTextShaper.CreateTextBlob(run.Typeface, textParam.SkiaFontSize, glyphIds, points, embolden);
+                if (blob is null)
+                {
+                    return false;
+                }
+
+                canvas.DrawText(blob, startColumn * textParam.CharWidth, baselineY, this.textPaint);
+            }
+            finally
+            {
+                if (rentedGlyphs is not null)
+                {
+                    ArrayPool<ushort>.Shared.Return(rentedGlyphs);
+                }
+
+                if (rentedPoints is not null)
+                {
+                    ArrayPool<SKPoint>.Shared.Return(rentedPoints);
+                }
             }
 
-            using var blob = this.ligatureTextShaper.CreateTextBlob(run.Typeface, textParam.SkiaFontSize, glyphIds, points, embolden);
-            if (blob is null)
-            {
-                return false;
-            }
-
-            canvas.DrawText(blob, startColumn * textParam.CharWidth, baselineY, this.textPaint);
             glyphStart = glyphEnd;
         }
 
@@ -538,6 +589,7 @@ internal sealed class EditorRenderer : IDisposable
         SKFontStyleSlant slant)
     {
         this.resolvedRuns.Clear();
+        this.allCellSpans.Clear();
         SKTypeface? currentTypeface = null;
         this.runTextBuilder.Clear();
         this.runCellSpans.Clear();
@@ -551,7 +603,15 @@ internal sealed class EditorRenderer : IDisposable
                 return;
             }
 
-            this.resolvedRuns.Add(new ResolvedTypefaceRun(runStart, runEnd, this.runTextBuilder.ToString(), currentTypeface, this.runCellSpans.ToArray()));
+            int spanOffset = this.allCellSpans.Count;
+            this.allCellSpans.AddRange(this.runCellSpans);
+            this.resolvedRuns.Add(new ResolvedTypefaceRun(
+                runStart,
+                runEnd,
+                this.runTextBuilder.ToString(),
+                currentTypeface,
+                spanOffset,
+                this.runCellSpans.Count));
         }
 
         int cellIndex = colStart;
@@ -699,13 +759,14 @@ internal sealed class EditorRenderer : IDisposable
 
     private readonly struct ResolvedTypefaceRun
     {
-        public ResolvedTypefaceRun(int startColumn, int endColumn, string text, SKTypeface typeface, TextCellSpan[] cellSpans)
+        public ResolvedTypefaceRun(int startColumn, int endColumn, string text, SKTypeface typeface, int cellSpanOffset, int cellSpanCount)
         {
             this.StartColumn = startColumn;
             this.EndColumn = endColumn;
             this.Text = text;
             this.Typeface = typeface;
-            this.CellSpans = cellSpans;
+            this.CellSpanOffset = cellSpanOffset;
+            this.CellSpanCount = cellSpanCount;
         }
 
         public int StartColumn { get; }
@@ -716,7 +777,9 @@ internal sealed class EditorRenderer : IDisposable
 
         public SKTypeface Typeface { get; }
 
-        public TextCellSpan[] CellSpans { get; }
+        public int CellSpanOffset { get; }
+
+        public int CellSpanCount { get; }
     }
 
     private readonly struct TextCellSpan

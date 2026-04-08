@@ -1267,29 +1267,52 @@ public class TerminalBuffer
     {
         lock (this.screenLock)
         {
-            if (this.cells is null)
-            {
-                return null;
-            }
+            return this.GetScreenNoLock();
+        }
+    }
 
-            bool sizeChanged = this.screen.Cells is null
-                || this.screen.Cells.GetLength(0) != this.Rows
-                || this.screen.Cells.GetLength(1) != this.Cols;
+    /// <summary>
+    /// Gets the current screen without acquiring the lock. The caller must
+    /// hold an outer lock that serialises access to this buffer.
+    /// </summary>
+    /// <returns>The current screen state, or null if not yet initialized.</returns>
+    internal Screen? GetScreenNoLock()
+    {
+        if (this.cells is null)
+        {
+            return null;
+        }
 
-            // Update bg histogram incrementally BEFORE copying cells, so
-            // screen.Cells still holds the previous frame for diffing.
-            this.UpdateBackgroundDetection(sizeChanged);
+        bool sizeChanged = this.screen.Cells is null
+            || this.screen.Cells.GetLength(0) != this.Rows
+            || this.screen.Cells.GetLength(1) != this.Cols;
 
-            if (sizeChanged)
+        // Update bg histogram incrementally BEFORE copying cells, so
+        // screen.Cells still holds the previous frame for diffing.
+        this.UpdateBackgroundDetection(sizeChanged);
+
+        if (sizeChanged)
+        {
+            this.screen.Cells = (Cell[,])this.cells.Clone();
+        }
+        else
+        {
+            var screenCells = this.screen.Cells!;
+            if (this.allDirty)
             {
-                this.screen.Cells = (Cell[,])this.cells.Clone();
-            }
-            else
-            {
-                var screenCells = this.screen.Cells!;
-                if (this.allDirty)
+                for (int i = 0; i < this.Rows; i++)
                 {
-                    for (int i = 0; i < this.Rows; i++)
+                    for (int j = 0; j < this.Cols; j++)
+                    {
+                        screenCells[i, j] = this.cells[i, j];
+                    }
+                }
+            }
+            else if (this.dirtyRows is not null)
+            {
+                for (int i = 0; i < this.dirtyRows.Length; i++)
+                {
+                    if (this.dirtyRows[i])
                     {
                         for (int j = 0; j < this.Cols; j++)
                         {
@@ -1297,47 +1320,34 @@ public class TerminalBuffer
                         }
                     }
                 }
-                else if (this.dirtyRows is not null)
-                {
-                    for (int i = 0; i < this.dirtyRows.Length; i++)
-                    {
-                        if (this.dirtyRows[i])
-                        {
-                            for (int j = 0; j < this.Cols; j++)
-                            {
-                                screenCells[i, j] = this.cells[i, j];
-                            }
-                        }
-                    }
-                }
             }
-
-            // Propagate dirty metadata to the screen before clearing.
-            this.screen.AllDirty = sizeChanged || this.allDirty;
-            if (this.dirtyRows is not null && !this.screen.AllDirty)
-            {
-                if (this.screen.DirtyRows is null || this.screen.DirtyRows.Length != this.Rows)
-                {
-                    this.screen.DirtyRows = new bool[this.Rows];
-                }
-
-                Array.Copy(this.dirtyRows, this.screen.DirtyRows, this.Rows);
-            }
-            else
-            {
-                this.screen.DirtyRows = null;
-            }
-
-            this.allDirty = false;
-            if (this.dirtyRows is not null)
-            {
-                Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
-            }
-
-            this.screen.CursorPosition = (this.cursorRow, this.cursorCol);
-            this.screen.BackgroundColor = this.detectedBg;
-            this.screen.ForegroundColor = ColorUtility.DeriveReadableForeground(this.detectedBg);
         }
+
+        // Propagate dirty metadata to the screen before clearing.
+        this.screen.AllDirty = sizeChanged || this.allDirty;
+        if (this.dirtyRows is not null && !this.screen.AllDirty)
+        {
+            if (this.screen.DirtyRows is null || this.screen.DirtyRows.Length != this.Rows)
+            {
+                this.screen.DirtyRows = new bool[this.Rows];
+            }
+
+            Array.Copy(this.dirtyRows, this.screen.DirtyRows, this.Rows);
+        }
+        else
+        {
+            this.screen.DirtyRows = null;
+        }
+
+        this.allDirty = false;
+        if (this.dirtyRows is not null)
+        {
+            Array.Clear(this.dirtyRows, 0, this.dirtyRows.Length);
+        }
+
+        this.screen.CursorPosition = (this.cursorRow, this.cursorCol);
+        this.screen.BackgroundColor = this.detectedBg;
+        this.screen.ForegroundColor = ColorUtility.DeriveReadableForeground(this.detectedBg);
 
         return this.screen;
     }
@@ -1429,17 +1439,7 @@ public class TerminalBuffer
 
         if (needFullRecount)
         {
-            // Full recount from current cells.
-            this.bgHistogram.Clear();
-            for (int i = 0; i < this.Rows; i++)
-            {
-                for (int j = 0; j < this.Cols; j++)
-                {
-                    int bg = this.cells[i, j].BackgroundColor;
-                    this.bgHistogram[bg] = this.bgHistogram.GetValueOrDefault(bg) + 1;
-                }
-            }
-
+            this.RebuildHistogramFromCells();
             this.bgHistogramValid = true;
         }
         else if (this.allDirty)
@@ -1456,15 +1456,7 @@ public class TerminalBuffer
             }
             else
             {
-                this.bgHistogram.Clear();
-                for (int i = 0; i < this.Rows; i++)
-                {
-                    for (int j = 0; j < this.Cols; j++)
-                    {
-                        int bg = this.cells[i, j].BackgroundColor;
-                        this.bgHistogram[bg] = this.bgHistogram.GetValueOrDefault(bg) + 1;
-                    }
-                }
+                this.RebuildHistogramFromCells();
             }
         }
         else if (this.dirtyRows is not null && this.screen.Cells is not null)
@@ -1495,6 +1487,19 @@ public class TerminalBuffer
         if (bestCount > totalCells / 2)
         {
             this.detectedBg = bestColor;
+        }
+    }
+
+    private void RebuildHistogramFromCells()
+    {
+        this.bgHistogram.Clear();
+        for (int i = 0; i < this.Rows; i++)
+        {
+            for (int j = 0; j < this.Cols; j++)
+            {
+                int bg = this.cells[i, j].BackgroundColor;
+                this.bgHistogram[bg] = this.bgHistogram.GetValueOrDefault(bg) + 1;
+            }
         }
     }
 

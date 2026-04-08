@@ -28,6 +28,7 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
     private readonly object screenLock = new();
     private readonly object writeLock = new();
     private readonly Queue<string> pendingCommands = new();
+    private byte[] inputBuffer = new byte[256];
 
     private IPtyConnection? ptyConnection;
     private Task? spawnTask;
@@ -225,10 +226,16 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
         }
 
         string encoded = TerminalInputEncoder.Encode(text, this.buffer.ApplicationCursorKeys);
-        byte[] bytes = Encoding.UTF8.GetBytes(encoded);
         lock (this.writeLock)
         {
-            this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
+            int byteCount = Encoding.UTF8.GetByteCount(encoded);
+            if (byteCount > this.inputBuffer.Length)
+            {
+                this.inputBuffer = new byte[byteCount];
+            }
+
+            int written = Encoding.UTF8.GetBytes(encoded, 0, encoded.Length, this.inputBuffer, 0);
+            this.ptyConnection.WriterStream.Write(this.inputBuffer, 0, written);
             this.ptyConnection.WriterStream.Flush();
         }
     }
@@ -252,10 +259,16 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
         string? encoded = EncodeSgrMouse(button, action, modifier, row, col);
         if (encoded is not null)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(encoded);
             lock (this.writeLock)
             {
-                this.ptyConnection.WriterStream.Write(bytes, 0, bytes.Length);
+                int byteCount = Encoding.UTF8.GetByteCount(encoded);
+                if (byteCount > this.inputBuffer.Length)
+                {
+                    this.inputBuffer = new byte[byteCount];
+                }
+
+                int written = Encoding.UTF8.GetBytes(encoded, 0, encoded.Length, this.inputBuffer, 0);
+                this.ptyConnection.WriterStream.Write(this.inputBuffer, 0, written);
                 this.ptyConnection.WriterStream.Flush();
             }
         }
@@ -297,7 +310,7 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
                 return null;
             }
 
-            screen = this.buffer.GetScreen();
+            screen = this.buffer.GetScreenNoLock();
             if (screen is not null)
             {
                 if (screen.ForegroundColor != this.lastReportedFg)
