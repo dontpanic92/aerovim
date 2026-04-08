@@ -6,7 +6,6 @@
 namespace AeroVim.NeovimClient;
 
 using AeroVim.Editor.Diagnostics;
-using AeroVim.Editor.Utilities;
 using AeroVim.NeovimClient.Events;
 
 /// <summary>

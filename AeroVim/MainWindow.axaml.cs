@@ -6,6 +6,7 @@
 namespace AeroVim;
 
 using System.Runtime.InteropServices;
+using AeroVim.Editor.Capabilities;
 using AeroVim.Services;
 using AeroVim.Utilities;
 using Avalonia;
@@ -72,6 +73,8 @@ public partial class MainWindow : Window
         this.AddHandler(DragDrop.DragOverEvent, this.OnDragOver);
         this.AddHandler(DragDrop.DropEvent, this.OnDrop);
 
+        this.Activated += this.OnWindowActivated;
+        this.Deactivated += this.OnWindowDeactivated;
         this.Opened += this.OnWindowOpened;
     }
 
@@ -167,6 +170,16 @@ public partial class MainWindow : Window
         // These must not be forwarded to the editor; let the IME handle them.
         if (e.Key is Key.ImeProcessed or Key.None)
         {
+            return;
+        }
+
+        // Intercept system paste when bracketed paste mode is active.
+        if (this.IsPasteShortcut(e) &&
+            this.coordinator.EditorClient is ITerminalCapabilities tc &&
+            tc.BracketedPasteEnabled)
+        {
+            _ = this.HandleBracketedPasteAsync();
+            e.Handled = true;
             return;
         }
 
@@ -421,5 +434,58 @@ public partial class MainWindow : Window
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         this.Close();
+    }
+
+    private bool IsPasteShortcut(KeyEventArgs e)
+    {
+        if (e.Key != Key.V)
+        {
+            return false;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return e.KeyModifiers.HasFlag(KeyModifiers.Meta);
+        }
+
+        return e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
+               e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+    }
+
+    private async Task HandleBracketedPasteAsync()
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            return;
+        }
+
+#pragma warning disable CS0618 // GetTextAsync is deprecated but replacement requires IAsyncDataTransfer
+        string? text = await clipboard.GetTextAsync();
+#pragma warning restore CS0618
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        this.coordinator.Input("\x1B[200~");
+        this.coordinator.Input(text);
+        this.coordinator.Input("\x1B[201~");
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (this.coordinator.EditorClient is ITerminalCapabilities tc && tc.FocusEventsEnabled)
+        {
+            this.coordinator.Input("\x1B[I");
+        }
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e)
+    {
+        if (this.coordinator.EditorClient is ITerminalCapabilities tc && tc.FocusEventsEnabled)
+        {
+            this.coordinator.Input("\x1B[O");
+        }
     }
 }

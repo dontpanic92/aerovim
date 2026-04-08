@@ -45,28 +45,4 @@ public sealed class Screen
     /// every row as dirty.
     /// </summary>
     public bool[]? DirtyRows { get; set; }
-
-    /// <summary>
-    /// Gets or sets the popup completion menu items, or <c>null</c> if the
-    /// popup menu is not visible.
-    /// </summary>
-    public PopupMenuItem[]? PopupItems { get; set; }
-
-    /// <summary>
-    /// Gets or sets the currently selected popup menu item index, or -1 if
-    /// no item is selected.
-    /// </summary>
-    public int PopupSelected { get; set; } = -1;
-
-    /// <summary>
-    /// Gets or sets the popup menu anchor position (row, col) in the grid,
-    /// or <c>null</c> if the popup menu is not visible.
-    /// </summary>
-    public (int Row, int Col)? PopupAnchor { get; set; }
-
-    /// <summary>
-    /// Gets or sets the externalized command line state, or <c>null</c> if
-    /// the command line is not currently active.
-    /// </summary>
-    public CmdlineState? Cmdline { get; set; }
 }

@@ -223,7 +223,7 @@ public class NeovimClientTests
     public void ExtLinegrid_GridLine_ResolvesHighlightAttributes()
     {
         var client = new NeovimClient();
-        var attrs = new AeroVim.Editor.Utilities.HighlightAttributes
+        var attrs = new AeroVim.NeovimClient.HighlightAttributes
         {
             Foreground = 0xFF0000,
             Background = 0x00FF00,
@@ -491,7 +491,7 @@ public class NeovimClientTests
     }
 
     /// <summary>
-    /// ext_popupmenu: popupmenu_show should populate screen popup state.
+    /// ext_popupmenu: popupmenu_show should populate popup state.
     /// </summary>
     [Test]
     public void ExtPopupmenu_ShowEvent_PopulatesScreenState()
@@ -514,13 +514,13 @@ public class NeovimClientTests
 
         var screen = client.GetScreen();
         Assert.That(screen, Is.Not.Null);
-        Assert.That(screen!.PopupItems, Is.Not.Null);
-        var popupItems = screen.PopupItems!;
+        Assert.That(client.PopupItems, Is.Not.Null);
+        var popupItems = client.PopupItems!;
         Assert.That(popupItems, Has.Length.EqualTo(2));
         Assert.That(popupItems[0].Word, Is.EqualTo("println"));
         Assert.That(popupItems[1].Word, Is.EqualTo("print"));
-        Assert.That(screen.PopupSelected, Is.EqualTo(0));
-        Assert.That(screen.PopupAnchor, Is.EqualTo((2, 3)));
+        Assert.That(client.PopupSelected, Is.EqualTo(0));
+        Assert.That(client.PopupAnchor, Is.EqualTo((2, 3)));
     }
 
     /// <summary>
@@ -548,7 +548,7 @@ public class NeovimClientTests
 
         var screen = client.GetScreen();
         Assert.That(screen, Is.Not.Null);
-        Assert.That(screen!.PopupSelected, Is.EqualTo(1));
+        Assert.That(client.PopupSelected, Is.EqualTo(1));
     }
 
     /// <summary>
@@ -573,7 +573,8 @@ public class NeovimClientTests
         });
 
         var screen = client.GetScreen();
-        Assert.That(screen!.PopupItems, Is.Not.Null);
+        Assert.That(screen!.Cells, Is.Not.Null);
+        Assert.That(client.PopupItems, Is.Not.Null);
 
         client.ProcessRedrawForTesting(new IRedrawEvent[]
         {
@@ -582,13 +583,13 @@ public class NeovimClientTests
         });
 
         screen = client.GetScreen();
-        Assert.That(screen!.PopupItems, Is.Null);
-        Assert.That(screen.PopupSelected, Is.EqualTo(-1));
-        Assert.That(screen.PopupAnchor, Is.Null);
+        Assert.That(client.PopupItems, Is.Null);
+        Assert.That(client.PopupSelected, Is.EqualTo(-1));
+        Assert.That(client.PopupAnchor, Is.Null);
     }
 
     /// <summary>
-    /// ext_cmdline: cmdline_show should populate screen cmdline state.
+    /// ext_cmdline: cmdline_show should populate cmdline state.
     /// </summary>
     [Test]
     public void ExtCmdline_ShowEvent_PopulatesScreenState()
@@ -607,12 +608,12 @@ public class NeovimClientTests
 
         var screen = client.GetScreen();
         Assert.That(screen, Is.Not.Null);
-        Assert.That(screen!.Cmdline, Is.Not.Null);
-        Assert.That(screen.Cmdline!.Content, Has.Count.EqualTo(1));
-        Assert.That(screen.Cmdline.Content[0].Text, Is.EqualTo("set number"));
-        Assert.That(screen.Cmdline.CursorPos, Is.EqualTo(3));
-        Assert.That(screen.Cmdline.FirstChar, Is.EqualTo(":"));
-        Assert.That(screen.Cmdline.Level, Is.EqualTo(1));
+        Assert.That(client.Cmdline, Is.Not.Null);
+        Assert.That(client.Cmdline!.Content, Has.Count.EqualTo(1));
+        Assert.That(client.Cmdline.Content[0].Text, Is.EqualTo("set number"));
+        Assert.That(client.Cmdline.CursorPos, Is.EqualTo(3));
+        Assert.That(client.Cmdline.FirstChar, Is.EqualTo(":"));
+        Assert.That(client.Cmdline.Level, Is.EqualTo(1));
     }
 
     /// <summary>
@@ -636,8 +637,8 @@ public class NeovimClientTests
 
         var screen = client.GetScreen();
         Assert.That(screen, Is.Not.Null);
-        Assert.That(screen!.Cmdline, Is.Not.Null);
-        Assert.That(screen.Cmdline!.CursorPos, Is.EqualTo(5));
+        Assert.That(client.Cmdline, Is.Not.Null);
+        Assert.That(client.Cmdline!.CursorPos, Is.EqualTo(5));
     }
 
     /// <summary>
@@ -659,7 +660,7 @@ public class NeovimClientTests
         });
 
         var screen = client.GetScreen();
-        Assert.That(screen!.Cmdline, Is.Not.Null);
+        Assert.That(client.Cmdline, Is.Not.Null);
 
         client.ProcessRedrawForTesting(new IRedrawEvent[]
         {
@@ -668,6 +669,6 @@ public class NeovimClientTests
         });
 
         screen = client.GetScreen();
-        Assert.That(screen!.Cmdline, Is.Null);
+        Assert.That(client.Cmdline, Is.Null);
     }
 }

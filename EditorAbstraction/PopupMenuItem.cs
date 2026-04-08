@@ -6,8 +6,7 @@
 namespace AeroVim.Editor;
 
 /// <summary>
-/// Represents a single item in the popup completion menu, corresponding to
-/// fields from Neovim's <c>popupmenu_show</c> event.
+/// Represents a single item in the popup completion menu.
 /// </summary>
 public sealed class PopupMenuItem
 {

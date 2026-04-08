@@ -7,7 +7,8 @@ namespace AeroVim.Editor;
 
 /// <summary>
 /// Represents the state of the externalized command line, driven by
-/// <c>ext_cmdline</c> events from Neovim.
+/// backends that support external command line rendering (e.g. Neovim's
+/// <c>ext_cmdline</c> extension).
 /// </summary>
 public sealed class CmdlineState
 {

@@ -7,6 +7,7 @@ namespace AeroVim.Services;
 
 using AeroVim.Controls;
 using AeroVim.Editor;
+using AeroVim.Editor.Capabilities;
 using AeroVim.Editor.Diagnostics;
 using AeroVim.Utilities;
 using Avalonia.Threading;
@@ -296,7 +297,7 @@ internal sealed class EditorSessionCoordinator
             if (exitCode == -1)
             {
                 // For VimClient, check if a classified startup error was recorded.
-                string? classifiedError = (this.editorClient as VimClient.VimClient)?.LastStartupError;
+                string? classifiedError = (this.editorClient as IStartupDiagnostics)?.LastStartupError;
                 message = classifiedError
                     ?? $"{editorName} failed to start. Please check the executable path in Settings.";
             }

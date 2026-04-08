@@ -6,13 +6,14 @@
 namespace AeroVim.NeovimClient;
 
 using AeroVim.Editor;
+using AeroVim.Editor.Capabilities;
 using AeroVim.Editor.Utilities;
 using AeroVim.NeovimClient.Events;
 
 /// <summary>
 /// Highlevel neovim client.
 /// </summary>
-public sealed class NeovimClient : IEditorClient
+public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalCmdline, IEditorApi
 {
     private const int DefaultForegroundColor = 0x000000;
     private const int DefaultBackgroundColor = 0xFFFFFF;
@@ -117,6 +118,18 @@ public sealed class NeovimClient : IEditorClient
     /// Gets the current mouse tracking mode.
     /// </summary>
     public MouseTrackingMode MouseTrackingMode => this.MouseEnabled ? MouseTrackingMode.ButtonEvent : MouseTrackingMode.None;
+
+    /// <inheritdoc />
+    public PopupMenuItem[]? PopupItems => this.popupItems;
+
+    /// <inheritdoc />
+    public int PopupSelected => this.popupSelected;
+
+    /// <inheritdoc />
+    public (int Row, int Col)? PopupAnchor => this.popupAnchor;
+
+    /// <inheritdoc />
+    public CmdlineState? Cmdline => this.cmdlineState;
 
     private int Height => this.cells!.GetLength(0);
 
@@ -273,10 +286,6 @@ public sealed class NeovimClient : IEditorClient
             this.screen.CursorPosition = this.cursorPosition;
             this.screen.BackgroundColor = this.backgroundColor;
             this.screen.ForegroundColor = this.foregroundColor;
-            this.screen.PopupItems = this.popupItems;
-            this.screen.PopupSelected = this.popupSelected;
-            this.screen.PopupAnchor = this.popupAnchor;
-            this.screen.Cmdline = this.cmdlineState;
         }
 
         return this.screen;

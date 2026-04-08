@@ -7,6 +7,7 @@ namespace AeroVim.Controls;
 
 using System.Collections.Concurrent;
 using AeroVim.Editor;
+using AeroVim.Editor.Capabilities;
 using AeroVim.Editor.Utilities;
 using AeroVim.Utilities;
 using Avalonia;
@@ -421,7 +422,9 @@ public class EditorControl : Control, IDisposable
             this.editorClient.ModeInfo,
             this.EnableLigature,
             this.BackgroundAlpha,
-            this.cursorState.ShouldDrawCursor(this.editorClient.ModeInfo));
+            this.cursorState.ShouldDrawCursor(this.editorClient.ModeInfo),
+            this.editorClient as IExternalPopupMenu,
+            this.editorClient as IExternalCmdline);
     }
 
     private void UpdateImeCursorRectangle()

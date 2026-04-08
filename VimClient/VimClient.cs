@@ -9,6 +9,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using System.Text;
 using AeroVim.Editor;
+using AeroVim.Editor.Capabilities;
 using AeroVim.Editor.Diagnostics;
 using AeroVim.Editor.Utilities;
 
@@ -16,7 +17,7 @@ using AeroVim.Editor.Utilities;
 /// A Vim editor client that communicates with Vim through a PTY using
 /// VT escape sequences. Implements <see cref="IEditorClient"/>.
 /// </summary>
-public sealed class VimClient : IEditorClient
+public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDiagnostics
 {
     private readonly string vimPath;
     private readonly string? workingDirectory;
@@ -158,6 +159,12 @@ public sealed class VimClient : IEditorClient
     /// When true, the frontend should send ESC[I on focus-in and ESC[O on focus-out.
     /// </summary>
     public bool FocusEventsEnabled => this.buffer.FocusEventsEnabled;
+
+    /// <summary>
+    /// Gets a value indicating whether synchronized output mode is active.
+    /// When true, the frontend should defer rendering until the mode is cleared.
+    /// </summary>
+    public bool SynchronizedOutput => this.buffer.SynchronizedOutput;
 
     /// <summary>
     /// Gets the current font settings.

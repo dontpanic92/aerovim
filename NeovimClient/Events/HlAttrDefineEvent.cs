@@ -5,8 +5,6 @@
 
 namespace AeroVim.NeovimClient.Events;
 
-using AeroVim.Editor.Utilities;
-
 /// <summary>
 /// The <c>hl_attr_define</c> event. Adds a highlight entry to the highlight
 /// attribute table used by <c>grid_line</c> events.

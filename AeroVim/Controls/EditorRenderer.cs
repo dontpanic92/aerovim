@@ -7,6 +7,7 @@ namespace AeroVim.Controls;
 
 using System.Text;
 using AeroVim.Editor;
+using AeroVim.Editor.Capabilities;
 using AeroVim.Editor.Utilities;
 using AeroVim.Utilities;
 using SkiaSharp;
@@ -54,6 +55,8 @@ internal sealed class EditorRenderer : IDisposable
     /// <param name="enableLigature">Whether ligature shaping is enabled.</param>
     /// <param name="backgroundAlpha">The alpha channel for the default background.</param>
     /// <param name="shouldDrawCursor">Whether the cursor should be drawn.</param>
+    /// <param name="popupMenu">Optional popup menu capability data.</param>
+    /// <param name="cmdline">Optional externalized command line capability data.</param>
     public void Render(
         SKCanvas canvas,
         EditorScreen screen,
@@ -61,7 +64,9 @@ internal sealed class EditorRenderer : IDisposable
         ModeInfo? modeInfo,
         bool enableLigature,
         byte backgroundAlpha,
-        bool shouldDrawCursor)
+        bool shouldDrawCursor,
+        IExternalPopupMenu? popupMenu = null,
+        IExternalCmdline? cmdline = null)
     {
         canvas.Clear(Helpers.GetSkColor(screen.BackgroundColor, backgroundAlpha));
 
@@ -131,6 +136,18 @@ internal sealed class EditorRenderer : IDisposable
 
         // Draw preedit (IME composition) overlay
         this.DrawPreedit(canvas, screen, textParam);
+
+        // Draw externalized popup menu (when the backend provides it)
+        if (popupMenu?.PopupItems is not null && popupMenu.PopupAnchor is not null)
+        {
+            this.DrawPopupMenu(canvas, screen, textParam, popupMenu);
+        }
+
+        // Draw externalized command line (when the backend provides it)
+        if (cmdline?.Cmdline is not null)
+        {
+            this.DrawCmdline(canvas, screen, textParam, cmdline.Cmdline);
+        }
     }
 
     /// <summary>
@@ -481,6 +498,114 @@ internal sealed class EditorRenderer : IDisposable
 
         FlushCurrentRun();
         return runs;
+    }
+
+    private void DrawPopupMenu(SKCanvas canvas, EditorScreen screen, TextLayoutParameters textParam, IExternalPopupMenu popup)
+    {
+        var items = popup.PopupItems!;
+        var anchor = popup.PopupAnchor!.Value;
+
+        float anchorX = anchor.Col * textParam.CharWidth;
+        float anchorY = (anchor.Row + 1) * textParam.LineHeight;
+
+        float itemHeight = textParam.LineHeight;
+        float totalHeight = items.Length * itemHeight;
+        float maxWidth = 0;
+
+        using var measurePaint = new SKPaint { TextSize = textParam.SkiaFontSize, IsAntialias = true };
+        measurePaint.Typeface = this.fontChain.PrimaryTypeface;
+
+        foreach (var item in items)
+        {
+            string label = string.IsNullOrEmpty(item.Kind)
+                ? item.Word
+                : $"{item.Word}  {item.Kind}";
+            float w = measurePaint.MeasureText(label);
+            if (w > maxWidth)
+            {
+                maxWidth = w;
+            }
+        }
+
+        float padding = textParam.CharWidth;
+        float menuWidth = maxWidth + (padding * 2);
+
+        float canvasWidth = screen.Cells.GetLength(1) * textParam.CharWidth;
+        float canvasHeight = screen.Cells.GetLength(0) * textParam.LineHeight;
+        if (anchorX + menuWidth > canvasWidth)
+        {
+            anchorX = canvasWidth - menuWidth;
+        }
+
+        if (anchorY + totalHeight > canvasHeight)
+        {
+            anchorY = (anchor.Row * textParam.LineHeight) - totalHeight;
+        }
+
+        int menuBg = screen.BackgroundColor;
+        int menuFg = screen.ForegroundColor;
+        int selectedBg = menuFg;
+        int selectedFg = menuBg;
+
+        using var bgPaint = new SKPaint { Color = Helpers.GetSkColor(menuBg), Style = SKPaintStyle.Fill, IsAntialias = false };
+        using var borderPaint = new SKPaint { Color = Helpers.GetSkColor(menuFg, (byte)0x80), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
+        using var selectedBgPaint = new SKPaint { Color = Helpers.GetSkColor(selectedBg), Style = SKPaintStyle.Fill, IsAntialias = false };
+
+        var menuRect = new SKRect(anchorX, anchorY, anchorX + menuWidth, anchorY + totalHeight);
+        canvas.DrawRect(menuRect, bgPaint);
+        canvas.DrawRect(menuRect, borderPaint);
+
+        measurePaint.Color = Helpers.GetSkColor(menuFg);
+        float textBaseline = textParam.LineHeight * 0.8f;
+
+        for (int i = 0; i < items.Length; i++)
+        {
+            float itemY = anchorY + (i * itemHeight);
+
+            if (i == popup.PopupSelected)
+            {
+                canvas.DrawRect(anchorX, itemY, menuWidth, itemHeight, selectedBgPaint);
+                measurePaint.Color = Helpers.GetSkColor(selectedFg);
+            }
+            else
+            {
+                measurePaint.Color = Helpers.GetSkColor(menuFg);
+            }
+
+            string label = string.IsNullOrEmpty(items[i].Kind)
+                ? items[i].Word
+                : $"{items[i].Word}  {items[i].Kind}";
+            canvas.DrawText(label, anchorX + padding, itemY + textBaseline, measurePaint);
+        }
+    }
+
+    private void DrawCmdline(SKCanvas canvas, EditorScreen screen, TextLayoutParameters textParam, CmdlineState cmdline)
+    {
+        float canvasWidth = screen.Cells.GetLength(1) * textParam.CharWidth;
+        float canvasHeight = screen.Cells.GetLength(0) * textParam.LineHeight;
+        float cmdHeight = textParam.LineHeight + (textParam.LineHeight * 0.5f);
+        float cmdY = canvasHeight - cmdHeight;
+        float padding = textParam.CharWidth;
+
+        int cmdBg = screen.BackgroundColor;
+        int cmdFg = screen.ForegroundColor;
+
+        using var bgPaint = new SKPaint { Color = Helpers.GetSkColor(cmdBg), Style = SKPaintStyle.Fill, IsAntialias = false };
+        using var borderPaint = new SKPaint { Color = Helpers.GetSkColor(cmdFg, (byte)0x80), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
+        using var textPaint = new SKPaint { TextSize = textParam.SkiaFontSize, IsAntialias = true };
+        textPaint.Typeface = this.fontChain.PrimaryTypeface;
+        textPaint.Color = Helpers.GetSkColor(cmdFg);
+
+        var cmdRect = new SKRect(0, cmdY, canvasWidth, canvasHeight);
+        canvas.DrawRect(cmdRect, bgPaint);
+        canvas.DrawRect(cmdRect, borderPaint);
+
+        string prefix = cmdline.FirstChar;
+        string text = string.Join(string.Empty, cmdline.Content.Select(c => c.Text));
+        string fullText = prefix + text;
+
+        float textBaseline = cmdY + (cmdHeight * 0.5f) + (textParam.LineHeight * 0.3f);
+        canvas.DrawText(fullText, padding, textBaseline, textPaint);
     }
 
     private readonly struct ResolvedTypefaceRun
