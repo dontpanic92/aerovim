@@ -6,6 +6,7 @@
 namespace AeroVim.Controls;
 
 using System.Runtime.InteropServices;
+using AeroVim.Diagnostics;
 using AeroVim.Utilities;
 using SkiaSharp;
 
@@ -54,6 +55,10 @@ public sealed class FontFallbackChain : IDisposable
         this.AddFonts(guiFontNames, seen);
         this.AddFonts(userFontNames, seen);
         this.AddFonts(platformDefaults, seen);
+
+        AppLogger.For<FontFallbackChain>().Debug(
+            $"Rebuild: chain=[{string.Join(", ", this.chain.Select(t => t.FamilyName))}], "
+            + $"primary='{this.PrimaryFontName}'.");
     }
 
     /// <summary>
@@ -135,6 +140,8 @@ public sealed class FontFallbackChain : IDisposable
         }
 
         // SkiaSharp silently substituted another font; reject it.
+        AppLogger.For<FontFallbackChain>().Debug(
+            $"Font '{fontName}' rejected: resolved to '{typeface?.FamilyName ?? "null"}'.");
         typeface?.Dispose();
         return null;
     }

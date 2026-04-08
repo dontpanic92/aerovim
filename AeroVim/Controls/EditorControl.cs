@@ -122,12 +122,17 @@ public class EditorControl : Control, IDisposable
     public void SetFallbackFonts(List<string> fonts)
     {
         this.currentUserFallbackFonts = fonts;
+        AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
+            $"SetFallbackFonts called with [{string.Join(", ", fonts)}].");
         this.pendingActions.Enqueue(() =>
         {
             this.fontChain.Rebuild(
                 this.currentGuiFontNames,
                 this.currentUserFallbackFonts,
                 Utilities.Helpers.GetDefaultFallbackFontNames());
+
+            AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
+                $"SetFallbackFonts rebuild: primary='{this.fontChain.PrimaryFontName}', pointSize={this.textParam.PointSize}.");
 
             if (this.fontChain.PrimaryFontName.Length > 0)
             {
@@ -189,6 +194,26 @@ public class EditorControl : Control, IDisposable
     internal void RefreshEditorUiStateForTesting()
     {
         this.ApplyEditorUiState(this.editorClient.ModeInfo, resetCursorBlink: true);
+    }
+
+    /// <summary>
+    /// Gets the resolved primary font name from the font chain for tests.
+    /// Returns the font that is currently used for cell metric calculations.
+    /// </summary>
+    /// <returns>The primary font family name, or empty if no font is resolved.</returns>
+    internal string GetPrimaryFontNameForTesting()
+    {
+        return this.fontChain.PrimaryFontName;
+    }
+
+    /// <summary>
+    /// Gets the current text layout font name for tests.
+    /// This is the font name stored in <see cref="TextLayoutParameters"/>.
+    /// </summary>
+    /// <returns>The font name used for grid metrics.</returns>
+    internal string GetTextParamFontNameForTesting()
+    {
+        return this.textParam.FontName;
     }
 
     /// <summary>
@@ -378,6 +403,8 @@ public class EditorControl : Control, IDisposable
 
     private void OnFontChanged(FontSettings font)
     {
+        AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
+            $"OnFontChanged: guifont=[{string.Join(", ", font.FontNames)}], pointSize={font.FontPointSize}.");
         this.pendingActions.Enqueue(() =>
         {
             this.currentGuiFontNames = font.FontNames;
@@ -389,6 +416,10 @@ public class EditorControl : Control, IDisposable
                     "None of the guifont names resolved to a valid font. Keeping current font.");
                 return;
             }
+
+            AeroVim.Diagnostics.AppLogger.For<EditorControl>().Info(
+                $"OnFontChanged rebuild: primary='{this.fontChain.PrimaryFontName}', pointSize={font.FontPointSize}, "
+                + $"userFallbacks=[{string.Join(", ", this.currentUserFallbackFonts)}].");
 
             this.textParam = new TextLayoutParameters(this.fontChain.PrimaryFontName, font.FontPointSize);
             this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);

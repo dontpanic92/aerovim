@@ -418,6 +418,161 @@ public class EditorControlTests
         Assert.That(second, Is.EqualTo(first));
     }
 
+    /// <summary>
+    /// After SetFallbackFonts is called and a FontChanged event arrives with
+    /// an empty guifont, the font chain primary should be the fallback font.
+    /// </summary>
+    [Test]
+    public void SetFallbackFonts_ThenEmptyGuifont_UsesFallbackAsPrimary()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        var screen = CreateAsciiScreen("Hello");
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+
+        // Set user fallback fonts (simulates EditorSessionCoordinator.InitializeAsync)
+        control.SetFallbackFonts(new List<string> { fallbackFont! });
+
+        // Simulate Neovim sending option_set guifont "" (empty guifont)
+        editorClient.RaiseFontChanged(new FontSettings { FontPointSize = 11 });
+
+        // Trigger a render to process pending actions
+        RenderToPng(control, 480, 120);
+
+        // The font chain primary should be the user fallback font
+        Assert.That(
+            control.GetPrimaryFontNameForTesting(),
+            Is.EqualTo(fallbackFont).IgnoreCase,
+            "Font chain primary should be the user fallback font, not the platform default.");
+    }
+
+    /// <summary>
+    /// After SetFallbackFonts and an empty guifont, the text layout
+    /// parameters should use the fallback font for grid metric calculations.
+    /// </summary>
+    [Test]
+    public void SetFallbackFonts_ThenEmptyGuifont_TextParamUsesFallbackFont()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        var screen = CreateAsciiScreen("Hello");
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+
+        control.SetFallbackFonts(new List<string> { fallbackFont! });
+        editorClient.RaiseFontChanged(new FontSettings { FontPointSize = 11 });
+
+        // Trigger a render to process pending actions
+        RenderToPng(control, 480, 120);
+
+        Assert.That(
+            control.GetTextParamFontNameForTesting(),
+            Is.EqualTo(fallbackFont).IgnoreCase,
+            "TextLayoutParameters should use the fallback font name.");
+    }
+
+    /// <summary>
+    /// Fallback fonts should produce visibly different output compared to
+    /// the platform default when guifont is not set.
+    /// </summary>
+    [Test]
+    public void SetFallbackFonts_ThenEmptyGuifont_RendersDifferentlyFromDefault()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        var screen = CreateAsciiScreen("Hello World");
+
+        // Control A: no fallback fonts, empty guifont → platform default
+        var clientA = new TestEditorClient { CurrentScreen = screen };
+        using var controlA = new EditorControl(clientA);
+        clientA.RaiseFontChanged(new FontSettings { FontPointSize = 14 });
+        byte[] renderDefault = RenderToPng(controlA, 480, 120);
+
+        // Control B: fallback font set, empty guifont → should use fallback
+        var clientB = new TestEditorClient { CurrentScreen = screen };
+        using var controlB = new EditorControl(clientB);
+        controlB.SetFallbackFonts(new List<string> { fallbackFont! });
+        clientB.RaiseFontChanged(new FontSettings { FontPointSize = 14 });
+        byte[] renderFallback = RenderToPng(controlB, 480, 120);
+
+        Assert.That(
+            renderFallback,
+            Is.Not.EqualTo(renderDefault),
+            "Fallback font should produce different output than platform default.");
+    }
+
+    /// <summary>
+    /// When FontChanged fires with empty guifont before SetFallbackFonts is
+    /// called, and the pending action processes first (simulating a render
+    /// between the two calls), the fallback font should still take effect
+    /// after SetFallbackFonts triggers a second rebuild.
+    /// </summary>
+    [Test]
+    public void EmptyGuifont_ThenSetFallbackFonts_EventuallyUsesFallback()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        var screen = CreateAsciiScreen("Hello");
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+
+        // Fire empty guifont BEFORE setting fallback fonts
+        editorClient.RaiseFontChanged(new FontSettings { FontPointSize = 11 });
+
+        // Process the pending action (renders with platform default)
+        RenderToPng(control, 480, 120);
+
+        // Now set fallback fonts (like EditorSessionCoordinator would)
+        control.SetFallbackFonts(new List<string> { fallbackFont! });
+
+        // Render again to process the SetFallbackFonts action
+        RenderToPng(control, 480, 120);
+
+        Assert.That(
+            control.GetPrimaryFontNameForTesting(),
+            Is.EqualTo(fallbackFont).IgnoreCase,
+            "After SetFallbackFonts, primary should be the fallback font.");
+    }
+
+    /// <summary>
+    /// When FontChanged fires with empty guifont AFTER SetFallbackFonts
+    /// and both actions are already processed, a subsequent render should
+    /// still use the fallback font.
+    /// </summary>
+    [Test]
+    public void SetFallbackFonts_ThenMultipleEmptyGuifontEvents_KeepsFallback()
+    {
+        var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
+        string? fallbackFont = FindNonDefaultFont(platformDefaults);
+        Assert.That(fallbackFont, Is.Not.Null, "No non-default font found for test.");
+
+        var screen = CreateAsciiScreen("Hello");
+        var editorClient = new TestEditorClient { CurrentScreen = screen };
+        using var control = new EditorControl(editorClient);
+
+        control.SetFallbackFonts(new List<string> { fallbackFont! });
+        editorClient.RaiseFontChanged(new FontSettings { FontPointSize = 11 });
+        RenderToPng(control, 480, 120);
+
+        // Fire another empty guifont event (e.g., after a resize)
+        editorClient.RaiseFontChanged(new FontSettings { FontPointSize = 11 });
+        RenderToPng(control, 480, 120);
+
+        Assert.That(
+            control.GetPrimaryFontNameForTesting(),
+            Is.EqualTo(fallbackFont).IgnoreCase,
+            "Subsequent empty guifont events should not reset the fallback font.");
+    }
+
     private static Screen CreateAsciiScreen(string text, bool bold = false)
     {
         var screen = TestScreenBuilder.CreateScreen(1, text.Length + 2);
@@ -540,6 +695,36 @@ public class EditorControlTests
         }
 
         return ink;
+    }
+
+    private static string? FindNonDefaultFont(IReadOnlyList<string> platformDefaults)
+    {
+        // Candidates that are visually distinct from monospace platform defaults.
+        var candidates = new[]
+        {
+            "Georgia", "Times New Roman", "Times", "Palatino",
+            "Arial", "Helvetica", "Verdana", "Trebuchet MS",
+        };
+
+        foreach (var name in candidates)
+        {
+            if (platformDefaults.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var typeface = SKTypeface.FromFamilyName(name);
+            if (typeface is not null
+                && string.Equals(typeface.FamilyName, name, StringComparison.OrdinalIgnoreCase))
+            {
+                typeface.Dispose();
+                return name;
+            }
+
+            typeface?.Dispose();
+        }
+
+        return null;
     }
 
     private readonly record struct LigatureFixture(string FontName, string Text);

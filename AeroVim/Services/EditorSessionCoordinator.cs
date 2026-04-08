@@ -163,7 +163,12 @@ internal sealed class EditorSessionCoordinator
         this.editorControl.EnableLigature = this.settings.EnableLigature;
         if (this.settings.FallbackFonts.Count > 0)
         {
+            this.log.Info($"Applying {this.settings.FallbackFonts.Count} fallback font(s): [{string.Join(", ", this.settings.FallbackFonts)}].");
             this.editorControl.SetFallbackFonts(this.settings.FallbackFonts);
+        }
+        else
+        {
+            this.log.Info("No fallback fonts configured.");
         }
 
         this.WireClientEvents();
