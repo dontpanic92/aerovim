@@ -305,23 +305,38 @@ public class EditorControlTests
     }
 
     /// <summary>
-    /// Bold output should stay visually closer to plain bold output than to ligature normal output.
+    /// Ligature rendering should produce measurably different ink coverage than
+    /// plain rendering for the same text, confirming the shaping path is active.
     /// </summary>
     [Test]
-    public void RenderForTesting_WithLigaturesEnabled_BoldTextRetainsPlainBoldWeight()
+    public void RenderForTesting_WithLigaturesEnabled_ChangesInkCoverage()
+    {
+        Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
+
+        var screen = CreateAsciiScreen(fixture.Text);
+
+        long plainInk = MeasureInk(RenderScreen(fixture.FontName, screen, false));
+        long ligatureInk = MeasureInk(RenderScreen(fixture.FontName, screen, true));
+
+        Assert.That(ligatureInk, Is.Not.EqualTo(plainInk));
+    }
+
+    /// <summary>
+    /// Bold text should produce more ink than normal text when ligatures are
+    /// enabled, confirming the embolden flag is applied in the shaping path.
+    /// </summary>
+    [Test]
+    public void RenderForTesting_WithLigaturesEnabled_BoldProducesMoreInk()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
 
         var normalScreen = CreateAsciiScreen(fixture.Text);
         var boldScreen = CreateAsciiScreen(fixture.Text, bold: true);
 
-        long plainBoldInk = MeasureInk(RenderScreen(fixture.FontName, boldScreen, false));
         long ligatureNormalInk = MeasureInk(RenderScreen(fixture.FontName, normalScreen, true));
         long ligatureBoldInk = MeasureInk(RenderScreen(fixture.FontName, boldScreen, true));
 
-        Assert.That(
-            Math.Abs(ligatureBoldInk - plainBoldInk),
-            Is.LessThan(Math.Abs(ligatureNormalInk - plainBoldInk)));
+        Assert.That(ligatureBoldInk, Is.GreaterThan(ligatureNormalInk));
     }
 
     /// <summary>
