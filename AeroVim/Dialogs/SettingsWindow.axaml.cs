@@ -22,11 +22,12 @@ using Avalonia.Platform.Storage;
 public partial class SettingsWindow : Window
 {
     private readonly AppSettings settings;
+    private readonly IReadOnlyList<string> currentGuiFontNames;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsWindow"/> class.
     /// Used by the XAML designer; runtime code should use
-    /// <see cref="SettingsWindow(AppSettings, string?)"/>.
+    /// <see cref="SettingsWindow(AppSettings, string?, IReadOnlyList{string}?)"/>.
     /// </summary>
     public SettingsWindow()
         : this(AppSettings.Default, null)
@@ -38,9 +39,11 @@ public partial class SettingsWindow : Window
     /// </summary>
     /// <param name="settings">Application settings.</param>
     /// <param name="promptText">Text for prompt.</param>
-    public SettingsWindow(AppSettings settings, string? promptText)
+    /// <param name="guiFontNames">The currently resolved Neovim guifont names, if available.</param>
+    public SettingsWindow(AppSettings settings, string? promptText, IReadOnlyList<string>? guiFontNames = null)
     {
         this.settings = settings;
+        this.currentGuiFontNames = guiFontNames ?? Array.Empty<string>();
         this.InitializeComponent();
 
         if (!string.IsNullOrWhiteSpace(promptText))
@@ -539,13 +542,7 @@ public partial class SettingsWindow : Window
 
     private IReadOnlyList<string> GetCurrentGuiFontNames()
     {
-        var client = (this.Owner as MainWindow)?.Coordinator?.EditorClient;
-        if (client is not null)
-        {
-            return client.FontSettings.FontNames;
-        }
-
-        return Array.Empty<string>();
+        return this.currentGuiFontNames;
     }
 
     private void UpdatePathPanelVisibility()
