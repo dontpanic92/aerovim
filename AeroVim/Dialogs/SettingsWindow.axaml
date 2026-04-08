@@ -3,6 +3,7 @@
         xmlns:vm="using:AeroVim.ViewModels"
         xmlns:dialogs="using:AeroVim.Dialogs"
         x:Class="AeroVim.Dialogs.SettingsWindow"
+        x:CompileBindings="True"
         x:DataType="vm:SettingsViewModel"
         Title="Settings" Height="520" Width="720"
         CanResize="False"

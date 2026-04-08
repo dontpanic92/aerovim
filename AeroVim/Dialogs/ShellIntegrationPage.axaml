@@ -4,6 +4,7 @@
              xmlns:dialogs="using:AeroVim.Dialogs"
              xmlns:vm="using:AeroVim.ViewModels"
              x:Class="AeroVim.Dialogs.ShellIntegrationPage"
+             x:CompileBindings="True"
              x:DataType="vm:ShellIntegrationPageViewModel">
     <StackPanel Spacing="10">
         <controls:GroupBox Header="Drag &amp; Drop" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">

@@ -3,6 +3,7 @@
              xmlns:controls="using:Classic.Avalonia.Theme.Controls"
              xmlns:vm="using:AeroVim.ViewModels"
              x:Class="AeroVim.Dialogs.GeneralPage"
+             x:CompileBindings="True"
              x:DataType="vm:GeneralPageViewModel">
     <StackPanel Spacing="10">
         <controls:GroupBox Header="Editor Backend" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">

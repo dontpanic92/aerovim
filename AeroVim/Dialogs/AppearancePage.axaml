@@ -3,6 +3,7 @@
              xmlns:controls="using:Classic.Avalonia.Theme.Controls"
              xmlns:vm="using:AeroVim.ViewModels"
              x:Class="AeroVim.Dialogs.AppearancePage"
+             x:CompileBindings="True"
              x:DataType="vm:AppearancePageViewModel">
     <StackPanel Spacing="10">
         <!-- Window Effects -->

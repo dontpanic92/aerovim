@@ -37,6 +37,16 @@ Build output locations:
 - `AeroVim\bin\x64\{Configuration}\net10.0\aerovim.exe` (Windows)
 - `NeovimClient\bin\x64\{Configuration}\net10.0\AeroVim.NeovimClient.dll`
 
+### Publish with AOT
+
+The AeroVim project has `PublishAot` enabled. After making changes to XAML bindings or adding new reflection-based code, verify that AOT publish still succeeds:
+
+```powershell
+dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime win-x64 -p:DebugType=none
+```
+
+All AXAML files must use `x:CompileBindings="True"` with a matching `x:DataType` to avoid `IL2026` trim analysis errors.
+
 ## Platform Notes
 
 - **Keyboard input** uses Avalonia's `TextInput` event for character keys and `KeyMapping.cs` for special keys and modifier combinations (Ctrl/Alt + key).

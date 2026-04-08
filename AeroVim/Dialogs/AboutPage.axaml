@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:AeroVim.ViewModels"
              x:Class="AeroVim.Dialogs.AboutPage"
+             x:CompileBindings="True"
              x:DataType="vm:AboutPageViewModel">
     <StackPanel Spacing="12">
         <Image Source="avares://aerovim/Assets/aerovim.ico" Width="64" Height="64"
