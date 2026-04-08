@@ -40,7 +40,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     private bool allDirty;
     private (int Row, int Col) cursorPosition = (0, 0);
     private PopupMenuItem[]? popupItems;
-    private int popupSelected = -1;
+    private int? popupSelected;
     private (int Row, int Col)? popupAnchor;
     private CmdlineState? cmdlineState;
 
@@ -123,7 +123,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     public PopupMenuItem[]? PopupItems => this.popupItems;
 
     /// <inheritdoc />
-    public int PopupSelected => this.popupSelected;
+    public int? PopupSelected => this.popupSelected;
 
     /// <inheritdoc />
     public (int Row, int Col)? PopupAnchor => this.popupAnchor;
@@ -189,13 +189,13 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     /// <summary>
     /// Send a mouse event to Neovim.
     /// </summary>
-    /// <param name="button">Mouse button: "left", "right", "middle", "wheel", or "move".</param>
-    /// <param name="action">Action: "press", "drag", "release" for buttons; "up", "down", "left", "right" for wheel.</param>
+    /// <param name="button">The mouse button.</param>
+    /// <param name="action">The mouse action.</param>
     /// <param name="modifier">Modifier keys string, e.g. "", "S", "C", "A", "C-S".</param>
     /// <param name="grid">Grid id (0 when multigrid is not enabled).</param>
     /// <param name="row">Zero-based grid row.</param>
     /// <param name="col">Zero-based grid column.</param>
-    public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
+    public void InputMouse(MouseButton button, MouseAction action, string modifier, int grid, int row, int col)
     {
         this.neovim?.Global.InputMouse(button, action, modifier, grid, row, col);
     }
@@ -425,7 +425,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                         break;
                     case PopupmenuHideEvent:
                         this.popupItems = null;
-                        this.popupSelected = -1;
+                        this.popupSelected = null;
                         this.popupAnchor = null;
                         break;
 

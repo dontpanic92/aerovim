@@ -139,7 +139,7 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
                 pointerShape: this.buffer.PointerShape,
                 cursorVisible: this.buffer.CursorVisible,
                 cursorStyleEnabled: true,
-                pointerMode: this.buffer.PointerMode);
+                pointerMode: (PointerMode)this.buffer.PointerMode);
         }
     }
 
@@ -170,7 +170,7 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
     /// <summary>
     /// Gets the current font settings.
     /// </summary>
-    public FontSettings FontSettings { get; private set; }
+    public FontSettings FontSettings { get; private set; } = new FontSettings();
 
     /// <summary>
     /// Gets a classified error message describing why the last startup
@@ -243,13 +243,13 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
     /// <summary>
     /// Send a mouse event to Vim using SGR mouse encoding.
     /// </summary>
-    /// <param name="button">Mouse button: "left", "right", "middle", "wheel", or "move".</param>
-    /// <param name="action">Action: "press", "drag", "release" for buttons; "up", "down", "left", "right" for wheel.</param>
+    /// <param name="button">The mouse button.</param>
+    /// <param name="action">The mouse action.</param>
     /// <param name="modifier">Modifier keys string, e.g. "", "S", "C", "A", "C-S".</param>
     /// <param name="grid">Grid id (unused for Vim, kept for interface compatibility).</param>
     /// <param name="row">Zero-based grid row.</param>
     /// <param name="col">Zero-based grid column.</param>
-    public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
+    public void InputMouse(MouseButton button, MouseAction action, string modifier, int grid, int row, int col)
     {
         if (this.ptyConnection is null || this.disposed)
         {
@@ -362,34 +362,34 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
         this.Redraw?.Invoke();
     }
 
-    private static string? EncodeSgrMouse(string button, string action, string modifier, int row, int col)
+    private static string? EncodeSgrMouse(MouseButton button, MouseAction action, string modifier, int row, int col)
     {
         int cb;
 
         switch (button)
         {
-            case "left":
+            case MouseButton.Left:
                 cb = 0;
                 break;
-            case "middle":
+            case MouseButton.Middle:
                 cb = 1;
                 break;
-            case "right":
+            case MouseButton.Right:
                 cb = 2;
                 break;
-            case "wheel":
+            case MouseButton.Wheel:
                 switch (action)
                 {
-                    case "up":
+                    case MouseAction.ScrollUp:
                         cb = 64;
                         break;
-                    case "down":
+                    case MouseAction.ScrollDown:
                         cb = 65;
                         break;
-                    case "left":
+                    case MouseAction.ScrollLeft:
                         cb = 66;
                         break;
-                    case "right":
+                    case MouseAction.ScrollRight:
                         cb = 67;
                         break;
                     default:
@@ -398,7 +398,7 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
 
                 AddModifierBits(ref cb, modifier);
                 return $"\x1B[<{cb};{col + 1};{row + 1}M";
-            case "move":
+            case MouseButton.Move:
                 cb = 35;
                 AddModifierBits(ref cb, modifier);
                 return $"\x1B[<{cb};{col + 1};{row + 1}M";
@@ -406,13 +406,13 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
                 return null;
         }
 
-        if (action == "drag")
+        if (action == MouseAction.Drag)
         {
             cb += 32;
         }
 
         AddModifierBits(ref cb, modifier);
-        char finalChar = action == "release" ? 'm' : 'M';
+        char finalChar = action == MouseAction.Release ? 'm' : 'M';
         return $"\x1B[<{cb};{col + 1};{row + 1}{finalChar}";
     }
 

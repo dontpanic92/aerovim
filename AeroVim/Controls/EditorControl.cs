@@ -20,6 +20,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Avalonia.Threading;
 using SkiaSharp;
+using MouseButton = AeroVim.Editor.MouseButton;
 
 /// <summary>
 /// The editor control using Avalonia custom rendering with SkiaSharp.
@@ -244,12 +245,12 @@ public class EditorControl : Control, IDisposable
     /// <summary>
     /// Handles a pointer press using grid coordinates for tests.
     /// </summary>
-    /// <param name="button">The button name.</param>
+    /// <param name="button">The mouse button.</param>
     /// <param name="row">The zero-based grid row.</param>
     /// <param name="col">The zero-based grid column.</param>
     /// <param name="modifiers">The active key modifiers.</param>
     /// <returns>A value indicating whether the event was handled.</returns>
-    internal bool HandlePointerPressedForTesting(string button, int row, int col, KeyModifiers modifiers = KeyModifiers.None)
+    internal bool HandlePointerPressedForTesting(MouseButton button, int row, int col, KeyModifiers modifiers = KeyModifiers.None)
     {
         return this.inputHandler.HandlePointerPressed(button, row, col, modifiers);
     }
@@ -314,19 +315,19 @@ public class EditorControl : Control, IDisposable
 
         var point = e.GetCurrentPoint(this);
         var (row, col) = this.PixelToGridPosition(point.Position);
-        string? button = null;
+        MouseButton? button = null;
 
         if (point.Properties.IsLeftButtonPressed)
         {
-            button = "left";
+            button = MouseButton.Left;
         }
         else if (point.Properties.IsRightButtonPressed)
         {
-            button = "right";
+            button = MouseButton.Right;
         }
         else if (point.Properties.IsMiddleButtonPressed)
         {
-            button = "middle";
+            button = MouseButton.Middle;
         }
 
         e.Handled = this.inputHandler.HandlePointerPressed(button, row, col, e.KeyModifiers);

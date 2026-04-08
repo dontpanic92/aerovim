@@ -107,13 +107,13 @@ public interface IEditorClient : IDisposable
     /// <summary>
     /// Send a mouse event to the editor.
     /// </summary>
-    /// <param name="button">Mouse button: "left", "right", "middle", "wheel", or "move".</param>
-    /// <param name="action">Action: "press", "drag", "release" for buttons; "up", "down", "left", "right" for wheel.</param>
+    /// <param name="button">The mouse button.</param>
+    /// <param name="action">The mouse action.</param>
     /// <param name="modifier">Modifier keys string, e.g. "", "S", "C", "A", "C-S".</param>
     /// <param name="grid">Grid id (0 when multigrid is not enabled).</param>
     /// <param name="row">Zero-based grid row.</param>
     /// <param name="col">Zero-based grid column.</param>
-    void InputMouse(string button, string action, string modifier, int grid, int row, int col);
+    void InputMouse(MouseButton button, MouseAction action, string modifier, int grid, int row, int col);
 
     /// <summary>
     /// Execute an editor command.

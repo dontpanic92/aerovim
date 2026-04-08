@@ -5,6 +5,8 @@
 
 namespace AeroVim.NeovimClient.API;
 
+using AeroVim.Editor;
+
 /// <summary>
 /// Global API functions.
 /// </summary>
@@ -52,15 +54,15 @@ public class Global
     /// <summary>
     /// Send a mouse event to Neovim.
     /// </summary>
-    /// <param name="button">Mouse button: "left", "right", "middle", "wheel", or "move".</param>
-    /// <param name="action">Action: "press", "drag", "release" for buttons; "up", "down", "left", "right" for wheel.</param>
+    /// <param name="button">The mouse button.</param>
+    /// <param name="action">The mouse action.</param>
     /// <param name="modifier">Modifier keys string, e.g. "", "S", "C", "A", "C-S".</param>
     /// <param name="grid">Grid id (0 when multigrid is not enabled).</param>
     /// <param name="row">Zero-based grid row.</param>
     /// <param name="col">Zero-based grid column.</param>
-    public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
+    public void InputMouse(MouseButton button, MouseAction action, string modifier, int grid, int row, int col)
     {
-        this.msgPackRpc.SendRequestFireAndForget("nvim_input_mouse", new List<object>() { button, action, modifier, grid, row, col });
+        this.msgPackRpc.SendRequestFireAndForget("nvim_input_mouse", new List<object>() { ToNeovimString(button), ToNeovimString(action), modifier, grid, row, col });
     }
 
     /// <summary>
@@ -71,4 +73,27 @@ public class Global
     {
         this.msgPackRpc.SendRequestFireAndForget("nvim_command", new List<object>() { command });
     }
+
+    private static string ToNeovimString(MouseButton button) => button switch
+    {
+        MouseButton.Left => "left",
+        MouseButton.Middle => "middle",
+        MouseButton.Right => "right",
+        MouseButton.Wheel => "wheel",
+        MouseButton.Move => "move",
+        _ => "left",
+    };
+
+    private static string ToNeovimString(MouseAction action) => action switch
+    {
+        MouseAction.Press => "press",
+        MouseAction.Release => "release",
+        MouseAction.Drag => "drag",
+        MouseAction.Move => "move",
+        MouseAction.ScrollUp => "up",
+        MouseAction.ScrollDown => "down",
+        MouseAction.ScrollLeft => "left",
+        MouseAction.ScrollRight => "right",
+        _ => "press",
+    };
 }

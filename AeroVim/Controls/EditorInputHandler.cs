@@ -9,6 +9,7 @@ using AeroVim.Editor;
 using AeroVim.Editor.Utilities;
 using Avalonia;
 using Avalonia.Input;
+using MouseButton = AeroVim.Editor.MouseButton;
 
 /// <summary>
 /// Translates pointer events into editor client mouse commands.
@@ -16,7 +17,7 @@ using Avalonia.Input;
 internal sealed class EditorInputHandler
 {
     private readonly IEditorClient editorClient;
-    private string? pressedMouseButton;
+    private MouseButton? pressedMouseButton;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EditorInputHandler"/> class.
@@ -38,12 +39,12 @@ internal sealed class EditorInputHandler
     /// <summary>
     /// Handles a pointer press event.
     /// </summary>
-    /// <param name="button">The button name ("left", "right", "middle"), or null.</param>
+    /// <param name="button">The mouse button, or null.</param>
     /// <param name="row">The zero-based grid row.</param>
     /// <param name="col">The zero-based grid column.</param>
     /// <param name="modifiers">The active key modifiers.</param>
     /// <returns>True if the event was handled.</returns>
-    public bool HandlePointerPressed(string? button, int row, int col, KeyModifiers modifiers)
+    public bool HandlePointerPressed(MouseButton? button, int row, int col, KeyModifiers modifiers)
     {
         if (button is null)
         {
@@ -57,7 +58,7 @@ internal sealed class EditorInputHandler
         }
 
         this.pressedMouseButton = button;
-        this.editorClient.InputMouse(button, "press", GetModifierString(modifiers), 0, row, col);
+        this.editorClient.InputMouse(button.Value, MouseAction.Press, GetModifierString(modifiers), 0, row, col);
         return true;
     }
 
@@ -79,13 +80,13 @@ internal sealed class EditorInputHandler
         string modifier = GetModifierString(modifiers);
         if (this.pressedMouseButton is not null)
         {
-            this.editorClient.InputMouse(this.pressedMouseButton, "drag", modifier, 0, row, col);
+            this.editorClient.InputMouse(this.pressedMouseButton.Value, MouseAction.Drag, modifier, 0, row, col);
             return true;
         }
 
         if (this.editorClient.MouseTrackingMode == MouseTrackingMode.AnyEvent)
         {
-            this.editorClient.InputMouse("move", "move", modifier, 0, row, col);
+            this.editorClient.InputMouse(MouseButton.Move, MouseAction.Move, modifier, 0, row, col);
             return true;
         }
 
@@ -112,7 +113,7 @@ internal sealed class EditorInputHandler
             return false;
         }
 
-        this.editorClient.InputMouse(this.pressedMouseButton, "release", GetModifierString(modifiers), 0, row, col);
+        this.editorClient.InputMouse(this.pressedMouseButton.Value, MouseAction.Release, GetModifierString(modifiers), 0, row, col);
         this.pressedMouseButton = null;
         return true;
     }
@@ -136,23 +137,23 @@ internal sealed class EditorInputHandler
         bool handled = false;
         if (delta.Y > 0)
         {
-            this.editorClient.InputMouse("wheel", "up", modifier, 0, row, col);
+            this.editorClient.InputMouse(MouseButton.Wheel, MouseAction.ScrollUp, modifier, 0, row, col);
             handled = true;
         }
         else if (delta.Y < 0)
         {
-            this.editorClient.InputMouse("wheel", "down", modifier, 0, row, col);
+            this.editorClient.InputMouse(MouseButton.Wheel, MouseAction.ScrollDown, modifier, 0, row, col);
             handled = true;
         }
 
         if (delta.X > 0)
         {
-            this.editorClient.InputMouse("wheel", "right", modifier, 0, row, col);
+            this.editorClient.InputMouse(MouseButton.Wheel, MouseAction.ScrollRight, modifier, 0, row, col);
             handled = true;
         }
         else if (delta.X < 0)
         {
-            this.editorClient.InputMouse("wheel", "left", modifier, 0, row, col);
+            this.editorClient.InputMouse(MouseButton.Wheel, MouseAction.ScrollLeft, modifier, 0, row, col);
             handled = true;
         }
 

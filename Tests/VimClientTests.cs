@@ -6,6 +6,7 @@
 namespace AeroVim.Tests;
 
 using System.Text;
+using AeroVim.Editor;
 using AeroVim.Editor.Diagnostics;
 using AeroVim.Editor.Utilities;
 using AeroVim.Tests.Helpers;
@@ -76,7 +77,7 @@ public class VimClientTests
         var ptyConnection = new FakePtyConnection();
         using var client = new VimClient("vim", ptyConnection, NullLogger.Instance);
 
-        client.InputMouse("left", "press", "C-S", 0, 4, 2);
+        client.InputMouse(MouseButton.Left, MouseAction.Press, "C-S", 0, 4, 2);
 
         Assert.That(ptyConnection.GetWrittenText(), Is.EqualTo("\x1B[<20;3;5M"));
     }
@@ -110,7 +111,7 @@ public class VimClientTests
         Assert.That(client.ModeInfo.CursorShape, Is.EqualTo(CursorShape.Vertical));
         Assert.That(client.ModeInfo.CursorBlinking, Is.EqualTo(CursorBlinking.BlinkOn));
         Assert.That(client.ModeInfo.PointerShape, Is.EqualTo("beam"));
-        Assert.That(client.ModeInfo.PointerMode, Is.EqualTo(2));
+        Assert.That(client.ModeInfo.PointerMode, Is.EqualTo(PointerMode.AlwaysHide));
         Assert.That(client.ModeInfo.CursorVisible, Is.False);
         Assert.That(client.ModeInfo.CursorStyleEnabled, Is.True);
     }

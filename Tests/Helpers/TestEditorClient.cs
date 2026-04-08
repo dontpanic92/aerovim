@@ -49,8 +49,8 @@ internal sealed class TestEditorClient : IEditorClient
     /// <summary>
     /// Gets the recorded mouse input calls.
     /// </summary>
-    public List<(string Button, string Action, string Modifier, int Grid, int Row, int Col)> MouseCalls { get; }
-        = new List<(string Button, string Action, string Modifier, int Grid, int Row, int Col)>();
+    public List<(MouseButton Button, MouseAction Action, string Modifier, int Grid, int Row, int Col)> MouseCalls { get; }
+        = new List<(MouseButton Button, MouseAction Action, string Modifier, int Grid, int Row, int Col)>();
 
     /// <summary>
     /// Gets or sets the current test screen.
@@ -86,7 +86,7 @@ internal sealed class TestEditorClient : IEditorClient
     }
 
     /// <inheritdoc />
-    public void InputMouse(string button, string action, string modifier, int grid, int row, int col)
+    public void InputMouse(MouseButton button, MouseAction action, string modifier, int grid, int row, int col)
     {
         this.MouseCalls.Add((button, action, modifier, grid, row, col));
     }

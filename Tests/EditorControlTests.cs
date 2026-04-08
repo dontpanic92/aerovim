@@ -13,6 +13,7 @@ using Avalonia;
 using Avalonia.Input;
 using NUnit.Framework;
 using SkiaSharp;
+using MouseButton = AeroVim.Editor.MouseButton;
 
 /// <summary>
 /// Tests editor rendering behavior with off-screen surfaces.
@@ -111,7 +112,7 @@ public class EditorControlTests
         };
 
         using var control = new EditorControl(editorClient);
-        bool handled = control.HandlePointerPressedForTesting("left", 1, 2);
+        bool handled = control.HandlePointerPressedForTesting(MouseButton.Left, 1, 2);
 
         Assert.That(handled, Is.False);
         Assert.That(editorClient.MouseCalls, Is.Empty);
@@ -129,7 +130,7 @@ public class EditorControlTests
         };
 
         using var control = new EditorControl(editorClient);
-        Assert.That(control.HandlePointerPressedForTesting("left", 1, 2), Is.True);
+        Assert.That(control.HandlePointerPressedForTesting(MouseButton.Left, 1, 2), Is.True);
 
         editorClient.MouseEnabled = false;
         control.RefreshEditorUiStateForTesting();
@@ -141,7 +142,7 @@ public class EditorControlTests
 
         Assert.That(control.HandlePointerReleasedForTesting(1, 3), Is.False);
         Assert.That(editorClient.MouseCalls, Has.Count.EqualTo(1));
-        Assert.That(editorClient.MouseCalls[0], Is.EqualTo(("left", "press", string.Empty, 0, 1, 2)));
+        Assert.That(editorClient.MouseCalls[0], Is.EqualTo((MouseButton.Left, MouseAction.Press, string.Empty, 0, 1, 2)));
     }
 
     /// <summary>
@@ -188,7 +189,7 @@ public class EditorControlTests
         var editorClient = new TestEditorClient
         {
             MouseEnabled = false,
-            ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff, pointerShape: "beam", pointerMode: 1),
+            ModeInfo = new ModeInfo(CursorShape.Block, 100, CursorBlinking.BlinkOff, pointerShape: "beam", pointerMode: PointerMode.HideWhenTrackingDisabled),
         };
 
         using var control = new EditorControl(editorClient);
