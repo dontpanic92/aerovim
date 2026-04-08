@@ -56,6 +56,10 @@ public partial class SettingsWindow : Window
         this.LoadSettingsToUi();
         this.LoadAboutInfo();
 
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        fontListBox.SelectionChanged += (s, e) => this.UpdateFontButtonStates();
+        this.UpdateFontButtonStates();
+
         var opacitySlider = this.FindControl<Slider>("OpacitySlider")!;
         opacitySlider.PropertyChanged += (s, e) =>
         {
@@ -513,6 +517,18 @@ public partial class SettingsWindow : Window
         }
 
         this.settings.FallbackFonts = fonts;
+    }
+
+    private void UpdateFontButtonStates()
+    {
+        var fontListBox = this.FindControl<ListBox>("FontListBox")!;
+        int index = fontListBox.SelectedIndex;
+        bool hasSelection = index >= 0;
+        bool isSentinel = hasSelection && GetRawFontEntry(fontListBox.SelectedItem) is string raw && FontPriorityList.IsSentinel(raw);
+
+        this.FindControl<Button>("FontRemoveButton")!.IsEnabled = hasSelection && !isSentinel;
+        this.FindControl<Button>("FontMoveUpButton")!.IsEnabled = hasSelection && index > 0;
+        this.FindControl<Button>("FontMoveDownButton")!.IsEnabled = hasSelection && index < fontListBox.Items.Count - 1;
     }
 
     /// <summary>
