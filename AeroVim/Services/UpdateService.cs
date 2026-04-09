@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using AeroVim.Diagnostics;
 using AeroVim.Editor.Diagnostics;
 using Velopack;
+using Velopack.Sources;
 
 /// <summary>
 /// Checks for, downloads, and applies application updates using Velopack.
@@ -16,9 +17,15 @@ using Velopack;
 internal sealed class UpdateService : IUpdateService
 {
     /// <summary>
-    /// Base URL for the GitHub Pages update feed.
+    /// Base URL for the GitHub Pages nightly update feed.
     /// </summary>
-    internal const string GitHubPagesBaseUrl = "https://dontpanic92.github.io/dotnvim/updates";
+    internal const string NightlyFeedUrl = "https://dontpanic92.github.io/dotnvim/updates";
+
+    /// <summary>
+    /// GitHub repository URL used by Velopack's <see cref="GithubSource"/>
+    /// to fetch stable releases from GitHub Releases.
+    /// </summary>
+    internal const string GitHubRepoUrl = "https://github.com/dontpanic92/dotnvim";
 
     private static readonly IComponentLogger Log = AppLogger.For<UpdateService>();
 
@@ -98,6 +105,19 @@ internal sealed class UpdateService : IUpdateService
         try
         {
             var channel = this.settings.UpdateChannel;
+
+            // When the user switches channels, clear stale state so the
+            // previous channel's skipped version and pending download don't
+            // interfere with the new channel's update check.
+            if (this.currentManagerChannel is not null && this.currentManagerChannel != channel)
+            {
+                Log.Info($"Channel changed from {this.currentManagerChannel} to {channel} — clearing skipped version.");
+                this.settings.SkippedVersion = null;
+                this.velopackUpdateInfo = null;
+                this.isReadyToApply = false;
+                this.SetAvailableUpdate(null);
+            }
+
             var mgr = this.GetOrCreateManager(channel);
 
             if (!mgr.IsInstalled)
@@ -295,8 +315,22 @@ internal sealed class UpdateService : IUpdateService
         }
 
         var channelName = GetChannelName(channel);
-        var options = new UpdateOptions { ExplicitChannel = channelName };
-        this.currentManager = new UpdateManager(GitHubPagesBaseUrl, options);
+        var options = new UpdateOptions
+        {
+            ExplicitChannel = channelName,
+            AllowVersionDowngrade = true,
+        };
+
+        if (channel == UpdateChannel.Stable)
+        {
+            var source = new GithubSource(GitHubRepoUrl, accessToken: null, prerelease: false);
+            this.currentManager = new UpdateManager(source, options);
+        }
+        else
+        {
+            this.currentManager = new UpdateManager(NightlyFeedUrl, options);
+        }
+
         this.currentManagerChannel = channel;
         return this.currentManager;
     }
