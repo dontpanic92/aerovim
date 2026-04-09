@@ -783,10 +783,12 @@ public class EditorControlTests
     private static string? FindNonDefaultFont(IReadOnlyList<string> platformDefaults)
     {
         // Candidates that are visually distinct from monospace platform defaults.
+        // Includes common Linux fonts so the tests pass on Ubuntu CI runners.
         var candidates = new[]
         {
             "Georgia", "Times New Roman", "Times", "Palatino",
             "Arial", "Helvetica", "Verdana", "Trebuchet MS",
+            "DejaVu Sans", "DejaVu Serif", "Liberation Sans", "Liberation Serif",
         };
 
         foreach (var name in candidates)
