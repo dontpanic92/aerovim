@@ -16,7 +16,7 @@
                 Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1"
                 CornerRadius="4" Padding="10" Margin="0,0,0,4">
             <TextBlock TextWrapping="Wrap"
-                       Text="Auto-updates are not available for this build. Install AeroVim from a stable or nightly release package to enable updates." />
+                       Text="Auto-updates are not available for this build. Install AeroVim from a stable, nightly, or CI release package to enable updates." />
         </Border>
 
         <!-- Channel selector -->

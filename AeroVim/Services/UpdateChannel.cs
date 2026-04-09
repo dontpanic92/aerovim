@@ -16,7 +16,12 @@ public enum UpdateChannel
     Stable = 0,
 
     /// <summary>
-    /// Nightly builds published to GitHub Pages on every push to master.
+    /// Nightly builds published to GitHub Pages on a daily schedule.
     /// </summary>
     Nightly = 1,
+
+    /// <summary>
+    /// CI builds published to GitHub Pages on every push to master.
+    /// </summary>
+    CI = 2,
 }

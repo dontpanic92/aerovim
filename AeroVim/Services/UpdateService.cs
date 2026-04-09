@@ -18,9 +18,9 @@ using Velopack.Sources;
 internal sealed class UpdateService : IUpdateService
 {
     /// <summary>
-    /// Base URL for the GitHub Pages nightly update feed.
+    /// Base URL for the GitHub Pages update feed (shared by nightly and CI channels).
     /// </summary>
-    internal const string NightlyFeedUrl = "https://dontpanic92.github.io/aerovim/updates";
+    internal const string GitHubPagesFeedUrl = "https://dontpanic92.github.io/aerovim/updates";
 
     /// <summary>
     /// GitHub repository URL used by Velopack's <see cref="GithubSource"/>
@@ -138,7 +138,7 @@ internal sealed class UpdateService : IUpdateService
 
             if (targetChannel is null && !IsRecognizedUpdateChannel())
             {
-                Log.Info("Skipping update check — installed channel is not a recognized update channel (CI build).");
+                Log.Info("Skipping update check — installed channel is not a recognized update channel.");
                 return;
             }
 
@@ -285,8 +285,8 @@ internal sealed class UpdateService : IUpdateService
 
     /// <summary>
     /// Returns <c>true</c> when the Velopack channel string ends with
-    /// <c>-nightly</c> or <c>-stable</c> — the only channels with a
-    /// corresponding update feed. CI and unknown channels return <c>false</c>.
+    /// <c>-nightly</c>, <c>-stable</c>, or <c>-ci</c> — the only channels
+    /// with a corresponding update feed. Unknown channels return <c>false</c>.
     /// </summary>
     private static bool IsRecognizedUpdateChannel()
     {
@@ -296,7 +296,8 @@ internal sealed class UpdateService : IUpdateService
             if (!string.IsNullOrEmpty(channel))
             {
                 return channel.EndsWith("-nightly", StringComparison.OrdinalIgnoreCase)
-                    || channel.EndsWith("-stable", StringComparison.OrdinalIgnoreCase);
+                    || channel.EndsWith("-stable", StringComparison.OrdinalIgnoreCase)
+                    || channel.EndsWith("-ci", StringComparison.OrdinalIgnoreCase);
             }
         }
         catch
@@ -309,17 +310,24 @@ internal sealed class UpdateService : IUpdateService
 
     /// <summary>
     /// Detects the installed channel from the Velopack manifest. The channel
-    /// name follows the convention <c>{rid}-{nightly|stable}</c>.
+    /// name follows the convention <c>{rid}-{nightly|stable|ci}</c>.
     /// </summary>
     private static UpdateChannel DetectInstalledChannel()
     {
         try
         {
             var channel = VelopackLocator.Current?.Channel;
-            if (!string.IsNullOrEmpty(channel) &&
-                channel.EndsWith("-nightly", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(channel))
             {
-                return UpdateChannel.Nightly;
+                if (channel.EndsWith("-nightly", StringComparison.OrdinalIgnoreCase))
+                {
+                    return UpdateChannel.Nightly;
+                }
+
+                if (channel.EndsWith("-ci", StringComparison.OrdinalIgnoreCase))
+                {
+                    return UpdateChannel.CI;
+                }
             }
         }
         catch
@@ -332,14 +340,19 @@ internal sealed class UpdateService : IUpdateService
 
     private static string GetReleaseNotesUrl(UpdateChannel channel) => channel switch
     {
-        UpdateChannel.Nightly => "https://github.com/dontpanic92/aerovim/commits/master",
+        UpdateChannel.Nightly or UpdateChannel.CI => "https://github.com/dontpanic92/aerovim/commits/master",
         _ => "https://github.com/dontpanic92/aerovim/releases/latest",
     };
 
     private static string GetChannelName(UpdateChannel channel)
     {
         var rid = GetCurrentRuntimeIdentifier() ?? "unknown";
-        var suffix = channel == UpdateChannel.Nightly ? "nightly" : "stable";
+        var suffix = channel switch
+        {
+            UpdateChannel.Nightly => "nightly",
+            UpdateChannel.CI => "ci",
+            _ => "stable",
+        };
         return $"{rid}-{suffix}";
     }
 
@@ -391,7 +404,7 @@ internal sealed class UpdateService : IUpdateService
         }
         else
         {
-            this.currentManager = new UpdateManager(NightlyFeedUrl, options);
+            this.currentManager = new UpdateManager(GitHubPagesFeedUrl, options);
         }
 
         this.currentManagerChannel = channel;

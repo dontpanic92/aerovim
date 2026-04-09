@@ -30,15 +30,16 @@ internal interface IUpdateService
 
     /// <summary>
     /// Gets a value indicating whether the application is on a recognized
-    /// update channel (Stable or Nightly) and can receive automatic updates.
-    /// Returns <c>false</c> for local dev builds and CI builds.
+    /// update channel (Stable, Nightly, or CI) and can receive automatic updates.
+    /// Returns <c>false</c> for local dev builds.
     /// </summary>
     bool SupportsAutoUpdate { get; }
 
     /// <summary>
     /// Gets the update channel of the currently installed binary, as recorded
     /// in the Velopack manifest. Returns <see cref="UpdateChannel.Stable"/>
-    /// for non-Velopack (dev) builds.
+    /// for non-Velopack (dev) builds. Recognized channels are Stable, Nightly,
+    /// and CI.
     /// </summary>
     UpdateChannel InstalledChannel { get; }
 

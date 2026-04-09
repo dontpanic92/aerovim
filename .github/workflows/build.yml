@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ master ]
 
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build:
     strategy:
@@ -91,3 +95,59 @@ jobs:
       with:
         name: ${{ matrix.artifact }}
         path: staging/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: gh-pages
+        path: gh-pages
+      continue-on-error: true
+
+    - name: Initialize gh-pages if needed
+      run: |
+        if [ ! -d gh-pages/.git ]; then
+          mkdir -p gh-pages
+          cd gh-pages
+          git init
+          git checkout -b gh-pages
+          touch .nojekyll
+          mkdir -p updates
+          git add .
+          git commit -m "Initialize GitHub Pages for update feed"
+        fi
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Deploy Velopack releases to gh-pages
+      shell: bash
+      run: |
+        UPDATES_DIR="gh-pages/updates"
+        mkdir -p "$UPDATES_DIR"
+
+        for RID in win-x64 osx-arm64 osx-x64 linux-x64; do
+          ARTIFACT_DIR="artifacts/aerovim_${RID//-/_}"
+          if [ -d "$ARTIFACT_DIR" ]; then
+            cp "$ARTIFACT_DIR"/* "$UPDATES_DIR/" 2>/dev/null || true
+          fi
+        done
+
+        echo "Deployed files:"
+        ls -la "$UPDATES_DIR/"
+
+    - name: Push to gh-pages
+      run: |
+        cd gh-pages
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add -A
+        git diff --cached --quiet && echo "No changes" && exit 0
+        git commit -m "CI update: $(date -u +%Y%m%d)-${{ github.run_number }}"
+        git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

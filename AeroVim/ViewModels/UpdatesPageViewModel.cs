@@ -82,7 +82,7 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
 
     /// <summary>
     /// Gets a value indicating whether auto-update is available.
-    /// <c>false</c> for local dev builds and CI builds.
+    /// <c>false</c> for local dev builds.
     /// </summary>
     public bool SupportsAutoUpdate { get; }
 
