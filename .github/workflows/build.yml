@@ -64,14 +64,19 @@ jobs:
         CHANNEL="${{ matrix.rid }}-ci"
         if [[ "${{ matrix.rid }}" == osx-* ]]; then
           PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app/Contents/MacOS"
+          MAIN_EXE="aerovim"
+        elif [[ "${{ matrix.rid }}" == win-* ]]; then
+          PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish"
+          MAIN_EXE="aerovim.exe"
         else
           PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish"
+          MAIN_EXE="aerovim"
         fi
         vpk pack \
           --packId AeroVim \
           --packVersion "${{ steps.version.outputs.version }}" \
           --packDir "$PACK_DIR" \
-          --mainExe aerovim \
+          --mainExe "$MAIN_EXE" \
           --channel "$CHANNEL" \
           --outputDir staging
 
