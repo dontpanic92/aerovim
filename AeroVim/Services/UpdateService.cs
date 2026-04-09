@@ -20,13 +20,13 @@ internal sealed class UpdateService : IUpdateService
     /// <summary>
     /// Base URL for the GitHub Pages nightly update feed.
     /// </summary>
-    internal const string NightlyFeedUrl = "https://dontpanic92.github.io/dotnvim/updates";
+    internal const string NightlyFeedUrl = "https://dontpanic92.github.io/aerovim/updates";
 
     /// <summary>
     /// GitHub repository URL used by Velopack's <see cref="GithubSource"/>
     /// to fetch stable releases from GitHub Releases.
     /// </summary>
-    internal const string GitHubRepoUrl = "https://github.com/dontpanic92/dotnvim";
+    internal const string GitHubRepoUrl = "https://github.com/dontpanic92/aerovim";
 
     private static readonly IComponentLogger Log = AppLogger.For<UpdateService>();
 

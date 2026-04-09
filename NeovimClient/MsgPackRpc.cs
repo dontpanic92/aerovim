@@ -158,9 +158,6 @@ public sealed class MsgPackRpc : IDisposable
         this.disposeCancellation.Cancel();
         this.FailPendingRequests(new ObjectDisposedException(nameof(MsgPackRpc)));
 
-        this.reader.Dispose();
-        this.writer.Dispose();
-
         try
         {
             this.readTask.GetAwaiter().GetResult();
@@ -171,8 +168,13 @@ public sealed class MsgPackRpc : IDisposable
         catch (ObjectDisposedException)
         {
         }
+        catch (InvalidOperationException)
+        {
+        }
         finally
         {
+            this.reader.Dispose();
+            this.writer.Dispose();
             this.disposeCancellation.Dispose();
         }
     }
@@ -277,6 +279,10 @@ public sealed class MsgPackRpc : IDisposable
                 catch (ObjectDisposedException)
                 {
                     this.FailPendingRequests(new ObjectDisposedException(nameof(MsgPackRpc)));
+                    break;
+                }
+                catch (InvalidOperationException) when (cancellationToken.IsCancellationRequested)
+                {
                     break;
                 }
 

@@ -84,13 +84,19 @@ jobs:
           PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish"
           MAIN_EXE="aerovim"
         fi
-        vpk pack \
-          --packId AeroVim \
-          --packVersion "${{ steps.version.outputs.version }}" \
-          --packDir "$PACK_DIR" \
-          --mainExe "$MAIN_EXE" \
-          --channel "$CHANNEL" \
+        VPK_ARGS=(
+          --packId AeroVim
+          --packVersion "${{ steps.version.outputs.version }}"
+          --packDir "$PACK_DIR"
+          --mainExe "$MAIN_EXE"
+          --channel "$CHANNEL"
           --outputDir staging
+        )
+        if [[ "${{ matrix.rid }}" == osx-* ]]; then
+          BUNDLE_ROOT="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app"
+          VPK_ARGS+=(--icon "${BUNDLE_ROOT}/Contents/Resources/aerovim.icns" --plist "${BUNDLE_ROOT}/Contents/Info.plist")
+        fi
+        vpk pack "${VPK_ARGS[@]}"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
