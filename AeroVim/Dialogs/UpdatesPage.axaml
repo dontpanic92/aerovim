@@ -11,17 +11,17 @@
             <TextBlock Text="{Binding VersionText}" VerticalAlignment="Center" />
         </StackPanel>
 
-        <!-- Dev build notice -->
-        <Border IsVisible="{Binding !IsInstalled}"
+        <!-- Notice for builds without auto-update support -->
+        <Border IsVisible="{Binding !SupportsAutoUpdate}"
                 Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1"
                 CornerRadius="4" Padding="10" Margin="0,0,0,4">
             <TextBlock TextWrapping="Wrap"
-                       Text="Auto-updates are not available in local dev builds. Install AeroVim from a release package to enable updates." />
+                       Text="Auto-updates are not available for this build. Install AeroVim from a stable or nightly release package to enable updates." />
         </Border>
 
         <!-- Channel selector -->
         <StackPanel Orientation="Horizontal" Spacing="6"
-                    IsEnabled="{Binding IsInstalled}">
+                    IsEnabled="{Binding SupportsAutoUpdate}">
             <TextBlock Text="Channel:" FontWeight="SemiBold" VerticalAlignment="Center" />
             <ComboBox SelectedIndex="{Binding SelectedChannelIndex}" Width="140">
                 <ComboBoxItem Content="Stable" />
@@ -90,7 +90,7 @@
         <!-- Check button -->
         <Button Content="Check for Updates"
                 Command="{Binding CheckForUpdateCommand}"
-                IsEnabled="{Binding IsInstalled}"
+                IsEnabled="{Binding SupportsAutoUpdate}"
                 HorizontalAlignment="Left" />
     </StackPanel>
 </UserControl>

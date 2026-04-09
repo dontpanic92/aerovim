@@ -82,6 +82,9 @@ internal sealed class UpdateService : IUpdateService
     public UpdateChannel InstalledChannel => DetectInstalledChannel();
 
     /// <inheritdoc/>
+    public bool SupportsAutoUpdate => this.IsInstalled && IsRecognizedUpdateChannel();
+
+    /// <inheritdoc/>
     public bool IsChecking => this.isChecking;
 
     /// <inheritdoc/>
@@ -130,6 +133,12 @@ internal sealed class UpdateService : IUpdateService
             if (!mgr.IsInstalled)
             {
                 Log.Info("Skipping update check — not a Velopack-installed build (local dev build).");
+                return;
+            }
+
+            if (targetChannel is null && !IsRecognizedUpdateChannel())
+            {
+                Log.Info("Skipping update check — installed channel is not a recognized update channel (CI build).");
                 return;
             }
 
@@ -272,6 +281,30 @@ internal sealed class UpdateService : IUpdateService
         this.velopackUpdateInfo = null;
         this.isReadyToApply = false;
         this.SetAvailableUpdate(null);
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the Velopack channel string ends with
+    /// <c>-nightly</c> or <c>-stable</c> — the only channels with a
+    /// corresponding update feed. CI and unknown channels return <c>false</c>.
+    /// </summary>
+    private static bool IsRecognizedUpdateChannel()
+    {
+        try
+        {
+            var channel = VelopackLocator.Current?.Channel;
+            if (!string.IsNullOrEmpty(channel))
+            {
+                return channel.EndsWith("-nightly", StringComparison.OrdinalIgnoreCase)
+                    || channel.EndsWith("-stable", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch
+        {
+            // Not a Velopack install or locator unavailable.
+        }
+
+        return false;
     }
 
     /// <summary>

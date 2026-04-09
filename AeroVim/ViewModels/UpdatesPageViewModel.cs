@@ -60,6 +60,7 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
         this.settings = settings;
         this.updateService = updateService;
         this.IsInstalled = updateService.IsInstalled;
+        this.SupportsAutoUpdate = updateService.SupportsAutoUpdate;
 
         this.selectedChannelIndex = (int)updateService.InstalledChannel;
         this.autoCheckForUpdates = settings.AutoCheckForUpdates;
@@ -78,6 +79,12 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
     /// that can receive updates.
     /// </summary>
     public bool IsInstalled { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether auto-update is available.
+    /// <c>false</c> for local dev builds and CI builds.
+    /// </summary>
+    public bool SupportsAutoUpdate { get; }
 
     /// <summary>
     /// Gets the last checked text.
