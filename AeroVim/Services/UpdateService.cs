@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using AeroVim.Diagnostics;
 using AeroVim.Editor.Diagnostics;
 using Velopack;
+using Velopack.Locators;
 using Velopack.Sources;
 
 /// <summary>
@@ -19,13 +20,13 @@ internal sealed class UpdateService : IUpdateService
     /// <summary>
     /// Base URL for the GitHub Pages nightly update feed.
     /// </summary>
-    internal const string NightlyFeedUrl = "https://dontpanic92.github.io/aerovim/updates";
+    internal const string NightlyFeedUrl = "https://dontpanic92.github.io/dotnvim/updates";
 
     /// <summary>
     /// GitHub repository URL used by Velopack's <see cref="GithubSource"/>
     /// to fetch stable releases from GitHub Releases.
     /// </summary>
-    internal const string GitHubRepoUrl = "https://github.com/dontpanic92/aerovim";
+    internal const string GitHubRepoUrl = "https://github.com/dontpanic92/dotnvim";
 
     private static readonly IComponentLogger Log = AppLogger.For<UpdateService>();
 
@@ -36,6 +37,7 @@ internal sealed class UpdateService : IUpdateService
     private UpdateChannel? currentManagerChannel;
     private Velopack.UpdateInfo? velopackUpdateInfo;
     private UpdateInfo? availableUpdate;
+    private UpdateChannel? lastCheckedChannel;
     private bool isChecking;
     private bool isDownloading;
     private int downloadProgress;
@@ -66,7 +68,7 @@ internal sealed class UpdateService : IUpdateService
         {
             try
             {
-                var mgr = this.GetOrCreateManager(this.settings.UpdateChannel);
+                var mgr = this.GetOrCreateManager(this.InstalledChannel);
                 return mgr.IsInstalled;
             }
             catch
@@ -75,6 +77,9 @@ internal sealed class UpdateService : IUpdateService
             }
         }
     }
+
+    /// <inheritdoc/>
+    public UpdateChannel InstalledChannel => DetectInstalledChannel();
 
     /// <inheritdoc/>
     public bool IsChecking => this.isChecking;
@@ -92,7 +97,7 @@ internal sealed class UpdateService : IUpdateService
     public string? LastError => this.lastError;
 
     /// <inheritdoc/>
-    public async Task CheckForUpdateAsync(CancellationToken ct = default)
+    public async Task CheckForUpdateAsync(UpdateChannel? targetChannel = null, CancellationToken ct = default)
     {
         if (this.isChecking)
         {
@@ -104,19 +109,21 @@ internal sealed class UpdateService : IUpdateService
 
         try
         {
-            var channel = this.settings.UpdateChannel;
+            var channel = targetChannel ?? this.InstalledChannel;
 
-            // When the user switches channels, clear stale state so the
+            // When switching to a different channel, clear stale state so the
             // previous channel's skipped version and pending download don't
             // interfere with the new channel's update check.
-            if (this.currentManagerChannel is not null && this.currentManagerChannel != channel)
+            if (this.lastCheckedChannel is not null && this.lastCheckedChannel != channel)
             {
-                Log.Info($"Channel changed from {this.currentManagerChannel} to {channel} — clearing skipped version.");
+                Log.Info($"Target channel changed to {channel} — clearing stale state.");
                 this.settings.SkippedVersion = null;
                 this.velopackUpdateInfo = null;
                 this.isReadyToApply = false;
                 this.SetAvailableUpdate(null);
             }
+
+            this.lastCheckedChannel = channel;
 
             var mgr = this.GetOrCreateManager(channel);
 
@@ -180,7 +187,7 @@ internal sealed class UpdateService : IUpdateService
     /// <inheritdoc/>
     public async Task DownloadUpdateAsync(IProgress<int>? progress = null, CancellationToken ct = default)
     {
-        if (this.isDownloading || this.velopackUpdateInfo is null)
+        if (this.isDownloading || this.velopackUpdateInfo is null || this.lastCheckedChannel is null)
         {
             return;
         }
@@ -191,7 +198,7 @@ internal sealed class UpdateService : IUpdateService
 
         try
         {
-            var mgr = this.GetOrCreateManager(this.settings.UpdateChannel);
+            var mgr = this.GetOrCreateManager(this.lastCheckedChannel.Value);
 
             if (!mgr.IsInstalled)
             {
@@ -229,14 +236,14 @@ internal sealed class UpdateService : IUpdateService
     /// <inheritdoc/>
     public void ApplyUpdateAndRestart()
     {
-        if (this.velopackUpdateInfo is null)
+        if (this.velopackUpdateInfo is null || this.lastCheckedChannel is null)
         {
             return;
         }
 
         try
         {
-            var mgr = this.GetOrCreateManager(this.settings.UpdateChannel);
+            var mgr = this.GetOrCreateManager(this.lastCheckedChannel.Value);
 
             if (!mgr.IsInstalled)
             {
@@ -265,6 +272,29 @@ internal sealed class UpdateService : IUpdateService
         this.velopackUpdateInfo = null;
         this.isReadyToApply = false;
         this.SetAvailableUpdate(null);
+    }
+
+    /// <summary>
+    /// Detects the installed channel from the Velopack manifest. The channel
+    /// name follows the convention <c>{rid}-{nightly|stable}</c>.
+    /// </summary>
+    private static UpdateChannel DetectInstalledChannel()
+    {
+        try
+        {
+            var channel = VelopackLocator.Current?.Channel;
+            if (!string.IsNullOrEmpty(channel) &&
+                channel.EndsWith("-nightly", StringComparison.OrdinalIgnoreCase))
+            {
+                return UpdateChannel.Nightly;
+            }
+        }
+        catch
+        {
+            // Not a Velopack install or locator unavailable.
+        }
+
+        return UpdateChannel.Stable;
     }
 
     private static string GetReleaseNotesUrl(UpdateChannel channel) => channel switch

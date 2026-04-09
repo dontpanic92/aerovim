@@ -61,7 +61,7 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
         this.updateService = updateService;
         this.IsInstalled = updateService.IsInstalled;
 
-        this.selectedChannelIndex = (int)settings.UpdateChannel;
+        this.selectedChannelIndex = (int)updateService.InstalledChannel;
         this.autoCheckForUpdates = settings.AutoCheckForUpdates;
 
         this.updateService.UpdateAvailableChanged += this.OnUpdateAvailableChanged;
@@ -90,7 +90,6 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
     public void SaveToSettings()
     {
         this.settings.AutoCheckForUpdates = this.AutoCheckForUpdates;
-        this.settings.UpdateChannel = (UpdateChannel)this.SelectedChannelIndex;
     }
 
     private static string GetVersionText()
@@ -133,7 +132,7 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
     }
 
     /// <summary>
-    /// Performs a manual update check.
+    /// Performs a manual update check on the installed channel.
     /// </summary>
     /// <returns>A task that completes when the check finishes.</returns>
     [RelayCommand]
@@ -143,6 +142,33 @@ internal sealed partial class UpdatesPageViewModel : SettingsPageViewModel
         this.StatusText = "Checking…";
 
         await this.updateService.CheckForUpdateAsync().ConfigureAwait(true);
+
+        this.IsChecking = false;
+        this.RefreshStatus();
+        this.OnPropertyChanged(nameof(this.LastCheckedText));
+    }
+
+    /// <summary>
+    /// Called by the source generator when <see cref="SelectedChannelIndex"/>
+    /// changes. If the user picks a different channel, immediately start a
+    /// check against that channel so the download-and-restart flow can begin.
+    /// </summary>
+    /// <param name="value">The new index.</param>
+    partial void OnSelectedChannelIndexChanged(int value)
+    {
+        var target = (UpdateChannel)value;
+        if (target != this.updateService.InstalledChannel)
+        {
+            _ = this.SwitchChannelAsync(target);
+        }
+    }
+
+    private async Task SwitchChannelAsync(UpdateChannel target)
+    {
+        this.IsChecking = true;
+        this.StatusText = $"Checking {target} channel…";
+
+        await this.updateService.CheckForUpdateAsync(target).ConfigureAwait(true);
 
         this.IsChecking = false;
         this.RefreshStatus();

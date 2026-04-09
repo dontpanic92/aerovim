@@ -29,6 +29,13 @@ internal interface IUpdateService
     bool IsInstalled { get; }
 
     /// <summary>
+    /// Gets the update channel of the currently installed binary, as recorded
+    /// in the Velopack manifest. Returns <see cref="UpdateChannel.Stable"/>
+    /// for non-Velopack (dev) builds.
+    /// </summary>
+    UpdateChannel InstalledChannel { get; }
+
+    /// <summary>
     /// Gets a value indicating whether a check is currently in progress.
     /// </summary>
     bool IsChecking { get; }
@@ -55,11 +62,16 @@ internal interface IUpdateService
     string? LastError { get; }
 
     /// <summary>
-    /// Checks the configured update channel for a newer version.
+    /// Checks the specified channel (or the <see cref="InstalledChannel"/> when
+    /// <paramref name="targetChannel"/> is <c>null</c>) for a newer version.
+    /// Pass an explicit channel to initiate a channel switch.
     /// </summary>
+    /// <param name="targetChannel">
+    /// The channel to check, or <c>null</c> to check the installed channel.
+    /// </param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A task that completes when the check finishes.</returns>
-    Task CheckForUpdateAsync(CancellationToken ct = default);
+    Task CheckForUpdateAsync(UpdateChannel? targetChannel = null, CancellationToken ct = default);
 
     /// <summary>
     /// Downloads the available update with progress reporting.
