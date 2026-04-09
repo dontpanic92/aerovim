@@ -16,6 +16,7 @@ public static class TerminalInputEncoder
         { "CR", "\r" },
         { "Return", "\r" },
         { "Enter", "\r" },
+        { "NL", "\n" },
         { "BS", "\x7F" },
         { "Tab", "\t" },
         { "Space", " " },
@@ -46,8 +47,8 @@ public static class TerminalInputEncoder
         { "F12", "\x1B[24~" },
     };
 
-    // Modifier codes for xterm-style modified keys: 2=Shift, 3=Alt, 5=Ctrl, etc.
-    private static readonly Dictionary<string, string> ArrowKeys = new()
+    // Arrow/cursor keys use CSI {final} format; modified variants use CSI 1;{mod}{final}.
+    private static readonly Dictionary<string, string> CsiKeyFinals = new()
     {
         { "Up", "A" },
         { "Down", "B" },
@@ -55,6 +56,32 @@ public static class TerminalInputEncoder
         { "Left", "D" },
         { "Home", "H" },
         { "End", "F" },
+    };
+
+    // F1-F4 use SS3 unmodified; modified variants use CSI 1;{mod}{final}.
+    private static readonly Dictionary<string, string> FunctionKeyFinals = new()
+    {
+        { "F1", "P" },
+        { "F2", "Q" },
+        { "F3", "R" },
+        { "F4", "S" },
+    };
+
+    // Keys using CSI {num}~ format; modified variants use CSI {num};{mod}~.
+    private static readonly Dictionary<string, int> TildeKeyParams = new()
+    {
+        { "Insert", 2 },
+        { "Del", 3 },
+        { "PageUp", 5 },
+        { "PageDown", 6 },
+        { "F5", 15 },
+        { "F6", 17 },
+        { "F7", 18 },
+        { "F8", 19 },
+        { "F9", 20 },
+        { "F10", 21 },
+        { "F11", 23 },
+        { "F12", 24 },
     };
 
     // Application cursor keys mode (DECCKM) sends SS3 instead of CSI for unmodified arrow keys.
@@ -82,14 +109,38 @@ public static class TerminalInputEncoder
         }
 
         // Check if it's a special key notation: <...>
-        if (vimNotation.Length > 2 && vimNotation[0] == '<' && vimNotation[vimNotation.Length - 1] == '>')
+        // Only match short, ASCII-only content to avoid misidentifying pasted
+        // text (e.g. HTML tags or bracketed paste content) as a key sequence.
+        if (vimNotation.Length > 2 && vimNotation[0] == '<' && vimNotation[^1] == '>'
+            && IsVimKeyNotation(vimNotation))
         {
             string inner = vimNotation.Substring(1, vimNotation.Length - 2);
             return EncodeSpecial(inner, applicationCursorKeys);
         }
 
-        // Regular character
+        // Regular character or raw text — pass through
         return vimNotation;
+    }
+
+    private static bool IsVimKeyNotation(string s)
+    {
+        // Vim key notation is short: <Esc>, <C-S-F12>, <lt>, etc.
+        // Reject strings that are too long or contain non-ASCII / whitespace.
+        if (s.Length > 20)
+        {
+            return false;
+        }
+
+        for (int i = 1; i < s.Length - 1; i++)
+        {
+            char c = s[i];
+            if (c <= 0x20 || c >= 0x7F || c == '<' || c == '>')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string EncodeSpecial(string inner, bool applicationCursorKeys)
@@ -123,22 +174,50 @@ public static class TerminalInputEncoder
             }
         }
 
-        // Handle modified arrow/special keys with xterm modifier encoding
-        if ((ctrl || shift || alt) && ArrowKeys.TryGetValue(keyName, out string? arrowFinal))
+        bool hasModifiers = ctrl || shift || alt;
+
+        // Modified arrow/cursor keys: CSI 1;{mod}{final}
+        if (hasModifiers && CsiKeyFinals.TryGetValue(keyName, out string? csiFinal))
         {
             int mod = GetXtermModifier(ctrl, shift, alt);
-            return $"\x1B[1;{mod}{arrowFinal}";
+            return $"\x1B[1;{mod}{csiFinal}";
+        }
+
+        // Modified F1-F4: CSI 1;{mod}{final} (instead of SS3)
+        if (hasModifiers && FunctionKeyFinals.TryGetValue(keyName, out string? fkFinal))
+        {
+            int mod = GetXtermModifier(ctrl, shift, alt);
+            return $"\x1B[1;{mod}{fkFinal}";
+        }
+
+        // Modified tilde-keys (F5-F12, Insert, Del, PageUp, PageDown): CSI {num};{mod}~
+        if (hasModifiers && TildeKeyParams.TryGetValue(keyName, out int tildeNum))
+        {
+            int mod = GetXtermModifier(ctrl, shift, alt);
+            return $"\x1B[{tildeNum};{mod}~";
+        }
+
+        // Shift+Tab → back-tab (CSI Z); other modified Tab combos use CSI 1;{mod}Z
+        if (hasModifiers && keyName == "Tab")
+        {
+            if (shift && !ctrl && !alt)
+            {
+                return "\x1B[Z";
+            }
+
+            int mod = GetXtermModifier(ctrl, shift, alt);
+            return $"\x1B[1;{mod}Z";
         }
 
         // Unmodified arrow/cursor keys in DECCKM (application cursor) mode
-        if (!ctrl && !shift && !alt && applicationCursorKeys
+        if (!hasModifiers && applicationCursorKeys
             && ApplicationCursorSequences.TryGetValue(keyName, out string? appSequence))
         {
             return appSequence;
         }
 
-        // Handle Ctrl + single character
-        if (ctrl && !shift && !alt && keyName.Length == 1)
+        // Ctrl(+Shift) + single character
+        if (ctrl && !alt && keyName.Length == 1)
         {
             char ch = char.ToUpper(keyName[0]);
             if (ch >= 'A' && ch <= 'Z')
@@ -158,11 +237,39 @@ public static class TerminalInputEncoder
             };
         }
 
-        // Handle Alt + single character (send ESC + char)
+        // Ctrl+Alt(+Shift) + single character: ESC + Ctrl byte
+        if (ctrl && alt && keyName.Length == 1)
+        {
+            char ch = char.ToUpper(keyName[0]);
+            if (ch >= 'A' && ch <= 'Z')
+            {
+                return $"\x1B{(char)(ch - 'A' + 1)}";
+            }
+
+            string? ctrlByte = ch switch
+            {
+                '@' => "\x00",
+                '[' => "\x1B",
+                '\\' => "\x1C",
+                ']' => "\x1D",
+                '^' => "\x1E",
+                '_' => "\x1F",
+                _ => null,
+            };
+            return ctrlByte is not null ? $"\x1B{ctrlByte}" : $"\x1B{keyName}";
+        }
+
+        // Alt(+Shift) + single character: ESC + char
         if (alt && !ctrl && keyName.Length == 1)
         {
             char ch = shift ? char.ToUpper(keyName[0]) : keyName[0];
             return $"\x1B{ch}";
+        }
+
+        // Alt + multi-char special key: ESC prefix + base encoding
+        if (alt && !ctrl && SpecialKeys.TryGetValue(keyName, out string? altBase))
+        {
+            return $"\x1B{altBase}";
         }
 
         // Look up unmodified special key

@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     private readonly TextBlock titleText;
     private readonly Border neovimBorder;
     private bool isSettingsDialogOpen;
+    private bool keyDownHandled;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
@@ -186,6 +187,7 @@ public partial class MainWindow : Window
     /// <inheritdoc />
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        this.keyDownHandled = false;
         base.OnKeyDown(e);
 
         // During IME composition Avalonia raises KeyDown with Key.ImeProcessed (or Key.None).
@@ -202,6 +204,7 @@ public partial class MainWindow : Window
         {
             _ = this.HandleBracketedPasteAsync();
             e.Handled = true;
+            this.keyDownHandled = true;
             return;
         }
 
@@ -209,6 +212,7 @@ public partial class MainWindow : Window
         {
             this.coordinator.Input(text);
             e.Handled = true;
+            this.keyDownHandled = true;
         }
     }
 
@@ -216,6 +220,18 @@ public partial class MainWindow : Window
     protected override void OnTextInput(TextInputEventArgs e)
     {
         base.OnTextInput(e);
+
+        // If OnKeyDown already handled this key press, suppress the TextInput
+        // event to prevent double-sending. On some platforms (notably macOS)
+        // the text input system delivers a TextInput even after KeyDown marks
+        // the event as handled — e.g. ESC arrives as literal "^[" text.
+        if (this.keyDownHandled)
+        {
+            this.keyDownHandled = false;
+            e.Handled = true;
+            return;
+        }
+
         if (this.coordinator.EditorClient is null || string.IsNullOrEmpty(e.Text))
         {
             return;
@@ -242,8 +258,22 @@ public partial class MainWindow : Window
                 i++;
             }
 
-            if (char.IsControl((char)codepoint) && codepoint < 0x10000)
+            // Allow newline, carriage return, and tab through (needed for
+            // paste), but filter all other control characters (ESC, BEL, etc.).
+            if (codepoint < 0x10000 && char.IsControl((char)codepoint))
             {
+                if (codepoint == '\n' || codepoint == '\r')
+                {
+                    this.coordinator.Input("<CR>");
+                    continue;
+                }
+
+                if (codepoint == '\t')
+                {
+                    this.coordinator.Input("<Tab>");
+                    continue;
+                }
+
                 continue;
             }
 
