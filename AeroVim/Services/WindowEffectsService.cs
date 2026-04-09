@@ -101,6 +101,7 @@ internal sealed class WindowEffectsService
                 }
 
                 MacOSInterop.SetTransparentTitlebar(nsWindow);
+                MacOSInterop.SetTitleBarMaterialHidden(nsWindow, this.ShouldHideTitleBarMaterial());
             },
             DispatcherPriority.Background);
     }
@@ -108,11 +109,12 @@ internal sealed class WindowEffectsService
     /// <summary>
     /// Handles macOS window activation by reapplying transparent titlebar
     /// settings after Avalonia finishes any internal NSWindow style resets.
+    /// Skipped during full screen since macOS manages the titlebar.
     /// A no-op on non-macOS platforms.
     /// </summary>
     public async void HandleMacOSActivation()
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || this.isMacFullScreen)
         {
             return;
         }
@@ -128,6 +130,7 @@ internal sealed class WindowEffectsService
             }
 
             MacOSInterop.SetTransparentTitlebar(nsWindow);
+            MacOSInterop.SetTitleBarMaterialHidden(nsWindow, this.ShouldHideTitleBarMaterial());
         }
         catch (Exception ex)
         {
@@ -158,6 +161,7 @@ internal sealed class WindowEffectsService
         else
         {
             MacOSInterop.SetTransparentTitlebar(nsWindow);
+            MacOSInterop.SetTitleBarMaterialHidden(nsWindow, this.ShouldHideTitleBarMaterial());
         }
 
         this.UpdateBackgroundOpacity();
@@ -318,6 +322,17 @@ internal sealed class WindowEffectsService
             BlurType.Transparent => 0,
             _ => 0,
         };
+    }
+
+    /// <summary>
+    /// Returns whether Avalonia's internal titlebar material view should be
+    /// hidden. It must be hidden when the user selects the Transparent blur
+    /// type on macOS, because the <c>NSVisualEffectMaterialTitlebar</c> view
+    /// that Avalonia inserts renders as opaque without a behind-window blur.
+    /// </summary>
+    private bool ShouldHideTitleBarMaterial()
+    {
+        return this.settings.EnableBlurBehind && this.settings.BlurType == BlurType.Transparent;
     }
 
     private void UpdateBlurPreservationForCurrentSettings()

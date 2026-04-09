@@ -15,9 +15,10 @@ public static class MacOSInterop
 {
     /// <summary>
     /// Configures the NSWindow for a fully transparent background while
-    /// preserving native traffic light buttons. Sets the window background
-    /// color to clear, marks the window as non-opaque, removes the titlebar
-    /// separator, and ensures the window shadow is preserved.
+    /// preserving native traffic light buttons. Sets the window as non-opaque
+    /// with a clear background color, makes the titlebar transparent with a
+    /// hidden title, removes the titlebar separator, and ensures the window
+    /// shadow is preserved.
     /// </summary>
     /// <param name="nsWindow">The NSWindow handle.</param>
     public static void SetTransparentTitlebar(IntPtr nsWindow)
@@ -26,6 +27,17 @@ public static class MacOSInterop
         {
             return;
         }
+
+        // Make the window non-opaque so macOS composites transparency.
+        // [window setOpaque:NO]
+        NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setOpaque:"), false);
+
+        // Set the native background to clear so the titlebar area
+        // participates in the window's transparency level.
+        // [window setBackgroundColor:[NSColor clearColor]]
+        IntPtr nsColorClass = NativeMethods.ObjCGetClass("NSColor");
+        IntPtr clearColor = NativeMethods.ObjCMsgSend(nsColorClass, NativeMethods.SelRegisterName("clearColor"));
+        NativeMethods.ObjCMsgSendIntPtr(nsWindow, NativeMethods.SelRegisterName("setBackgroundColor:"), clearColor);
 
         // [window setTitlebarSeparatorStyle:NSTitlebarSeparatorStyleNone] (0)
         NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitlebarSeparatorStyle:"), 0);
@@ -37,15 +49,16 @@ public static class MacOSInterop
         NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitleVisibility:"), 1);
 
         // Ensure native traffic light buttons are visible since we use
-        // NoChrome (Avalonia won't manage them for us).
+        // a custom window template (Avalonia won't manage them for us).
         ShowTrafficLightButtons(nsWindow);
     }
 
     /// <summary>
     /// Configures the NSWindow for macOS full screen mode so the native
     /// titlebar auto-shows when the user moves the mouse to the top of the
-    /// screen. Makes the titlebar opaque and the title visible so that the
-    /// system reveals a usable titlebar alongside the menu bar.
+    /// screen. Restores the window to opaque, makes the titlebar visible
+    /// and non-transparent so that the system reveals a usable titlebar
+    /// alongside the menu bar.
     /// </summary>
     /// <param name="nsWindow">The NSWindow handle.</param>
     public static void ConfigureForFullScreen(IntPtr nsWindow)
@@ -55,6 +68,10 @@ public static class MacOSInterop
             return;
         }
 
+        // Restore opaque window for full screen (content is fully opaque).
+        // [window setOpaque:YES]
+        NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setOpaque:"), true);
+
         // [window setTitlebarAppearsTransparent:NO]
         NativeMethods.ObjCMsgSendBool(nsWindow, NativeMethods.SelRegisterName("setTitlebarAppearsTransparent:"), false);
 
@@ -63,6 +80,76 @@ public static class MacOSInterop
 
         // [window setTitlebarSeparatorStyle:NSTitlebarSeparatorStyleAutomatic] (1)
         NativeMethods.ObjCMsgSendLong(nsWindow, NativeMethods.SelRegisterName("setTitlebarSeparatorStyle:"), 1);
+
+        ShowTrafficLightButtons(nsWindow);
+    }
+
+    /// <summary>
+    /// Controls the visibility of Avalonia's internal titlebar material view
+    /// and the <c>NSWindowStyleMaskTexturedBackground</c> style mask flag.
+    /// <para>
+    /// In Avalonia 12 with <c>ExtendClientAreaToDecorationsHint="True"</c>
+    /// and <c>WindowDecorations="Full"</c>, the native layer adds
+    /// <c>NSWindowStyleMaskTexturedBackground</c> to the style mask and calls
+    /// <c>ShowTitleBar:YES</c> on the <c>AutoFitContentView</c>, inserting an
+    /// <c>NSVisualEffectView</c> with <c>NSVisualEffectMaterialTitlebar</c>.
+    /// Both of these contribute an opaque titlebar background that breaks
+    /// <c>WindowTransparencyLevel.Transparent</c>.
+    /// </para>
+    /// <para>
+    /// Calling this with <paramref name="hidden"/> = <c>true</c> replicates
+    /// the Avalonia 11 <c>NoChrome</c> behavior: the textured-background
+    /// style flag is stripped and the titlebar material view is hidden,
+    /// resulting in a fully transparent titlebar while keeping native
+    /// traffic light buttons.
+    /// </para>
+    /// </summary>
+    /// <param name="nsWindow">The NSWindow handle.</param>
+    /// <param name="hidden">
+    /// <c>true</c> to hide the titlebar material (Transparent mode);
+    /// <c>false</c> to restore it (Acrylic / no blur).
+    /// </param>
+    public static void SetTitleBarMaterialHidden(IntPtr nsWindow, bool hidden)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || nsWindow == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // NSWindowStyleMaskTexturedBackground = 1 << 8
+        const long texturedBackgroundMask = 1 << 8;
+        long currentMask = (long)(nint)NativeMethods.ObjCMsgSend(
+            nsWindow,
+            NativeMethods.SelRegisterName("styleMask"));
+
+        if (hidden)
+        {
+            NativeMethods.ObjCMsgSendLong(
+                nsWindow,
+                NativeMethods.SelRegisterName("setStyleMask:"),
+                currentMask & ~texturedBackgroundMask);
+        }
+        else if ((currentMask & texturedBackgroundMask) == 0)
+        {
+            NativeMethods.ObjCMsgSendLong(
+                nsWindow,
+                NativeMethods.SelRegisterName("setStyleMask:"),
+                currentMask | texturedBackgroundMask);
+        }
+
+        // Call Avalonia's ShowTitleBar: on AutoFitContentView (the
+        // window's contentView) to hide/show the _titleBarMaterial
+        // NSVisualEffectView and _titleBarUnderline NSBox.
+        IntPtr contentView = NativeMethods.ObjCMsgSend(
+            nsWindow,
+            NativeMethods.SelRegisterName("contentView"));
+        if (contentView != IntPtr.Zero)
+        {
+            NativeMethods.ObjCMsgSendBool(
+                contentView,
+                NativeMethods.SelRegisterName("ShowTitleBar:"),
+                !hidden);
+        }
 
         ShowTrafficLightButtons(nsWindow);
     }
