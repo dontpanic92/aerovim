@@ -1,599 +1,841 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AeroVim — Neovim ❤ Acrylic</title>
-    <meta name="description" content="AeroVim is a fast, elegant, and cross-platform vim/neovim frontend featuring transparency effects and font ligature support.">
-    <meta name="theme-color" content="#0d1117">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <meta property="og:title" content="AeroVim — Neovim ❤ Acrylic">
-    <meta property="og:description" content="Cross-platform Neovim GUI with Blur/Acrylic/Mica transparency effects and font ligature support.">
-    <meta property="og:image" content="screenshot.jpg">
-    <meta property="og:type" content="website">
-    <style>
-        /* ── Reset & Base ─────────────────────────────────── */
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --bg-primary:   #0d1117;
-            --bg-secondary: #161b22;
-            --bg-card:      #1c2333;
-            --border:       #30363d;
-            --text-primary: #e6edf3;
-            --text-secondary: #8b949e;
-            --accent:        #7c3aed;
-            --accent-light:  #a78bfa;
-            --accent-glow:   rgba(124, 58, 237, 0.35);
-            --blue:          #58a6ff;
-        }
-
-        html { scroll-behavior: smooth; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        /* ── Stars Background ─────────────────────────────── */
-        body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            background:
-                radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,0.6) 0%, transparent 100%),
-                radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.4) 0%, transparent 100%),
-                radial-gradient(1.2px 1.2px at 60% 20%, rgba(255,255,255,0.5) 0%, transparent 100%),
-                radial-gradient(1px 1px at 80% 90%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1.5px 1.5px at 10% 80%, rgba(255,255,255,0.5) 0%, transparent 100%),
-                radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,0.4) 0%, transparent 100%),
-                radial-gradient(1.3px 1.3px at 50% 50%, rgba(255,255,255,0.35) 0%, transparent 100%),
-                radial-gradient(1px 1px at 75% 15%, rgba(255,255,255,0.45) 0%, transparent 100%),
-                radial-gradient(1.1px 1.1px at 30% 55%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1.4px 1.4px at 5% 45%, rgba(255,255,255,0.5) 0%, transparent 100%);
-            background-size: 550px 550px;
-            animation: drift 120s linear infinite;
-        }
-
-        @keyframes drift {
-            from { transform: translateY(0); }
-            to   { transform: translateY(-550px); }
-        }
-
-        /* Nebula glow */
-        body::after {
-            content: "";
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background:
-                radial-gradient(ellipse 600px 400px at 20% 50%, rgba(124,58,237,0.08) 0%, transparent 70%),
-                radial-gradient(ellipse 500px 350px at 80% 30%, rgba(99,102,241,0.06) 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        a { color: var(--accent-light); text-decoration: none; transition: color 0.2s; }
-        a:hover { color: #c4b5fd; }
-
-        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-
-        /* ── Fade-in Animation ─────────────────────────────── */
-        .fade-in {
-            opacity: 0;
-            transform: translateY(24px);
-            transition: opacity 0.7s ease-out, transform 0.7s ease-out;
-        }
-        .fade-in.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* ── Navigation ────────────────────────────────────── */
-        nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            background: rgba(13, 17, 23, 0.8);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border);
-            padding: 14px 0;
-        }
-
-        nav .container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .nav-brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            letter-spacing: -0.02em;
-        }
-
-        .nav-brand img {
-            width: 28px;
-            height: 28px;
-        }
-
-        .nav-links { display: flex; gap: 28px; align-items: center; }
-        .nav-links a { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; }
-        .nav-links a:hover { color: var(--text-primary); }
-
-        .nav-github {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .nav-github svg { width: 18px; height: 18px; fill: currentColor; }
-
-        /* ── Hero Section ──────────────────────────────────── */
-        .hero {
-            padding: 160px 0 80px;
-            text-align: center;
-        }
-
-        .hero-logo {
-            width: 96px;
-            height: 96px;
-            margin-bottom: 20px;
-            filter: drop-shadow(0 0 24px var(--accent-glow));
-        }
-
-        .hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero .tagline {
-            font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-            color: var(--text-secondary);
-            margin-bottom: 40px;
-            font-weight: 400;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 56px;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 28px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.25s ease;
-            cursor: pointer;
-            border: none;
-        }
-
-        .btn svg { width: 18px; height: 18px; fill: currentColor; }
-
-        .btn-primary {
-            background: var(--accent);
-            color: #fff;
-            box-shadow: 0 0 24px var(--accent-glow);
-        }
-        .btn-primary:hover {
-            background: #6d28d9;
-            color: #fff;
-            box-shadow: 0 0 36px var(--accent-glow);
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: var(--bg-card);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-        }
-        .btn-secondary:hover {
-            background: #243044;
-            color: var(--text-primary);
-            border-color: var(--accent);
-            transform: translateY(-1px);
-        }
-
-        /* Screenshot container */
-        .hero-screenshot {
-            position: relative;
-            max-width: 860px;
-            margin: 0 auto;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow:
-                0 0 60px rgba(124,58,237,0.18),
-                0 20px 60px rgba(0,0,0,0.5);
-        }
-
-        .hero-screenshot img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .hero-screenshot::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
-            pointer-events: none;
-        }
-
-        /* ── Section Styles ────────────────────────────────── */
-        section { padding: 80px 0; }
-
-        .section-title {
-            font-size: 2rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-
-        .section-subtitle {
-            color: var(--text-secondary);
-            text-align: center;
-            max-width: 600px;
-            margin: 0 auto 48px;
-            font-size: 1.05rem;
-        }
-
-        /* ── Features Grid ─────────────────────────────────── */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-        }
-
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 28px 24px;
-            transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
-        }
-
-        .feature-card:hover {
-            border-color: var(--accent);
-            box-shadow: 0 0 20px var(--accent-glow);
-            transform: translateY(-2px);
-        }
-
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 14px;
-            display: block;
-        }
-
-        .feature-card h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .feature-card p {
-            color: var(--text-secondary);
-            font-size: 0.92rem;
-            line-height: 1.5;
-        }
-
-        /* ── Platform Table ────────────────────────────────── */
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
-        }
-
-        th {
-            background: var(--bg-secondary);
-            font-weight: 600;
-            text-align: left;
-            padding: 14px 20px;
-            border-bottom: 1px solid var(--border);
-            white-space: nowrap;
-        }
-
-        td {
-            padding: 14px 20px;
-            border-bottom: 1px solid rgba(48,54,61,0.5);
-            color: var(--text-secondary);
-        }
-
-        tr:last-child td { border-bottom: none; }
-
-        td:first-child { color: var(--text-primary); font-weight: 500; }
-
-        .runtime-id {
-            font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
-            font-size: 0.85rem;
-            background: var(--bg-secondary);
-            padding: 3px 8px;
-            border-radius: 4px;
-            color: var(--accent-light);
-        }
-
-        .effect-tag {
-            display: inline-block;
-            font-size: 0.8rem;
-            padding: 2px 10px;
-            border-radius: 99px;
-            margin: 2px 3px;
-            font-weight: 500;
-        }
-
-        .effect-blur      { background: rgba(88,166,255,0.12); color: #58a6ff; }
-        .effect-acrylic    { background: rgba(124,58,237,0.15); color: var(--accent-light); }
-        .effect-mica       { background: rgba(56,189,248,0.12); color: #38bdf8; }
-        .effect-transparent{ background: rgba(52,211,153,0.12); color: #34d399; }
-
-        /* ── Build Section ─────────────────────────────────── */
-        .build-section {
-            background: var(--bg-secondary);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .build-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 32px;
-        }
-
-        @media (max-width: 768px) {
-            .build-grid { grid-template-columns: 1fr; }
-        }
-
-        .build-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 28px 24px;
-        }
-
-        .build-card h3 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .build-card h3 span { font-size: 1.4rem; }
-
-        .build-card p {
-            color: var(--text-secondary);
-            font-size: 0.92rem;
-            margin-bottom: 16px;
-        }
-
-        pre {
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 18px;
-            overflow-x: auto;
-            font-family: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
-            font-size: 0.85rem;
-            line-height: 1.65;
-            color: var(--text-secondary);
-        }
-
-        pre .cmd  { color: var(--accent-light); }
-        pre .flag { color: #34d399; }
-        pre .comment { color: #484f58; }
-
-        .note {
-            margin-top: 16px;
-            padding: 12px 16px;
-            background: rgba(124,58,237,0.08);
-            border-left: 3px solid var(--accent);
-            border-radius: 0 8px 8px 0;
-            font-size: 0.88rem;
-            color: var(--text-secondary);
-        }
-
-        .note strong { color: var(--accent-light); }
-
-        /* ── Footer ────────────────────────────────────────── */
-        footer {
-            padding: 40px 0;
-            border-top: 1px solid var(--border);
-            text-align: center;
-        }
-
-        footer p {
-            color: var(--text-secondary);
-            font-size: 0.88rem;
-            margin-bottom: 8px;
-        }
-
-        footer a { font-weight: 500; }
-
-        /* ── Responsive ────────────────────────────────────── */
-        @media (max-width: 600px) {
-            .hero { padding: 130px 0 60px; }
-            section { padding: 60px 0; }
-            .nav-links a.hide-mobile { display: none; }
-        }
-    </style>
-</head>
-<body>
-
-<!-- Navigation -->
-<nav>
-    <div class="container">
-        <a href="#" class="nav-brand"><img src="logo.svg" alt="AeroVim logo">AeroVim</a>
-        <div class="nav-links">
-            <a href="#features" class="hide-mobile">Features</a>
-            <a href="#get-started">Get Started</a>
-            <a href="https://github.com/dontpanic92/dotnvim" class="nav-github" target="_blank" rel="noopener">
-                <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-                GitHub
-            </a>
-        </div>
-    </div>
-</nav>
-
-<!-- Hero -->
-<section class="hero">
-    <div class="container">
-        <div class="fade-in">
-            <img src="logo.svg" alt="AeroVim logo" class="hero-logo">
-            <h1>AeroVim</h1>
-            <p class="tagline">A fast, elegant, and cross-platform vim/neovim frontend</p>
-            <div class="hero-buttons">
-                <a href="https://github.com/dontpanic92/dotnvim/releases" class="btn btn-primary">
-                    <svg viewBox="0 0 16 16"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
-                    Download
-                </a>
-                <a href="https://github.com/dontpanic92/dotnvim" class="btn btn-secondary" target="_blank" rel="noopener">
-                    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-                    View on GitHub
-                </a>
-            </div>
-        </div>
-        <div class="fade-in hero-screenshot">
-            <img src="screenshot.jpg" alt="AeroVim screenshot showing a Neovim editor with a beautiful acrylic transparency effect over a space-themed desktop background" width="1440" height="806" loading="eager">
-        </div>
-    </div>
-</section>
-
-<!-- Features -->
-<section id="features">
-    <div class="container">
-        <div class="fade-in">
-            <h2 class="section-title">Features</h2>
-            <p class="section-subtitle">A modern Neovim experience with native performance and stunning visuals.</p>
-        </div>
-        <div class="features-grid">
-            <div class="feature-card fade-in">
-                <span class="feature-icon">⚡</span>
-                <h3>Fast</h3>
-                <p>Hardware-accelerated rendering on modern .NET for a smooth, responsive editing experience.</p>
-            </div>
-            <div class="feature-card fade-in">
-                <span class="feature-icon">✨</span>
-                <h3>Elegant</h3>
-                <p>Blur, Acrylic, Mica transparency effects and full font ligature support — your editor, beautiful.</p>
-            </div>
-            <div class="feature-card fade-in">
-                <span class="feature-icon">🐚</span>
-                <h3>Shell Integration</h3>
-                <p>File type associations and system context menu support — open files in AeroVim right from your OS.</p>
-            </div>
-            <div class="feature-card fade-in">
-                <span class="feature-icon">🖥️</span>
-                <h3>Cross-Platform</h3>
-                <p>Runs natively on Windows, macOS, and Linux. One editor, every desktop.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Get Started -->
-<section id="get-started" class="build-section">
-    <div class="container">
-        <div class="fade-in">
-            <h2 class="section-title">Get Started</h2>
-            <p class="section-subtitle">Download a pre-built release or build from source.</p>
-        </div>
-        <div class="build-grid">
-            <div class="build-card fade-in">
-                <h3><span>📦</span> Download</h3>
-                <p>Grab the latest release for your platform from GitHub Releases.</p>
-                <a href="https://github.com/dontpanic92/dotnvim/releases" class="btn btn-primary" style="width:100%;justify-content:center;" target="_blank" rel="noopener">
-                    <svg viewBox="0 0 16 16" style="width:16px;height:16px;"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>
-                    Go to Releases
-                </a>
-                <div class="note">
-                    <strong>macOS note:</strong> Unsigned builds may be blocked by Gatekeeper.
-                    Run <code>xattr -cr /Applications/AeroVim.app</code> before first launch.
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>AeroVim — Neovim ❤ Acrylic</title>
+        <meta
+            name="description"
+            content="AeroVim is a fast, elegant, and cross-platform vim/neovim frontend featuring transparency effects and font ligature support."
+        />
+        <meta name="theme-color" content="#0d1117" />
+        <link rel="icon" href="favicon.ico" type="image/x-icon" />
+        <meta property="og:title" content="AeroVim — Neovim ❤ Acrylic" />
+        <meta
+            property="og:description"
+            content="Cross-platform Neovim GUI with Blur/Acrylic/Mica transparency effects and font ligature support."
+        />
+        <meta property="og:image" content="screenshot.png" />
+        <meta property="og:type" content="website" />
+        <style>
+            /* ── Reset & Base ─────────────────────────────────── */
+            *,
+            *::before,
+            *::after {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            :root {
+                --bg-primary: #0d1117;
+                --bg-secondary: #161b22;
+                --bg-card: #1c2333;
+                --border: #30363d;
+                --text-primary: #e6edf3;
+                --text-secondary: #8b949e;
+                --accent: #7c3aed;
+                --accent-light: #a78bfa;
+                --accent-glow: rgba(124, 58, 237, 0.35);
+                --blue: #58a6ff;
+            }
+
+            html {
+                scroll-behavior: smooth;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+                    Arial, sans-serif;
+                background: var(--bg-primary);
+                color: var(--text-primary);
+                line-height: 1.6;
+                overflow-x: hidden;
+            }
+
+            /* ── Stars Background ─────────────────────────────── */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                z-index: -2;
+                background:
+                    radial-gradient(
+                        1.5px 1.5px at 20% 30%,
+                        rgba(255, 255, 255, 0.6) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1px 1px at 40% 70%,
+                        rgba(255, 255, 255, 0.4) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1.2px 1.2px at 60% 20%,
+                        rgba(255, 255, 255, 0.5) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1px 1px at 80% 90%,
+                        rgba(255, 255, 255, 0.3) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1.5px 1.5px at 10% 80%,
+                        rgba(255, 255, 255, 0.5) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1px 1px at 90% 50%,
+                        rgba(255, 255, 255, 0.4) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1.3px 1.3px at 50% 50%,
+                        rgba(255, 255, 255, 0.35) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1px 1px at 75% 15%,
+                        rgba(255, 255, 255, 0.45) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1.1px 1.1px at 30% 55%,
+                        rgba(255, 255, 255, 0.3) 0%,
+                        transparent 100%
+                    ),
+                    radial-gradient(
+                        1.4px 1.4px at 5% 45%,
+                        rgba(255, 255, 255, 0.5) 0%,
+                        transparent 100%
+                    );
+                background-size: 550px 550px;
+                animation: drift 120s linear infinite;
+            }
+
+            @keyframes drift {
+                from {
+                    transform: translateY(0);
+                }
+                to {
+                    transform: translateY(-550px);
+                }
+            }
+
+            /* Nebula glow */
+            body::after {
+                content: "";
+                position: fixed;
+                inset: 0;
+                z-index: -1;
+                background:
+                    radial-gradient(
+                        ellipse 600px 400px at 20% 50%,
+                        rgba(124, 58, 237, 0.08) 0%,
+                        transparent 70%
+                    ),
+                    radial-gradient(
+                        ellipse 500px 350px at 80% 30%,
+                        rgba(99, 102, 241, 0.06) 0%,
+                        transparent 70%
+                    );
+                pointer-events: none;
+            }
+
+            a {
+                color: var(--accent-light);
+                text-decoration: none;
+                transition: color 0.2s;
+            }
+            a:hover {
+                color: #c4b5fd;
+            }
+
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 0 24px;
+            }
+
+            /* ── Fade-in Animation ─────────────────────────────── */
+            .fade-in {
+                opacity: 0;
+                transform: translateY(24px);
+                transition:
+                    opacity 0.7s ease-out,
+                    transform 0.7s ease-out;
+            }
+            .fade-in.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            /* ── Navigation ────────────────────────────────────── */
+            nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 100;
+                background: rgba(13, 17, 23, 0.8);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border-bottom: 1px solid var(--border);
+                padding: 14px 0;
+            }
+
+            nav .container {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .nav-brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: var(--text-primary);
+                letter-spacing: -0.02em;
+            }
+
+            .nav-brand img {
+                width: 28px;
+                height: 28px;
+            }
+
+            .nav-links {
+                display: flex;
+                gap: 28px;
+                align-items: center;
+            }
+            .nav-links a {
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+                font-weight: 500;
+            }
+            .nav-links a:hover {
+                color: var(--text-primary);
+            }
+
+            .nav-github {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .nav-github svg {
+                width: 18px;
+                height: 18px;
+                fill: currentColor;
+            }
+
+            /* ── Hero Section ──────────────────────────────────── */
+            .hero {
+                padding: 160px 0 80px;
+                text-align: center;
+            }
+
+            .hero-logo {
+                width: 96px;
+                height: 96px;
+                margin-bottom: 20px;
+                filter: drop-shadow(0 0 24px var(--accent-glow));
+            }
+
+            .hero h1 {
+                font-size: clamp(2.5rem, 6vw, 4rem);
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                margin-bottom: 12px;
+                background: linear-gradient(
+                    135deg,
+                    var(--text-primary) 0%,
+                    var(--accent-light) 100%
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+
+            .hero .tagline {
+                font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+                color: var(--text-secondary);
+                margin-bottom: 40px;
+                font-weight: 400;
+            }
+
+            .hero-buttons {
+                display: flex;
+                gap: 16px;
+                justify-content: center;
+                flex-wrap: wrap;
+                margin-bottom: 56px;
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px 28px;
+                border-radius: 8px;
+                font-size: 1rem;
+                font-weight: 600;
+                transition: all 0.25s ease;
+                cursor: pointer;
+                border: none;
+            }
+
+            .btn svg {
+                width: 18px;
+                height: 18px;
+                fill: currentColor;
+            }
+
+            .btn-primary {
+                background: var(--accent);
+                color: #fff;
+                box-shadow: 0 0 24px var(--accent-glow);
+            }
+            .btn-primary:hover {
+                background: #6d28d9;
+                color: #fff;
+                box-shadow: 0 0 36px var(--accent-glow);
+                transform: translateY(-1px);
+            }
+
+            .btn-secondary {
+                background: var(--bg-card);
+                color: var(--text-primary);
+                border: 1px solid var(--border);
+            }
+            .btn-secondary:hover {
+                background: #243044;
+                color: var(--text-primary);
+                border-color: var(--accent);
+                transform: translateY(-1px);
+            }
+
+            /* Screenshot container */
+            .hero-screenshot {
+                position: relative;
+                max-width: 860px;
+                margin: 0 auto;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow:
+                    0 0 60px rgba(124, 58, 237, 0.18),
+                    0 20px 60px rgba(0, 0, 0, 0.5);
+            }
+
+            .hero-screenshot img {
+                width: 100%;
+                height: auto;
+                display: block;
+            }
+
+            .hero-screenshot::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                pointer-events: none;
+            }
+
+            /* ── Section Styles ────────────────────────────────── */
+            section {
+                padding: 80px 0;
+            }
+
+            .section-title {
+                font-size: 2rem;
+                font-weight: 700;
+                letter-spacing: -0.02em;
+                margin-bottom: 12px;
+                text-align: center;
+            }
+
+            .section-subtitle {
+                color: var(--text-secondary);
+                text-align: center;
+                max-width: 600px;
+                margin: 0 auto 48px;
+                font-size: 1.05rem;
+            }
+
+            /* ── Features Grid ─────────────────────────────────── */
+            .features-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 20px;
+            }
+
+            .feature-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 28px 24px;
+                transition:
+                    border-color 0.3s,
+                    box-shadow 0.3s,
+                    transform 0.3s;
+            }
+
+            .feature-card:hover {
+                border-color: var(--accent);
+                box-shadow: 0 0 20px var(--accent-glow);
+                transform: translateY(-2px);
+            }
+
+            .feature-icon {
+                font-size: 2rem;
+                margin-bottom: 14px;
+                display: block;
+            }
+
+            .feature-card h3 {
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+
+            .feature-card p {
+                color: var(--text-secondary);
+                font-size: 0.92rem;
+                line-height: 1.5;
+            }
+
+            /* ── Platform Table ────────────────────────────────── */
+            .table-wrapper {
+                overflow-x: auto;
+                border-radius: 12px;
+                border: 1px solid var(--border);
+                background: var(--bg-card);
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.95rem;
+            }
+
+            th {
+                background: var(--bg-secondary);
+                font-weight: 600;
+                text-align: left;
+                padding: 14px 20px;
+                border-bottom: 1px solid var(--border);
+                white-space: nowrap;
+            }
+
+            td {
+                padding: 14px 20px;
+                border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+                color: var(--text-secondary);
+            }
+
+            tr:last-child td {
+                border-bottom: none;
+            }
+
+            td:first-child {
+                color: var(--text-primary);
+                font-weight: 500;
+            }
+
+            .runtime-id {
+                font-family:
+                    "SF Mono", "Cascadia Code", "Fira Code", "Consolas",
+                    monospace;
+                font-size: 0.85rem;
+                background: var(--bg-secondary);
+                padding: 3px 8px;
+                border-radius: 4px;
+                color: var(--accent-light);
+            }
+
+            .effect-tag {
+                display: inline-block;
+                font-size: 0.8rem;
+                padding: 2px 10px;
+                border-radius: 99px;
+                margin: 2px 3px;
+                font-weight: 500;
+            }
+
+            .effect-blur {
+                background: rgba(88, 166, 255, 0.12);
+                color: #58a6ff;
+            }
+            .effect-acrylic {
+                background: rgba(124, 58, 237, 0.15);
+                color: var(--accent-light);
+            }
+            .effect-mica {
+                background: rgba(56, 189, 248, 0.12);
+                color: #38bdf8;
+            }
+            .effect-transparent {
+                background: rgba(52, 211, 153, 0.12);
+                color: #34d399;
+            }
+
+            /* ── Build Section ─────────────────────────────────── */
+            .build-section {
+                background: var(--bg-secondary);
+                border-top: 1px solid var(--border);
+                border-bottom: 1px solid var(--border);
+            }
+
+            .build-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 32px;
+            }
+
+            @media (max-width: 768px) {
+                .build-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            .build-card {
+                background: var(--bg-card);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 28px 24px;
+            }
+
+            .build-card h3 {
+                font-size: 1.15rem;
+                font-weight: 600;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .build-card h3 span {
+                font-size: 1.4rem;
+            }
+
+            .build-card p {
+                color: var(--text-secondary);
+                font-size: 0.92rem;
+                margin-bottom: 16px;
+            }
+
+            pre {
+                background: var(--bg-primary);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 16px 18px;
+                overflow-x: auto;
+                font-family:
+                    "SF Mono", "Cascadia Code", "Fira Code", "Consolas",
+                    monospace;
+                font-size: 0.85rem;
+                line-height: 1.65;
+                color: var(--text-secondary);
+            }
+
+            pre .cmd {
+                color: var(--accent-light);
+            }
+            pre .flag {
+                color: #34d399;
+            }
+            pre .comment {
+                color: #484f58;
+            }
+
+            .note {
+                margin-top: 16px;
+                padding: 12px 16px;
+                background: rgba(124, 58, 237, 0.08);
+                border-left: 3px solid var(--accent);
+                border-radius: 0 8px 8px 0;
+                font-size: 0.88rem;
+                color: var(--text-secondary);
+            }
+
+            .note strong {
+                color: var(--accent-light);
+            }
+
+            /* ── Footer ────────────────────────────────────────── */
+            footer {
+                padding: 40px 0;
+                border-top: 1px solid var(--border);
+                text-align: center;
+            }
+
+            footer p {
+                color: var(--text-secondary);
+                font-size: 0.88rem;
+                margin-bottom: 8px;
+            }
+
+            footer a {
+                font-weight: 500;
+            }
+
+            /* ── Responsive ────────────────────────────────────── */
+            @media (max-width: 600px) {
+                .hero {
+                    padding: 130px 0 60px;
+                }
+                section {
+                    padding: 60px 0;
+                }
+                .nav-links a.hide-mobile {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Navigation -->
+        <nav>
+            <div class="container">
+                <a href="#" class="nav-brand"
+                    ><img src="logo.svg" alt="AeroVim logo" />AeroVim</a
+                >
+                <div class="nav-links">
+                    <a href="#features" class="hide-mobile">Features</a>
+                    <a href="#get-started">Get Started</a>
+                    <a
+                        href="https://github.com/dontpanic92/dotnvim"
+                        class="nav-github"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        <svg viewBox="0 0 16 16">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                            />
+                        </svg>
+                        GitHub
+                    </a>
                 </div>
             </div>
-            <div class="build-card fade-in">
-                <h3><span>🔨</span> Build from Source</h3>
-                <p>Requires the <a href="https://dotnet.microsoft.com/download" target="_blank" rel="noopener">.NET 10 SDK</a>.</p>
-                <pre><span class="comment"># Restore &amp; build</span>
+        </nav>
+
+        <!-- Hero -->
+        <section class="hero">
+            <div class="container">
+                <div class="fade-in">
+                    <img src="logo.svg" alt="AeroVim logo" class="hero-logo" />
+                    <h1>AeroVim</h1>
+                    <p class="tagline">
+                        A fast, elegant, and cross-platform vim/neovim frontend
+                    </p>
+                    <div class="hero-buttons">
+                        <a
+                            href="https://github.com/dontpanic92/dotnvim/releases"
+                            class="btn btn-primary"
+                        >
+                            <svg viewBox="0 0 16 16">
+                                <path
+                                    d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"
+                                />
+                            </svg>
+                            Download
+                        </a>
+                        <a
+                            href="https://github.com/dontpanic92/dotnvim"
+                            class="btn btn-secondary"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            <svg viewBox="0 0 16 16">
+                                <path
+                                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                                />
+                            </svg>
+                            View on GitHub
+                        </a>
+                    </div>
+                </div>
+                <div class="fade-in hero-screenshot">
+                    <img
+                        src="screenshot.png"
+                        alt="AeroVim screenshot showing a Neovim editor with a beautiful acrylic transparency effect over a space-themed desktop background"
+                        width="1440"
+                        height="806"
+                        loading="eager"
+                    />
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section id="features">
+            <div class="container">
+                <div class="fade-in">
+                    <h2 class="section-title">Features</h2>
+                    <p class="section-subtitle">
+                        A modern Neovim experience with native performance and
+                        stunning visuals.
+                    </p>
+                </div>
+                <div class="features-grid">
+                    <div class="feature-card fade-in">
+                        <span class="feature-icon">⚡</span>
+                        <h3>Fast</h3>
+                        <p>
+                            Hardware-accelerated rendering on modern .NET for a
+                            smooth, responsive editing experience.
+                        </p>
+                    </div>
+                    <div class="feature-card fade-in">
+                        <span class="feature-icon">✨</span>
+                        <h3>Elegant</h3>
+                        <p>
+                            Blur, Acrylic, Mica transparency effects and full
+                            font ligature support — your editor, beautiful.
+                        </p>
+                    </div>
+                    <div class="feature-card fade-in">
+                        <span class="feature-icon">🐚</span>
+                        <h3>Shell Integration</h3>
+                        <p>
+                            File type associations and system context menu
+                            support — open files in AeroVim right from your OS.
+                        </p>
+                    </div>
+                    <div class="feature-card fade-in">
+                        <span class="feature-icon">🖥️</span>
+                        <h3>Cross-Platform</h3>
+                        <p>
+                            Runs natively on Windows, macOS, and Linux. One
+                            editor, every desktop.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Get Started -->
+        <section id="get-started" class="build-section">
+            <div class="container">
+                <div class="fade-in">
+                    <h2 class="section-title">Get Started</h2>
+                    <p class="section-subtitle">
+                        Download a pre-built release or build from source.
+                    </p>
+                </div>
+                <div class="build-grid">
+                    <div class="build-card fade-in">
+                        <h3><span>📦</span> Download</h3>
+                        <p>
+                            Grab the latest release for your platform from
+                            GitHub Releases.
+                        </p>
+                        <a
+                            href="https://github.com/dontpanic92/dotnvim/releases"
+                            class="btn btn-primary"
+                            style="width: 100%; justify-content: center"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                style="width: 16px; height: 16px"
+                            >
+                                <path
+                                    d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14ZM7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"
+                                />
+                            </svg>
+                            Go to Releases
+                        </a>
+                        <div class="note">
+                            <strong>macOS note:</strong> Unsigned builds may be
+                            blocked by Gatekeeper. Run
+                            <code>xattr -cr /Applications/AeroVim.app</code>
+                            before first launch.
+                        </div>
+                    </div>
+                    <div class="build-card fade-in">
+                        <h3><span>🔨</span> Build from Source</h3>
+                        <p>
+                            Requires the
+                            <a
+                                href="https://dotnet.microsoft.com/download"
+                                target="_blank"
+                                rel="noopener"
+                                >.NET 10 SDK</a
+                            >.
+                        </p>
+                        <pre><span class="comment"># Restore &amp; build</span>
 <span class="cmd">dotnet</span> restore aerovim.sln
 <span class="cmd">dotnet</span> build aerovim.sln <span class="flag">-c Release</span>
 
 <span class="comment"># Publish for your platform</span>
 <span class="cmd">dotnet</span> publish AeroVim/AeroVim.csproj \
   <span class="flag">-c Release -r win-x64</span></pre>
-                <div class="note">
-                    <strong>Tip:</strong> Replace <code>win-x64</code> with
-                    <code>osx-arm64</code>, <code>osx-x64</code>, or <code>linux-x64</code>
-                    for other platforms.
+                        <div class="note">
+                            <strong>Tip:</strong> Replace
+                            <code>win-x64</code> with <code>osx-arm64</code>,
+                            <code>osx-x64</code>, or <code>linux-x64</code>
+                            for other platforms.
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</section>
+        </section>
 
-<!-- Footer -->
-<footer>
-    <div class="container">
-        <p>
-            <a href="https://github.com/dontpanic92/dotnvim" target="_blank" rel="noopener">AeroVim</a>
-            is open source under the
-            <a href="https://github.com/dontpanic92/dotnvim/blob/master/LICENSE" target="_blank" rel="noopener">GNU General Public License v2</a>.
-        </p>
-        <p>&copy; aerovim Developers</p>
-    </div>
-</footer>
+        <!-- Footer -->
+        <footer>
+            <div class="container">
+                <p>
+                    <a
+                        href="https://github.com/dontpanic92/dotnvim"
+                        target="_blank"
+                        rel="noopener"
+                        >AeroVim</a
+                    >
+                    is open source under the
+                    <a
+                        href="https://github.com/dontpanic92/dotnvim/blob/master/LICENSE"
+                        target="_blank"
+                        rel="noopener"
+                        >GNU General Public License v2</a
+                    >.
+                </p>
+                <p>&copy; aerovim Developers</p>
+            </div>
+        </footer>
 
-<!-- Fade-in on scroll -->
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        var els = document.querySelectorAll(".fade-in");
-        if (!("IntersectionObserver" in window)) {
-            els.forEach(function (el) { el.classList.add("visible"); });
-            return;
-        }
-        var observer = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add("visible");
-                    observer.unobserve(entry.target);
+        <!-- Fade-in on scroll -->
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var els = document.querySelectorAll(".fade-in");
+                if (!("IntersectionObserver" in window)) {
+                    els.forEach(function (el) {
+                        el.classList.add("visible");
+                    });
+                    return;
                 }
+                var observer = new IntersectionObserver(
+                    function (entries) {
+                        entries.forEach(function (entry) {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: 0.15 },
+                );
+                els.forEach(function (el) {
+                    observer.observe(el);
+                });
             });
-        }, { threshold: 0.15 });
-        els.forEach(function (el) { observer.observe(el); });
-    });
-</script>
-
-</body>
+        </script>
+    </body>
 </html>
