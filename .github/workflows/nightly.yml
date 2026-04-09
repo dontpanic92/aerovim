@@ -1,8 +1,6 @@
 name: Nightly
 
 on:
-  push:
-    branches: [ master ]
   schedule:
     - cron: '0 6 * * *'  # Daily at 06:00 UTC
   workflow_dispatch:
@@ -12,7 +10,34 @@ permissions:
   pages: write
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check for new commits since last nightly tag
+      id: check
+      run: |
+        # Find the most recent nightly tag; if none exists this is the first run.
+        LAST_TAG=$(git tag --list 'nightly/*' --sort=-creatordate | head -n1)
+        if [ -z "$LAST_TAG" ]; then
+          echo "No previous nightly tag found — first nightly build."
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+        elif [ "$(git rev-parse "$LAST_TAG")" = "$(git rev-parse HEAD)" ]; then
+          echo "HEAD is at $LAST_TAG — no new commits since last nightly."
+          echo "has_changes=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "New commits since $LAST_TAG — proceeding with nightly build."
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+        fi
+
   build:
+    needs: check
+    if: needs.check.outputs.has_changes == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -103,7 +128,6 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
 
     steps:
     - uses: actions/checkout@v4
@@ -111,6 +135,10 @@ jobs:
         ref: gh-pages
         path: gh-pages
       continue-on-error: true
+
+    - uses: actions/checkout@v4
+      with:
+        path: source
 
     - name: Initialize gh-pages if needed
       run: |
@@ -156,3 +184,11 @@ jobs:
         git diff --cached --quiet && echo "No changes" && exit 0
         git commit -m "Nightly update: ${{ steps.version.outputs.version }}"
         git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages
+
+    - name: Tag this commit as latest nightly
+      run: |
+        cd source
+        DATE=$(date -u +%Y%m%d)
+        TAG="nightly/${DATE}"
+        git tag -f "$TAG"
+        git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "$TAG"
