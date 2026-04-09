@@ -45,6 +45,9 @@
                     <DataTemplate DataType="vm:ShellIntegrationPageViewModel">
                         <dialogs:ShellIntegrationPage />
                     </DataTemplate>
+                    <DataTemplate DataType="vm:UpdatesPageViewModel">
+                        <dialogs:UpdatesPage />
+                    </DataTemplate>
                     <DataTemplate DataType="vm:AboutPageViewModel">
                         <dialogs:AboutPage />
                     </DataTemplate>

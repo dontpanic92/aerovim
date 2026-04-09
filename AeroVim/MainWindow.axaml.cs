@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private readonly AppSettings settings;
     private readonly WindowEffectsService effectsService;
     private readonly EditorSessionCoordinator coordinator;
+    private readonly IUpdateService updateService;
     private readonly Grid titleBar;
     private readonly TextBlock titleText;
     private readonly Border neovimBorder;
@@ -57,7 +58,8 @@ public partial class MainWindow : Window
 
         this.effectsService = new WindowEffectsService(this, this.settings);
         this.effectsService.CurrentBackgroundColor = this.settings.BackgroundColor;
-        this.coordinator = new EditorSessionCoordinator(this.settings, AeroVim.Diagnostics.AppLogger.Instance, this.ShowSettingsDialogAsync, fileArgs);
+        this.updateService = new UpdateService(this.settings);
+        this.coordinator = new EditorSessionCoordinator(this.settings, AeroVim.Diagnostics.AppLogger.Instance, prompt => this.ShowSettingsDialogAsync(prompt), fileArgs);
 
         this.effectsService.BackgroundBrushChanged += this.OnBackgroundBrushChanged;
         this.effectsService.MacOSFullScreenChanged += this.OnMacOSFullScreenChanged;
@@ -67,6 +69,7 @@ public partial class MainWindow : Window
         this.coordinator.BackgroundColorChanged += this.OnBackgroundColorChanged;
         this.coordinator.EditorExitedAbnormally += this.OnEditorExitedAbnormally;
         this.coordinator.EditorExitedNormally += this.OnEditorExitedNormally;
+        this.updateService.UpdateAvailableChanged += this.OnUpdateAvailableChanged;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
@@ -86,6 +89,12 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Gets the update service for platform-specific notification wiring
+    /// (e.g. macOS menu item).
+    /// </summary>
+    internal IUpdateService UpdateService => this.updateService;
+
+    /// <summary>
     /// Opens the specified files in the editor. Used by drag-and-drop
     /// and platform file-open events (e.g. macOS Finder).
     /// </summary>
@@ -99,8 +108,9 @@ public partial class MainWindow : Window
     /// Opens the settings dialog and returns its result.
     /// </summary>
     /// <param name="promptText">Optional prompt text displayed in the dialog.</param>
+    /// <param name="initialPage">Optional page type to navigate to on open.</param>
     /// <returns>The dialog result indicating whether the user accepted or cancelled.</returns>
-    internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string? promptText = null)
+    internal async Task<Dialogs.SettingsWindow.Result> ShowSettingsDialogAsync(string? promptText = null, Type? initialPage = null)
     {
         if (this.isSettingsDialogOpen)
         {
@@ -119,8 +129,10 @@ public partial class MainWindow : Window
 
             var dialog = new Dialogs.SettingsWindow(
                 this.settings,
+                this.updateService,
                 promptText,
-                this.coordinator.EditorClient?.FontSettings.FontNames);
+                this.coordinator.EditorClient?.FontSettings.FontNames,
+                initialPage);
             await dialog.ShowDialog(this);
 
             if (dialog.CloseReason == Dialogs.SettingsWindow.Result.Ok)
@@ -305,6 +317,7 @@ public partial class MainWindow : Window
         this.effectsService.DeferMacOSNativeTransparency();
         EditorPathDetector.PopulateUnsetPaths(this.settings);
         await this.ShowSettingsPersistenceErrorIfNeededAsync();
+        this.StartUpdateCheckIfEnabled();
 
         if (!await this.coordinator.InitializeAsync())
         {
@@ -399,7 +412,10 @@ public partial class MainWindow : Window
 
     private async void SettingsButton_Click(object? sender, RoutedEventArgs e)
     {
-        await this.ShowSettingsDialogAsync();
+        var initialPage = this.updateService.AvailableUpdate is not null
+            ? typeof(ViewModels.UpdatesPageViewModel)
+            : (Type?)null;
+        await this.ShowSettingsDialogAsync(initialPage: initialPage);
     }
 
     private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -482,6 +498,26 @@ public partial class MainWindow : Window
         if (this.coordinator.EditorClient is ITerminalCapabilities tc && tc.FocusEventsEnabled)
         {
             this.coordinator.Input("\x1B[I");
+        }
+    }
+
+    private void OnUpdateAvailableChanged(object? sender, UpdateInfo? info)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var badge = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("UpdateBadge");
+            if (badge is not null)
+            {
+                badge.IsVisible = info is not null;
+            }
+        });
+    }
+
+    private void StartUpdateCheckIfEnabled()
+    {
+        if (this.settings.AutoCheckForUpdates)
+        {
+            _ = this.updateService.CheckForUpdateAsync();
         }
     }
 

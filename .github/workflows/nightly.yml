@@ -1,0 +1,147 @@
+name: Nightly
+
+on:
+  push:
+    branches: [ master ]
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write   # push to gh-pages
+  pages: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            artifact: aerovim_win_x64
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: aerovim_osx_arm64
+          - os: macos-latest
+            rid: osx-x64
+            artifact: aerovim_osx_x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: aerovim_linux_x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Compute nightly version
+      id: version
+      shell: bash
+      run: |
+        PREFIX=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' Directory.Build.props)
+        DATE=$(date -u +%Y%m%d)
+        SHORT_SHA=${GITHUB_SHA::7}
+        VERSION="${PREFIX}-nightly.${DATE}+${SHORT_SHA}"
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "Nightly version: ${VERSION}"
+
+    - name: Restore NuGet packages
+      run: dotnet restore aerovim.sln
+
+    - name: Build
+      run: dotnet build aerovim.sln --configuration Debug --no-restore --nologo
+
+    - name: Run tests
+      run: dotnet test Tests/Tests.csproj --configuration Debug --no-build --nologo
+
+    - name: Publish
+      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained -p:DebugType=none -p:AeroVimVersion=${{ steps.version.outputs.version }}
+
+    - name: Install vpk
+      run: dotnet tool install -g vpk
+
+    - name: Package with Velopack
+      shell: bash
+      run: |
+        CHANNEL="${{ matrix.rid }}-nightly"
+        if [[ "${{ matrix.rid }}" == osx-* ]]; then
+          PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app/Contents/MacOS"
+        else
+          PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish"
+        fi
+        vpk pack \
+          --packId AeroVim \
+          --packVersion "${{ steps.version.outputs.version }}" \
+          --packDir "$PACK_DIR" \
+          --mainExe aerovim \
+          --channel "$CHANNEL" \
+          --outputDir "staging/${{ matrix.rid }}"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: staging/${{ matrix.rid }}/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: gh-pages
+        path: gh-pages
+      continue-on-error: true
+
+    - name: Initialize gh-pages if needed
+      run: |
+        if [ ! -d gh-pages/.git ]; then
+          mkdir -p gh-pages
+          cd gh-pages
+          git init
+          git checkout -b gh-pages
+          touch .nojekyll
+          mkdir -p updates
+          git add .
+          git commit -m "Initialize GitHub Pages for update feed"
+        fi
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Deploy Velopack releases to gh-pages
+      shell: bash
+      run: |
+        UPDATES_DIR="gh-pages/updates"
+        mkdir -p "$UPDATES_DIR"
+
+        # Copy all Velopack output (releases.*.json, .nupkg, installers) per RID
+        for RID in win-x64 osx-arm64 osx-x64 linux-x64; do
+          ARTIFACT_DIR="artifacts/aerovim_${RID//-/_}"
+          if [ -d "$ARTIFACT_DIR" ]; then
+            cp "$ARTIFACT_DIR"/* "$UPDATES_DIR/" 2>/dev/null || true
+          fi
+        done
+
+        echo "Deployed files:"
+        ls -la "$UPDATES_DIR/"
+
+    - name: Push to gh-pages
+      run: |
+        cd gh-pages
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add -A
+        git diff --cached --quiet && echo "No changes" && exit 0
+        git commit -m "Nightly update: ${{ steps.version.outputs.version }}"
+        git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

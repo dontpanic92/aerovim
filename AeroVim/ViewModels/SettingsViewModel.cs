@@ -25,27 +25,35 @@ internal sealed partial class SettingsViewModel : ViewModelBase
     /// </summary>
     /// <param name="settings">Application settings.</param>
     /// <param name="dialogService">The dialog service.</param>
+    /// <param name="updateService">The update service.</param>
     /// <param name="promptText">Optional prompt text to display.</param>
     /// <param name="guiFontNames">The currently resolved Neovim guifont names.</param>
+    /// <param name="initialPage">Optional page type to navigate to on open.</param>
     public SettingsViewModel(
         AppSettings settings,
         IDialogService dialogService,
+        IUpdateService updateService,
         string? promptText = null,
-        IReadOnlyList<string>? guiFontNames = null)
+        IReadOnlyList<string>? guiFontNames = null,
+        Type? initialPage = null)
     {
         this.settings = settings;
 
         this.GeneralPage = new GeneralPageViewModel(settings, dialogService);
         this.AppearancePage = new AppearancePageViewModel(settings, dialogService, guiFontNames);
         this.ShellIntegrationPage = new ShellIntegrationPageViewModel(settings, dialogService);
+        this.UpdatesPage = new UpdatesPageViewModel(settings, updateService);
         this.AboutPage = new AboutPageViewModel();
 
         this.Pages.Add(this.GeneralPage);
         this.Pages.Add(this.AppearancePage);
         this.Pages.Add(this.ShellIntegrationPage);
+        this.Pages.Add(this.UpdatesPage);
         this.Pages.Add(this.AboutPage);
 
-        this.SelectedPage = this.GeneralPage;
+        this.SelectedPage = initialPage is not null
+            ? this.Pages.FirstOrDefault(p => p.GetType() == initialPage) ?? this.GeneralPage
+            : this.GeneralPage;
 
         if (!string.IsNullOrWhiteSpace(promptText))
         {
@@ -75,6 +83,11 @@ internal sealed partial class SettingsViewModel : ViewModelBase
     public ShellIntegrationPageViewModel ShellIntegrationPage { get; }
 
     /// <summary>
+    /// Gets the Updates page view model.
+    /// </summary>
+    public UpdatesPageViewModel UpdatesPage { get; }
+
+    /// <summary>
     /// Gets the About page view model.
     /// </summary>
     public AboutPageViewModel AboutPage { get; }
@@ -97,6 +110,7 @@ internal sealed partial class SettingsViewModel : ViewModelBase
         this.GeneralPage.SaveToSettings();
         this.AppearancePage.SaveToSettings();
         this.ShellIntegrationPage.SaveToSettings();
+        this.UpdatesPage.SaveToSettings();
         this.settings.Save();
     }
 }

@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AeroVim.ViewModels"
+             x:Class="AeroVim.Dialogs.UpdatesPage"
+             x:CompileBindings="True"
+             x:DataType="vm:UpdatesPageViewModel">
+    <StackPanel Spacing="12">
+        <!-- Current version -->
+        <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Current version:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding VersionText}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Dev build notice -->
+        <Border IsVisible="{Binding !IsInstalled}"
+                Background="#FFF3CD" BorderBrush="#FFECB5" BorderThickness="1"
+                CornerRadius="4" Padding="10" Margin="0,0,0,4">
+            <TextBlock TextWrapping="Wrap"
+                       Text="Auto-updates are not available in local dev builds. Install AeroVim from a release package to enable updates." />
+        </Border>
+
+        <!-- Channel selector -->
+        <StackPanel Orientation="Horizontal" Spacing="6"
+                    IsEnabled="{Binding IsInstalled}">
+            <TextBlock Text="Channel:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <ComboBox SelectedIndex="{Binding SelectedChannelIndex}" Width="140">
+                <ComboBoxItem Content="Stable" />
+                <ComboBoxItem Content="Nightly" />
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Auto-check toggle -->
+        <CheckBox IsChecked="{Binding AutoCheckForUpdates}"
+                  Content="Check for updates automatically at startup" />
+
+        <!-- Last checked -->
+        <TextBlock Text="{Binding LastCheckedText, StringFormat='Last checked: {0}'}"
+                   Foreground="Gray" FontSize="12" />
+
+        <!-- Update status panel -->
+        <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4"
+                Padding="12" Margin="0,4,0,0">
+            <StackPanel Spacing="8">
+                <!-- Status text -->
+                <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" />
+
+                <!-- Actions when update is available -->
+                <StackPanel IsVisible="{Binding IsUpdateAvailable}" Spacing="6">
+                    <TextBlock Text="View Release Notes"
+                               Foreground="Blue" TextDecorations="Underline"
+                               Cursor="Hand"
+                               IsVisible="{Binding ReleaseNotesUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               PointerPressed="ReleaseNotesLink_PointerPressed" />
+
+                    <!-- Download progress -->
+                    <StackPanel IsVisible="{Binding IsDownloading}" Spacing="4">
+                        <ProgressBar Minimum="0" Maximum="100"
+                                     Value="{Binding DownloadProgress}"
+                                     Height="16" />
+                        <TextBlock Text="{Binding DownloadStatusText}"
+                                   Foreground="Gray" FontSize="12" />
+                    </StackPanel>
+
+                    <!-- Ready to restart message -->
+                    <TextBlock IsVisible="{Binding IsReadyToRestart}"
+                               Text="{Binding DownloadStatusText}"
+                               Foreground="Green" FontWeight="SemiBold" />
+
+                    <!-- Action buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- Download & Install (shown when update found, not yet downloaded) -->
+                        <Button Content="Download &amp; Install"
+                                Command="{Binding DownloadAndInstallCommand}"
+                                IsVisible="{Binding !IsReadyToRestart}"
+                                IsEnabled="{Binding !IsDownloading}" />
+
+                        <!-- Restart to Update (shown after download completes) -->
+                        <Button Content="Restart to Update"
+                                Command="{Binding RestartToUpdateCommand}"
+                                IsVisible="{Binding IsReadyToRestart}" />
+
+                        <Button Content="Skip This Version"
+                                Command="{Binding SkipThisVersionCommand}"
+                                IsVisible="{Binding !IsDownloading}" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Check button -->
+        <Button Content="Check for Updates"
+                Command="{Binding CheckForUpdateCommand}"
+                IsEnabled="{Binding IsInstalled}"
+                HorizontalAlignment="Left" />
+    </StackPanel>
+</UserControl>

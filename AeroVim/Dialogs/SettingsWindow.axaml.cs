@@ -20,10 +20,10 @@ public partial class SettingsWindow : Window
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsWindow"/> class.
     /// Used by the XAML designer; runtime code should use
-    /// <see cref="SettingsWindow(AppSettings, string?, IReadOnlyList{string}?)"/>.
+    /// <see cref="SettingsWindow(AppSettings, IUpdateService, string?, IReadOnlyList{string}?, Type?)"/>.
     /// </summary>
     public SettingsWindow()
-        : this(AppSettings.Default, null)
+        : this(AppSettings.Default, null!, null)
     {
     }
 
@@ -31,13 +31,20 @@ public partial class SettingsWindow : Window
     /// Initializes a new instance of the <see cref="SettingsWindow"/> class.
     /// </summary>
     /// <param name="settings">Application settings.</param>
+    /// <param name="updateService">The update service.</param>
     /// <param name="promptText">Text for prompt.</param>
     /// <param name="guiFontNames">The currently resolved Neovim guifont names, if available.</param>
-    public SettingsWindow(AppSettings settings, string? promptText, IReadOnlyList<string>? guiFontNames = null)
+    /// <param name="initialPage">Optional page type to navigate to on open.</param>
+    internal SettingsWindow(
+        AppSettings settings,
+        IUpdateService updateService,
+        string? promptText,
+        IReadOnlyList<string>? guiFontNames = null,
+        Type? initialPage = null)
     {
         this.settings = settings;
         var dialogService = new DialogService(this);
-        this.DataContext = new SettingsViewModel(settings, dialogService, promptText, guiFontNames);
+        this.DataContext = new SettingsViewModel(settings, dialogService, updateService, promptText, guiFontNames, initialPage);
         this.InitializeComponent();
         this.Closing += this.OnWindowClosing;
     }

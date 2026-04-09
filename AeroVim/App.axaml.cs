@@ -16,6 +16,8 @@ using Avalonia.Markup.Xaml;
 /// </summary>
 public class App : Application
 {
+    private NativeMenuItem? updateMenuItem;
+
     /// <inheritdoc />
     public override void Initialize()
     {
@@ -32,7 +34,14 @@ public class App : Application
                 .Where(a => !string.IsNullOrWhiteSpace(a) && !a.StartsWith('-'))
                 .ToList();
 
-            desktop.MainWindow = new MainWindow(AppSettings.Default, fileArgs);
+            var mainWindow = new MainWindow(AppSettings.Default, fileArgs);
+            desktop.MainWindow = mainWindow;
+
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                    System.Runtime.InteropServices.OSPlatform.OSX))
+            {
+                mainWindow.UpdateService.UpdateAvailableChanged += this.OnUpdateAvailableChanged;
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -47,6 +56,36 @@ public class App : Application
             && desktop.MainWindow is MainWindow mainWindow)
         {
             await mainWindow.ShowSettingsDialogAsync();
+        }
+    }
+
+    private void OnUpdateAvailableChanged(object? sender, UpdateInfo? info)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            var menu = NativeMenu.GetMenu(this);
+            if (info is not null && this.updateMenuItem is null)
+            {
+                this.updateMenuItem = new NativeMenuItem("Update Available\u2026");
+                this.updateMenuItem.Click += this.OnUpdateMenuItemClicked;
+                menu?.Items.Insert(0, this.updateMenuItem);
+            }
+            else if (info is null && this.updateMenuItem is not null)
+            {
+                menu?.Items.Remove(this.updateMenuItem);
+                this.updateMenuItem.Click -= this.OnUpdateMenuItemClicked;
+                this.updateMenuItem = null;
+            }
+        });
+    }
+
+    private async void OnUpdateMenuItemClicked(object? sender, EventArgs e)
+    {
+        if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && desktop.MainWindow is MainWindow mainWindow)
+        {
+            await mainWindow.ShowSettingsDialogAsync(
+                initialPage: typeof(ViewModels.UpdatesPageViewModel));
         }
     }
 }

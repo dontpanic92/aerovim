@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.8.0)'
+        required: true
+
+permissions:
+  contents: write   # create GitHub Release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            artifact: aerovim_win_x64
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: aerovim_osx_arm64
+          - os: macos-latest
+            rid: osx-x64
+            artifact: aerovim_osx_x64
+          - os: ubuntu-latest
+            rid: linux-x64
+            artifact: aerovim_linux_x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Compute version
+      id: version
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.version }}" ]; then
+          VERSION="${{ inputs.version }}"
+        else
+          # Strip leading 'v' from tag
+          VERSION="${GITHUB_REF_NAME#v}"
+        fi
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "Release version: ${VERSION}"
+
+    - name: Restore NuGet packages
+      run: dotnet restore aerovim.sln
+
+    - name: Build
+      run: dotnet build aerovim.sln --configuration Debug --no-restore --nologo
+
+    - name: Run tests
+      run: dotnet test Tests/Tests.csproj --configuration Debug --no-build --nologo
+
+    - name: Publish
+      run: dotnet publish AeroVim/AeroVim.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained -p:DebugType=none -p:AeroVimVersion=${{ steps.version.outputs.version }}
+
+    - name: Install vpk
+      run: dotnet tool install -g vpk
+
+    - name: Package with Velopack
+      shell: bash
+      run: |
+        CHANNEL="${{ matrix.rid }}-stable"
+        if [[ "${{ matrix.rid }}" == osx-* ]]; then
+          PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/AeroVim.app/Contents/MacOS"
+        else
+          PACK_DIR="AeroVim/bin/Release/net10.0/${{ matrix.rid }}/publish"
+        fi
+        vpk pack \
+          --packId AeroVim \
+          --packVersion "${{ steps.version.outputs.version }}" \
+          --packDir "$PACK_DIR" \
+          --mainExe aerovim \
+          --channel "$CHANNEL" \
+          --outputDir staging
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: staging/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Compute version
+      id: version
+      run: |
+        if [ -n "${{ inputs.version }}" ]; then
+          VERSION="${{ inputs.version }}"
+        else
+          VERSION="${GITHUB_REF_NAME#v}"
+        fi
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Collect release assets
+      run: |
+        mkdir release-assets
+        # Collect Velopack artifacts: .nupkg, releases.*.json, Setup.exe, .pkg, .AppImage, Portable.zip
+        find artifacts -type f \( -name '*.nupkg' -o -name 'releases.*.json' -o -name '*-Setup.exe' -o -name '*.pkg' -o -name '*.AppImage' -o -name '*-Portable.zip' \) -exec cp {} release-assets/ \;
+        echo "Release assets:"
+        ls -la release-assets/
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name || format('v{0}', steps.version.outputs.version) }}
+        name: AeroVim ${{ steps.version.outputs.version }}
+        draft: true
+        generate_release_notes: true
+        files: release-assets/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -8,6 +8,7 @@ namespace AeroVim;
 using System.Runtime.InteropServices;
 using AeroVim.Diagnostics;
 using Avalonia;
+using Velopack;
 
 /// <summary>
 /// The Main program.
@@ -21,6 +22,10 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Velopack must be the first call — it handles install/update hooks
+        // and exits immediately when invoked by the updater process.
+        VelopackApp.Build().Run();
+
         string logDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "AeroVim",

@@ -95,15 +95,25 @@
                        Foreground="{DynamicResource TitleBarForegroundBrush}"
                        FontSize="12" />
 
-            <!-- Settings Button -->
-            <Button Grid.Column="3" Name="SettingsButton" Content="⚙"
-                    Classes="titlebar-btn"
-                    Width="46" Height="28" FontSize="14"
-                    CornerRadius="0"
-                    HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    Focusable="False"
-                    Click="SettingsButton_Click" />
+            <!-- Settings Button with update badge -->
+            <Panel Grid.Column="3" Width="46" Height="28">
+                <Button Name="SettingsButton" Content="⚙"
+                        Classes="titlebar-btn"
+                        Width="46" Height="28" FontSize="14"
+                        CornerRadius="0"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Focusable="False"
+                        Click="SettingsButton_Click" />
+                <Ellipse Name="UpdateBadge"
+                         Width="8" Height="8"
+                         Fill="#FF3B30"
+                         HorizontalAlignment="Right"
+                         VerticalAlignment="Top"
+                         Margin="0,4,6,0"
+                         IsHitTestVisible="False"
+                         IsVisible="False" />
+            </Panel>
 
             <!-- Minimize Button -->
             <Button Grid.Column="4" Name="MinimizeButton" Content="🗕"
