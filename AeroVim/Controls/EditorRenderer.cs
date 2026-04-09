@@ -24,7 +24,7 @@ internal sealed class EditorRenderer : IDisposable
     private readonly LigatureTextShaper ligatureTextShaper;
     private readonly EditorTextInputMethodClient imeClient;
     private readonly SKPaint backgroundPaint = new() { IsAntialias = false, Style = SKPaintStyle.Fill };
-    private readonly SKPaint textPaint = new() { IsAntialias = true, IsLinearText = false, SubpixelText = true };
+    private readonly SKPaint textPaint = new() { IsAntialias = true };
     private readonly SKPaint underlinePaint = new() { StrokeWidth = 1, IsAntialias = true };
     private readonly SKPaint undercurlPaint = new() { StrokeWidth = 1, IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint cursorPaint = new() { BlendMode = SKBlendMode.Difference, Color = SKColors.White };
@@ -40,6 +40,8 @@ internal sealed class EditorRenderer : IDisposable
     private readonly StringBuilder runTextBuilder = new();
     private readonly List<TextCellSpan> runCellSpans = new();
     private readonly List<TextCellSpan> allCellSpans = new();
+    private SKFont textFont = new() { Subpixel = true, LinearMetrics = false };
+    private SKFont overlayFont = new();
     private bool isDisposed;
 
     /// <summary>
@@ -87,7 +89,7 @@ internal sealed class EditorRenderer : IDisposable
         int rows = cells.GetLength(0);
         int cols = cells.GetLength(1);
 
-        this.textPaint.TextSize = textParam.SkiaFontSize;
+        this.textFont.Size = textParam.SkiaFontSize;
 
         // Paint backgrounds
         for (int i = 0; i < rows; i++)
@@ -187,6 +189,8 @@ internal sealed class EditorRenderer : IDisposable
             this.overlayBorderPaint.Dispose();
             this.overlayTextPaint.Dispose();
             this.overlaySelectedBgPaint.Dispose();
+            this.textFont.Dispose();
+            this.overlayFont.Dispose();
             this.undercurlPath.Dispose();
             this.isDisposed = true;
         }
@@ -244,18 +248,18 @@ internal sealed class EditorRenderer : IDisposable
         var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
         var styledTypeface = this.fontChain.GetStyledTypeface(weight, slant);
         this.textPaint.Color = Helpers.GetSkColor(foregroundColor);
-        this.textPaint.Typeface = styledTypeface;
+        this.textFont.Typeface = styledTypeface;
 
         float baselineY = (row * textParam.LineHeight) + (textParam.LineHeight * 0.8f);
 
         if (enableLigature)
         {
-            this.textPaint.FakeBoldText = false;
+            this.textFont.Embolden = false;
             this.DrawLigatureTextRange(canvas, cells, row, colStart, colEnd, weight, slant, baselineY, bold, textParam);
         }
         else
         {
-            this.textPaint.FakeBoldText = bold;
+            this.textFont.Embolden = bold;
             this.DrawPlainTextRange(canvas, cells, row, colStart, colEnd, styledTypeface, weight, slant, baselineY, textParam);
         }
 
@@ -336,12 +340,12 @@ internal sealed class EditorRenderer : IDisposable
         float y = screen.CursorPosition.Row * textParam.LineHeight;
         float baselineY = y + (textParam.LineHeight * 0.8f);
 
-        float textWidth = this.textPaint.MeasureText(preedit);
+        float textWidth = this.textFont.MeasureText(preedit);
         this.backgroundPaint.Color = Helpers.GetSkColor(screen.BackgroundColor);
         canvas.DrawRect(x, y, textWidth, textParam.LineHeight, this.backgroundPaint);
 
         this.textPaint.Color = Helpers.GetSkColor(screen.ForegroundColor);
-        canvas.DrawText(preedit, x, baselineY, this.textPaint);
+        canvas.DrawText(preedit, x, baselineY, SKTextAlign.Left, this.textFont, this.textPaint);
 
         float underlineY = y + textParam.LineHeight - 1;
         this.preeditUnderlinePaint.Color = Helpers.GetSkColor(screen.ForegroundColor);
@@ -360,7 +364,7 @@ internal sealed class EditorRenderer : IDisposable
         float baselineY,
         TextLayoutParameters textParam)
     {
-        bool bold = this.textPaint.FakeBoldText;
+        bool bold = this.textFont.Embolden;
         this.plainGlyphBatch.Clear();
         SKTypeface? batchTypeface = null;
 
@@ -427,11 +431,11 @@ internal sealed class EditorRenderer : IDisposable
         {
             // Glyph count mismatch (e.g. multi-glyph grapheme clusters):
             // fall back to per-cell drawing.
-            this.textPaint.Typeface = typeface;
+            this.textFont.Typeface = typeface;
             for (int i = 0; i < count; i++)
             {
                 var entry = this.plainGlyphBatch[i];
-                canvas.DrawText(entry.Text, entry.X, baselineY, this.textPaint);
+                canvas.DrawText(entry.Text, entry.X, baselineY, SKTextAlign.Left, this.textFont, this.textPaint);
             }
 
             return;
@@ -496,10 +500,10 @@ internal sealed class EditorRenderer : IDisposable
             var shapedRun = this.ligatureTextShaper.ShapeText(run.Typeface, textParam.SkiaFontSize, run.Text);
             if (shapedRun is null || !this.DrawAnchoredShapedRun(canvas, run, shapedRun, baselineY, embolden, textParam))
             {
-                this.textPaint.Typeface = run.Typeface;
-                this.textPaint.FakeBoldText = embolden;
+                this.textFont.Typeface = run.Typeface;
+                this.textFont.Embolden = embolden;
                 this.DrawPlainTextRange(canvas, cells, row, run.StartColumn, run.EndColumn, run.Typeface, weight, slant, baselineY, textParam);
-                this.textPaint.FakeBoldText = false;
+                this.textFont.Embolden = false;
             }
         }
     }
@@ -661,15 +665,15 @@ internal sealed class EditorRenderer : IDisposable
         float totalHeight = items.Length * itemHeight;
         float maxWidth = 0;
 
-        this.overlayTextPaint.TextSize = textParam.SkiaFontSize;
-        this.overlayTextPaint.Typeface = this.fontChain.PrimaryTypeface;
+        this.overlayFont.Size = textParam.SkiaFontSize;
+        this.overlayFont.Typeface = this.fontChain.PrimaryTypeface;
 
         foreach (var item in items)
         {
             string label = string.IsNullOrEmpty(item.Kind)
                 ? item.Word
                 : $"{item.Word}  {item.Kind}";
-            float w = this.overlayTextPaint.MeasureText(label);
+            float w = this.overlayFont.MeasureText(label);
             if (w > maxWidth)
             {
                 maxWidth = w;
@@ -724,7 +728,7 @@ internal sealed class EditorRenderer : IDisposable
             string label = string.IsNullOrEmpty(items[i].Kind)
                 ? items[i].Word
                 : $"{items[i].Word}  {items[i].Kind}";
-            canvas.DrawText(label, anchorX + padding, itemY + textBaseline, this.overlayTextPaint);
+            canvas.DrawText(label, anchorX + padding, itemY + textBaseline, SKTextAlign.Left, this.overlayFont, this.overlayTextPaint);
         }
     }
 
@@ -741,8 +745,8 @@ internal sealed class EditorRenderer : IDisposable
 
         this.overlayBgPaint.Color = Helpers.GetSkColor(cmdBg);
         this.overlayBorderPaint.Color = Helpers.GetSkColor(cmdFg, (byte)0x80);
-        this.overlayTextPaint.TextSize = textParam.SkiaFontSize;
-        this.overlayTextPaint.Typeface = this.fontChain.PrimaryTypeface;
+        this.overlayFont.Size = textParam.SkiaFontSize;
+        this.overlayFont.Typeface = this.fontChain.PrimaryTypeface;
         this.overlayTextPaint.Color = Helpers.GetSkColor(cmdFg);
 
         var cmdRect = new SKRect(0, cmdY, canvasWidth, canvasHeight);
@@ -754,7 +758,7 @@ internal sealed class EditorRenderer : IDisposable
         string fullText = prefix + text;
 
         float textBaseline = cmdY + (cmdHeight * 0.5f) + (textParam.LineHeight * 0.3f);
-        canvas.DrawText(fullText, padding, textBaseline, this.overlayTextPaint);
+        canvas.DrawText(fullText, padding, textBaseline, SKTextAlign.Left, this.overlayFont, this.overlayTextPaint);
     }
 
     private readonly struct ResolvedTypefaceRun

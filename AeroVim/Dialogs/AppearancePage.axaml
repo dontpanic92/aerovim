@@ -1,13 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Classic.Avalonia.Theme.Controls"
              xmlns:vm="using:AeroVim.ViewModels"
              x:Class="AeroVim.Dialogs.AppearancePage"
              x:CompileBindings="True"
              x:DataType="vm:AppearancePageViewModel">
     <StackPanel Spacing="10">
         <!-- Window Effects -->
-        <controls:GroupBox Header="Window" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+        <HeaderedContentControl Header="Window">
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
             <StackPanel>
                 <CheckBox IsChecked="{Binding EnableLigature, Mode=TwoWay}" Content="Enable Font Ligature" Margin="0,0,0,5" />
 
@@ -37,10 +37,12 @@
                     <TextBlock Text="{Binding OpacityLabel}" Width="40" VerticalAlignment="Center" />
                 </StackPanel>
             </StackPanel>
-        </controls:GroupBox>
+            </Border>
+        </HeaderedContentControl>
 
         <!-- Font Priority -->
-        <controls:GroupBox Header="Font Priority" BorderBrush="Gray" BorderThickness="1" Padding="8, 16">
+        <HeaderedContentControl Header="Font Priority">
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
             <StackPanel>
                 <TextBlock Text="Fonts are searched top to bottom. Drag the placeholder items to control where Neovim guifont and system defaults appear in the priority."
                            FontSize="11" Foreground="Gray" Margin="0,0,0,5" TextWrapping="Wrap" />
@@ -66,6 +68,7 @@
                     </StackPanel>
                 </Grid>
             </StackPanel>
-        </controls:GroupBox>
+            </Border>
+        </HeaderedContentControl>
     </StackPanel>
 </UserControl>

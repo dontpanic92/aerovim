@@ -24,7 +24,7 @@
         <TextBox Name="InputTextBox"
                  Grid.Row="1"
                  Text="{Binding InputText, Mode=TwoWay}"
-                 Watermark="{Binding Watermark}"
+                 PlaceholderText="{Binding Watermark}"
                  VerticalAlignment="Center" />
 
         <StackPanel Grid.Row="2"

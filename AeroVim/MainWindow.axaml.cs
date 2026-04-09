@@ -465,9 +465,8 @@ public partial class MainWindow : Window
             return;
         }
 
-#pragma warning disable CS0618 // GetTextAsync is deprecated but replacement requires IAsyncDataTransfer
-        string? text = await clipboard.GetTextAsync();
-#pragma warning restore CS0618
+        var data = await clipboard.TryGetDataAsync();
+        string? text = data is not null ? await data.TryGetTextAsync() : null;
         if (string.IsNullOrEmpty(text))
         {
             return;

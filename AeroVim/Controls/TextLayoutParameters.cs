@@ -24,14 +24,10 @@ internal sealed class TextLayoutParameters
         this.SkiaFontSize = pointSize * 96f / 72f;
 
         using var typeface = SKTypeface.FromFamilyName(fontName);
-        using var paint = new SKPaint();
-        paint.Typeface = typeface;
-        paint.TextSize = this.SkiaFontSize;
-        paint.IsAntialias = true;
-
-        var metrics = paint.FontMetrics;
+        using var font = new SKFont(typeface, this.SkiaFontSize);
+        var metrics = font.Metrics;
         this.LineHeight = (float)Math.Ceiling(-metrics.Ascent + metrics.Descent + metrics.Leading);
-        this.CharWidth = paint.MeasureText("A");
+        this.CharWidth = font.MeasureText("A");
 
         // Round to pixels to prevent sub-pixel artifacts in the grid
         this.LineHeight = (float)Math.Ceiling(this.LineHeight);

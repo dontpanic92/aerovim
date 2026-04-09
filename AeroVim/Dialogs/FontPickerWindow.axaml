@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
 
         <TextBox Grid.Row="0" Text="{Binding FilterText, Mode=TwoWay}"
-                 Watermark="Type to filter..." Margin="0,0,0,5" />
+                 PlaceholderText="Type to filter..." Margin="0,0,0,5" />
 
         <ListBox Grid.Row="1" ItemsSource="{Binding FilteredFonts}"
                  SelectedItem="{Binding SelectedFontName, Mode=TwoWay}"

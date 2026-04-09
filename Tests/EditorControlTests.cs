@@ -10,6 +10,7 @@ using AeroVim.Editor;
 using AeroVim.Editor.Utilities;
 using AeroVim.Tests.Helpers;
 using Avalonia;
+using Avalonia.Headless.NUnit;
 using Avalonia.Input;
 using NUnit.Framework;
 using SkiaSharp;
@@ -57,7 +58,7 @@ public class EditorControlTests
     /// <summary>
     /// Rendering should reflect updated screen contents.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_ReflectsScreenContentChanges()
     {
         var editorClient = new TestEditorClient();
@@ -81,7 +82,7 @@ public class EditorControlTests
     /// <summary>
     /// Rendering with wide cells and IME preedit text should remain stable and change the output.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithWideCharacterAndPreedit_ChangesOutput()
     {
         var editorClient = new TestEditorClient();
@@ -103,7 +104,7 @@ public class EditorControlTests
     /// <summary>
     /// Mouse presses should not be forwarded when the backend disables mouse support.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void HandlePointerPressedForTesting_WhenMouseDisabled_DoesNotForwardInput()
     {
         var editorClient = new TestEditorClient
@@ -121,7 +122,7 @@ public class EditorControlTests
     /// <summary>
     /// Disabling mouse support mid-drag should clear the pending pressed button state.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RefreshEditorUiStateForTesting_WhenMouseIsDisabledMidDrag_ClearsPendingRelease()
     {
         var editorClient = new TestEditorClient
@@ -148,7 +149,7 @@ public class EditorControlTests
     /// <summary>
     /// Wheel input should not be forwarded when mouse support is disabled.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void HandlePointerWheelForTesting_WhenMouseDisabled_DoesNotForwardInput()
     {
         var editorClient = new TestEditorClient
@@ -166,7 +167,7 @@ public class EditorControlTests
     /// <summary>
     /// Pointer-shape hints should resolve to the matching Avalonia cursor.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RefreshEditorUiStateForTesting_WithBeamPointerShape_ResolvesIbeamCursor()
     {
         var editorClient = new TestEditorClient
@@ -183,7 +184,7 @@ public class EditorControlTests
     /// <summary>
     /// Pointer auto-hide should resolve to a hidden cursor when requested.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RefreshEditorUiStateForTesting_WhenPointerModeHidesPointer_ResolvesNoneCursor()
     {
         var editorClient = new TestEditorClient
@@ -201,7 +202,7 @@ public class EditorControlTests
     /// <summary>
     /// Cursor visibility hints should change the rendered output.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithCursorHidden_SuppressesCursorOutput()
     {
         var editorClient = new TestEditorClient
@@ -222,7 +223,7 @@ public class EditorControlTests
     /// <summary>
     /// Disabling cursor styling should fall back to the default block cursor.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithCursorStyleDisabled_UsesDefaultBlockCursor()
     {
         var screen = CreateCursorScreen();
@@ -239,7 +240,7 @@ public class EditorControlTests
     /// <summary>
     /// Cursor blink state should affect whether the cursor is drawn.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithBlinkingCursorHiddenState_SuppressesCursorOutput()
     {
         var editorClient = new TestEditorClient
@@ -260,7 +261,7 @@ public class EditorControlTests
     /// <summary>
     /// HarfBuzz shaping should change the glyph sequence for a ligature-capable sample on an installed font.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void LigatureTextShaper_WithLigatureCapableFont_ChangesGlyphSequence()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
@@ -279,7 +280,7 @@ public class EditorControlTests
     /// <summary>
     /// Enabling ligatures should change rendered output for a ligature-capable font sample.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithLigaturesEnabled_ChangesOutput()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
@@ -294,7 +295,7 @@ public class EditorControlTests
     /// <summary>
     /// Bold text should still render differently when ligatures are enabled.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithLigaturesEnabled_BoldTextChangesOutput()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
@@ -309,7 +310,7 @@ public class EditorControlTests
     /// Ligature rendering should produce measurably different ink coverage than
     /// plain rendering for the same text, confirming the shaping path is active.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithLigaturesEnabled_ChangesInkCoverage()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
@@ -326,7 +327,7 @@ public class EditorControlTests
     /// Bold text should produce more ink than normal text when ligatures are
     /// enabled, confirming the embolden flag is applied in the shaping path.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithLigaturesEnabled_BoldProducesMoreInk()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
@@ -343,7 +344,7 @@ public class EditorControlTests
     /// <summary>
     /// Invisible style-run splits should not change glyph positions in ligature mode.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_WithInvisibleStyleSplit_DoesNotShiftLigatureText()
     {
         Assert.That(TryFindLigatureFixture(out var fixture), Is.True, "No ligature-capable font fixture was found.");
@@ -364,7 +365,7 @@ public class EditorControlTests
     /// Incremental rendering of a single dirty row should produce the same
     /// output as a full-grid render of the same screen state.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_IncrementalUpdateMatchesFullRender()
     {
         var screen = TestScreenBuilder.CreateScreen(3, 6);
@@ -399,7 +400,7 @@ public class EditorControlTests
     /// When no rows are dirty the rendered output should still be valid
     /// (backbuffer blit without grid changes, e.g. cursor blink).
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void RenderForTesting_NoDirtyRows_StillProducesOutput()
     {
         var screen = TestScreenBuilder.CreateScreen(2, 4);
@@ -423,7 +424,7 @@ public class EditorControlTests
     /// After SetFallbackFonts is called and a FontChanged event arrives with
     /// an empty guifont, the font chain primary should be the fallback font.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void SetFallbackFonts_ThenEmptyGuifont_UsesFallbackAsPrimary()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
@@ -454,7 +455,7 @@ public class EditorControlTests
     /// After SetFallbackFonts and an empty guifont, the text layout
     /// parameters should use the fallback font for grid metric calculations.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void SetFallbackFonts_ThenEmptyGuifont_TextParamUsesFallbackFont()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
@@ -481,7 +482,7 @@ public class EditorControlTests
     /// Fallback fonts should produce visibly different output compared to
     /// the platform default when guifont is not set.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void SetFallbackFonts_ThenEmptyGuifont_RendersDifferentlyFromDefault()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
@@ -515,7 +516,7 @@ public class EditorControlTests
     /// between the two calls), the fallback font should still take effect
     /// after SetFallbackFonts triggers a second rebuild.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void EmptyGuifont_ThenSetFallbackFonts_EventuallyUsesFallback()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
@@ -549,7 +550,7 @@ public class EditorControlTests
     /// and both actions are already processed, a subsequent render should
     /// still use the fallback font.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void SetFallbackFonts_ThenMultipleEmptyGuifontEvents_KeepsFallback()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
@@ -579,7 +580,7 @@ public class EditorControlTests
     /// names (including Neovim 0.12+ defaults like SF Mono, Menlo, etc.)
     /// when placed before the $GUIFONT sentinel in the priority list.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void FontPriorityList_UserFontBeforeGuifont_TakesPriority()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();
@@ -620,7 +621,7 @@ public class EditorControlTests
     /// When the user places $GUIFONT before their fonts in the priority
     /// list, guifont should take priority over user fonts.
     /// </summary>
-    [Test]
+    [AvaloniaTest]
     public void FontPriorityList_GuifontBeforeUserFont_GuifontTakesPriority()
     {
         var platformDefaults = AeroVim.Utilities.Helpers.GetDefaultFallbackFontNames();

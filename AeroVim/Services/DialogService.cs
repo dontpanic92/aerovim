@@ -60,7 +60,8 @@ internal sealed class DialogService : IDialogService
     /// <inheritdoc/>
     public async Task<string?> ShowFilePickerAsync(string title)
     {
-        var topLevel = TopLevel.GetTopLevel(this.owner);
+        var topLevel = TopLevel.GetTopLevel(this.owner)
+            ?? throw new InvalidOperationException("The file picker requires an attached top-level window.");
         var fileTypeFilters = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? new[]
             {
@@ -72,13 +73,36 @@ internal sealed class DialogService : IDialogService
                 new FilePickerFileType("All Files") { Patterns = ["*"] },
             };
 
-        var files = await topLevel!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        try
         {
-            Title = title,
-            AllowMultiple = false,
-            FileTypeFilter = fileTypeFilters,
-        });
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter = fileTypeFilters,
+            });
 
-        return files.Count > 0 ? files[0].Path.LocalPath : null;
+            return GetSelectedFilePath(files);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Extracts a usable path from the first picked file, if any.
+    /// </summary>
+    /// <param name="files">The files returned by the storage provider.</param>
+    /// <returns>The selected file path, or <see langword="null"/> when nothing was chosen.</returns>
+    internal static string? GetSelectedFilePath(IReadOnlyList<IStorageFile>? files)
+    {
+        if (files is null || files.Count == 0)
+        {
+            return null;
+        }
+
+        var path = files[0].Path;
+        return path.IsFile ? path.LocalPath : path.ToString();
     }
 }
