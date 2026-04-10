@@ -283,7 +283,9 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
 
     /// <summary>
     /// Execute a Vim command by entering command-line mode.
-    /// If the PTY is not yet connected, the command is queued for replay.
+    /// If the PTY is not yet connected, the command is passed as a
+    /// <c>--cmd</c> argument to vim at startup, which is executed
+    /// reliably during vim's initialization — no race condition.
     /// </summary>
     /// <param name="command">The command string (without leading colon).</param>
     public void Command(string command)
@@ -294,8 +296,7 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
             return;
         }
 
-        this.Input("\x1B");
-        this.Input($":{command}\r");
+        this.SendCommandViaPty(command);
     }
 
     /// <summary>
@@ -522,9 +523,27 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
                 this.buffer.Resize((int)cols, (int)rows);
             }
 
-            var vimArgs = this.fileArgs is not null && this.fileArgs.Count > 0
-                ? this.fileArgs.ToArray()
-                : Array.Empty<string>();
+            var vimArgsList = new List<string>();
+
+            // Drain pending commands into --cmd arguments so they execute
+            // during vim's own initialization, avoiding the race condition
+            // of sending ESC + :cmd over the PTY before vim is ready.
+            while (this.pendingCommands.Count > 0)
+            {
+                string cmd = this.pendingCommands.Dequeue();
+                vimArgsList.Add("--cmd");
+                vimArgsList.Add(cmd);
+            }
+
+            if (this.fileArgs is not null)
+            {
+                foreach (var f in this.fileArgs)
+                {
+                    vimArgsList.Add(f);
+                }
+            }
+
+            var vimArgs = vimArgsList.ToArray();
 
             this.ptyConnection = PtyConnectionFactory.Create(
                 this.vimPath,
@@ -545,13 +564,9 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
 
             _ = Task.Run(() => this.ReadLoopAsync());
 
-            // Pending commands (e.g. "set mouse=a") must NOT be replayed
-            // here — vim has just been forked and hasn't finished its
-            // startup yet.  If we send ESC + :command now, vim is still
-            // in its initialization phase and echoes the raw bytes as
-            // visible text (e.g. "^[:set mouse=a").  Instead, the read
-            // loop replays pending commands after receiving the first
-            // content from vim, which guarantees vim is ready for input.
+            // Pre-spawn commands were already passed as --cmd arguments.
+            // Any commands queued during the spawn window (unlikely) are
+            // replayed from the read loop after vim outputs its first frame.
 
             // Apply any resize that arrived while the PTY was still being spawned.
             int dc = this.deferredCols;
@@ -661,9 +676,14 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
         while (this.pendingCommands.Count > 0)
         {
             string command = this.pendingCommands.Dequeue();
-            this.Input("\x1B");
-            this.Input($":{command}\r");
+            this.SendCommandViaPty(command);
         }
+    }
+
+    private void SendCommandViaPty(string command)
+    {
+        this.Input("\x1B");
+        this.Input($":{command}\r");
     }
 
     private void OnTitleChanged(string title)
