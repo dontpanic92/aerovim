@@ -502,6 +502,7 @@ public partial class MainWindow : Window
                 double popAnchorX;
                 double popAnchorY;
                 bool anchorAbove;
+                double popMaxHeight;
 
                 if (isCmdlinePopup && this.cmdlinePopup.IsVisible)
                 {
@@ -516,12 +517,18 @@ public partial class MainWindow : Window
                     popAnchorX = cmdLeftX;
                     popAnchorY = cmdTopY;
                     anchorAbove = true;
+
+                    // All space above the cmdline is available.
+                    popMaxHeight = cmdTopY;
                 }
                 else
                 {
                     popAnchorX = gridAnchorX;
                     popAnchorY = gridAnchorY;
                     anchorAbove = false;
+
+                    // Available height below the cursor down to the editor bottom.
+                    popMaxHeight = editorHeight - gridAnchorY;
                 }
 
                 this.popupMenuOverlay.UpdatePopup(
@@ -533,7 +540,8 @@ public partial class MainWindow : Window
                     editorHeight,
                     fg,
                     bg,
-                    anchorAbove: anchorAbove);
+                    anchorAbove: anchorAbove,
+                    maxHeight: popMaxHeight);
             }
             else
             {

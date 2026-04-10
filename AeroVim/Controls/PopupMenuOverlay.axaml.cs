@@ -26,6 +26,7 @@ public partial class PopupMenuOverlay : UserControl
     private const double ItemPaddingV = 2;
 
     private readonly StackPanel itemsPanel;
+    private readonly ScrollViewer itemsScrollViewer;
     private readonly Border contentBorder;
     private readonly ExperimentalAcrylicBorder acrylicBorder;
 
@@ -40,6 +41,7 @@ public partial class PopupMenuOverlay : UserControl
         this.InitializeComponent();
 
         this.itemsPanel = this.FindControl<StackPanel>("ItemsPanel")!;
+        this.itemsScrollViewer = this.FindControl<ScrollViewer>("ItemsScrollViewer")!;
         this.contentBorder = this.FindControl<Border>("ContentBorder")!;
         this.acrylicBorder = this.FindControl<ExperimentalAcrylicBorder>("AcrylicBorder")!;
 
@@ -65,6 +67,11 @@ public partial class PopupMenuOverlay : UserControl
     /// When <c>true</c>, positions the popup above <paramref name="anchorY"/>
     /// (for cmdline-anchored popups). When <c>false</c>, below it.
     /// </param>
+    /// <param name="maxHeight">
+    /// Maximum height in pixels for the popup content. When the items exceed
+    /// this height the list becomes scrollable. Pass <see cref="double.PositiveInfinity"/>
+    /// to leave unconstrained.
+    /// </param>
     public void UpdatePopup(
         PopupMenuItem[] items,
         int selected,
@@ -74,7 +81,8 @@ public partial class PopupMenuOverlay : UserControl
         double editorHeight,
         int fgColor,
         int bgColor,
-        bool anchorAbove = false)
+        bool anchorAbove = false,
+        double maxHeight = double.PositiveInfinity)
     {
         var fg = Helpers.GetAvaloniaColor(fgColor);
         var bg = Helpers.GetAvaloniaColor(bgColor);
@@ -140,26 +148,62 @@ public partial class PopupMenuOverlay : UserControl
 
         this.MaxWidth = MaxPopupWidth;
 
-        // Position: place below or above anchor depending on context
-        double estimatedHeight = items.Length * (this.fontSize + (ItemPaddingV * 2) + 2);
+        // Constrain scroll viewer height so the popup doesn't overflow the
+        // available space. Account for border padding (~4px top + bottom).
+        double borderOverhead = this.contentBorder.Padding.Top + this.contentBorder.Padding.Bottom +
+                                this.contentBorder.BorderThickness.Top + this.contentBorder.BorderThickness.Bottom;
+        double rawHeight = items.Length * (this.fontSize + (ItemPaddingV * 2) + 2);
+
+        // Position: place below or above anchor depending on context, then
+        // apply the height constraint for the chosen direction.
+        double effectiveMax;
         double y;
 
         if (anchorAbove)
         {
-            // Place above the anchor point (bottom edge of popup at anchorY)
-            y = anchorY - estimatedHeight;
-            if (y < 0)
-            {
-                y = 0;
-            }
+            // Place above the anchor point (bottom edge of popup at anchorY).
+            effectiveMax = double.IsFinite(maxHeight) ? Math.Min(maxHeight, anchorY) : anchorY;
+            double constrainedHeight = Math.Min(rawHeight, effectiveMax);
+            y = Math.Max(0, anchorY - constrainedHeight);
         }
         else
         {
-            y = anchorY;
-            if (anchorY + estimatedHeight > editorHeight && anchorY > estimatedHeight)
+            double spaceBelow = editorHeight - anchorY;
+            double spaceAbove = anchorY - (this.fontSize * 1.4);
+            double belowMax = double.IsFinite(maxHeight) ? Math.Min(maxHeight, spaceBelow) : spaceBelow;
+
+            if (rawHeight <= belowMax || spaceBelow >= spaceAbove)
             {
-                y = anchorY - estimatedHeight - (this.fontSize * 1.4);
+                // Place below the anchor — enough room or more than above.
+                effectiveMax = belowMax;
+                y = anchorY;
             }
+            else
+            {
+                // Flip above the anchor.
+                effectiveMax = double.IsFinite(maxHeight) ? Math.Min(maxHeight, spaceAbove) : spaceAbove;
+                double constrainedHeight = Math.Min(rawHeight, effectiveMax);
+                y = Math.Max(0, anchorY - constrainedHeight - (this.fontSize * 1.4));
+            }
+        }
+
+        if (effectiveMax > 0 && double.IsFinite(effectiveMax))
+        {
+            this.itemsScrollViewer.MaxHeight = Math.Max(0, effectiveMax - borderOverhead);
+        }
+        else
+        {
+            this.itemsScrollViewer.MaxHeight = double.PositiveInfinity;
+        }
+
+        // Scroll the selected item into view after the layout pass has
+        // measured the new children and the scroll extent is known.
+        if (selected >= 0 && selected < this.itemsPanel.Children.Count)
+        {
+            var target = this.itemsPanel.Children[selected];
+            Avalonia.Threading.Dispatcher.UIThread.Post(
+                () => target.BringIntoView(),
+                Avalonia.Threading.DispatcherPriority.Loaded);
         }
 
         double x = anchorX;

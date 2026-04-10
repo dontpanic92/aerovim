@@ -24,7 +24,11 @@
 
             <Border CornerRadius="6" Name="ContentBorder"
                     BorderThickness="1" Padding="2">
-                <StackPanel Name="ItemsPanel" />
+                <ScrollViewer Name="ItemsScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Name="ItemsPanel" />
+                </ScrollViewer>
             </Border>
         </ExperimentalAcrylicBorder>
     </Border>
