@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://dontpanic92.github.io/aerovim/screenshot.jpg" alt="AeroVim screenshot" width="720">
+  <img src="https://dontpanic92.github.io/aerovim/screenshot.png" alt="AeroVim screenshot" width="720">
 </p>
 
 ## Features
