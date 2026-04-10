@@ -304,6 +304,17 @@ public class EditorControl : Control, IDisposable
         base.OnSizeChanged(e);
         if (e.NewSize.Width > 0 && e.NewSize.Height > 0)
         {
+            // Drain any queued actions (especially font changes) so that
+            // DesiredColCount / DesiredRowCount reflect the final font
+            // metrics before we compute the grid size.  Without this,
+            // the very first TryResize may use stale (default font)
+            // metrics, causing the PTY to be spawned at a wrong size
+            // that is immediately corrected — producing a visible flash.
+            while (this.pendingActions.TryDequeue(out var action))
+            {
+                action();
+            }
+
             this.editorClient.TryResize(this.DesiredColCount, this.DesiredRowCount);
         }
     }

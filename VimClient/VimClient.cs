@@ -32,6 +32,8 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
 
     private IPtyConnection? ptyConnection;
     private Task? spawnTask;
+    private int deferredCols;
+    private int deferredRows;
     private bool disposed;
     private bool contentReceived;
     private int processExitHandled;
@@ -193,6 +195,11 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
             if (this.spawnTask is null)
             {
                 this.spawnTask = this.SpawnVimAsync(width, height);
+            }
+            else
+            {
+                this.deferredCols = (int)width;
+                this.deferredRows = (int)height;
             }
 
             return;
@@ -538,7 +545,29 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
 
             _ = Task.Run(() => this.ReadLoopAsync());
 
-            this.ReplayPendingCommands();
+            // Pending commands (e.g. "set mouse=a") must NOT be replayed
+            // here — vim has just been forked and hasn't finished its
+            // startup yet.  If we send ESC + :command now, vim is still
+            // in its initialization phase and echoes the raw bytes as
+            // visible text (e.g. "^[:set mouse=a").  Instead, the read
+            // loop replays pending commands after receiving the first
+            // content from vim, which guarantees vim is ready for input.
+
+            // Apply any resize that arrived while the PTY was still being spawned.
+            int dc = this.deferredCols;
+            int dr = this.deferredRows;
+            if (dc > 0 && dr > 0 && (dc != (int)cols || dr != (int)rows))
+            {
+                lock (this.screenLock)
+                {
+                    this.buffer.Resize(dc, dr);
+                }
+
+                this.ptyConnection.Resize(dc, dr);
+            }
+
+            this.deferredCols = 0;
+            this.deferredRows = 0;
 
             this.log.Info(
                 $"Vim process started successfully (pid={this.ptyConnection.Pid})");
@@ -579,7 +608,14 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
                 lock (this.screenLock)
                 {
                     this.parser.Process(readBuffer.AsSpan(0, bytesRead));
-                    this.contentReceived = true;
+                    if (!this.contentReceived)
+                    {
+                        this.contentReceived = true;
+
+                        // Vim has drawn its first frame — now safe to send
+                        // queued commands (e.g. "set mouse=a").
+                        this.ReplayPendingCommands();
+                    }
                 }
 
                 // Start the next read immediately. If data is already
