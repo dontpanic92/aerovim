@@ -480,6 +480,33 @@ public sealed class VimClient : IEditorClient, ITerminalCapabilities, IStartupDi
             env["TERM"] = "xterm-256color";
             env["COLORTERM"] = "truecolor";
 
+            // Remove terminal-emulator-specific variables that the parent
+            // shell may have set.  Vim and other TUI apps detect these and
+            // enable protocol extensions (e.g. iTerm2 key encoding, Kitty
+            // keyboard protocol) that AeroVim's VT parser does not support,
+            // causing garbled key display and wrong cursor positioning.
+            env.Remove("TERM_PROGRAM");
+            env.Remove("TERM_PROGRAM_VERSION");
+            env.Remove("TERM_SESSION_ID");
+            env.Remove("TERM_FEATURES");
+            env.Remove("LC_TERMINAL");
+            env.Remove("LC_TERMINAL_VERSION");
+            env.Remove("ITERM_SESSION_ID");
+            env.Remove("ITERM_PROFILE");
+            env.Remove("KITTY_WINDOW_ID");
+            env.Remove("KITTY_PID");
+            env.Remove("KITTY_INSTALLATION_DIR");
+            env.Remove("KONSOLE_DBUS_SESSION");
+            env.Remove("KONSOLE_VERSION");
+            env.Remove("WEZTERM_PANE");
+            env.Remove("WEZTERM_EXECUTABLE");
+            env.Remove("VTE_VERSION");
+            env.Remove("WT_SESSION");
+            env.Remove("WT_PROFILE_ID");
+            env.Remove("ALACRITTY_WINDOW_ID");
+            env.Remove("ALACRITTY_LOG");
+            env.Remove("TERMINFO_DIRS");
+
             string cwd = this.workingDirectory
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
