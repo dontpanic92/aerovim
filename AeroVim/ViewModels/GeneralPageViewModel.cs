@@ -27,6 +27,9 @@ internal sealed partial class GeneralPageViewModel : SettingsPageViewModel
     [ObservableProperty]
     private string vimPath = string.Empty;
 
+    [ObservableProperty]
+    private bool enableExternalUI;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="GeneralPageViewModel"/> class.
     /// </summary>
@@ -40,6 +43,7 @@ internal sealed partial class GeneralPageViewModel : SettingsPageViewModel
         this.editorTypeIndex = (int)settings.EditorType;
         this.neovimPath = settings.NeovimPath;
         this.vimPath = settings.VimPath;
+        this.enableExternalUI = settings.EnableExternalUI;
     }
 
     /// <summary>
@@ -55,6 +59,7 @@ internal sealed partial class GeneralPageViewModel : SettingsPageViewModel
         this.settings.EditorType = (EditorType)this.EditorTypeIndex;
         this.settings.NeovimPath = this.NeovimPath;
         this.settings.VimPath = this.VimPath;
+        this.settings.EnableExternalUI = this.EnableExternalUI;
     }
 
     /// <inheritdoc/>

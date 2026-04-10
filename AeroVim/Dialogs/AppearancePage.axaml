@@ -6,8 +6,7 @@
              x:DataType="vm:AppearancePageViewModel">
     <StackPanel Spacing="10">
         <!-- Window Effects -->
-        <HeaderedContentControl Header="Window">
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
+        <GroupBox Header="Window" Padding="8,8">
             <StackPanel>
                 <CheckBox IsChecked="{Binding EnableLigature, Mode=TwoWay}" Content="Enable Font Ligature" Margin="0,0,0,5" />
 
@@ -37,24 +36,10 @@
                     <TextBlock Text="{Binding OpacityLabel}" Width="40" VerticalAlignment="Center" />
                 </StackPanel>
             </StackPanel>
-            </Border>
-        </HeaderedContentControl>
-
-        <!-- Command Line -->
-        <HeaderedContentControl Header="Command Line">
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
-            <StackPanel>
-                <CheckBox IsChecked="{Binding EnableExternalUI, Mode=TwoWay}"
-                          Content="Enable external command line and completion menu (Neovim only)" Margin="0,0,0,5" />
-                <TextBlock Text="Renders : / ? commands and completion menus as elegant overlays. Requires restart to take effect."
-                           FontSize="11" Foreground="Gray" Margin="20,0,0,0" TextWrapping="Wrap" />
-            </StackPanel>
-            </Border>
-        </HeaderedContentControl>
+        </GroupBox>
 
         <!-- Font Priority -->
-        <HeaderedContentControl Header="Font Priority">
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
+        <GroupBox Header="Font Priority" Padding="8,8">
             <StackPanel>
                 <TextBlock Text="Fonts are searched top to bottom. Drag the placeholder items to control where Neovim guifont and system defaults appear in the priority."
                            FontSize="11" Foreground="Gray" Margin="0,0,0,5" TextWrapping="Wrap" />
@@ -80,7 +65,6 @@
                     </StackPanel>
                 </Grid>
             </StackPanel>
-            </Border>
-        </HeaderedContentControl>
+        </GroupBox>
     </StackPanel>
 </UserControl>

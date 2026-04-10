@@ -5,8 +5,7 @@
              x:CompileBindings="True"
              x:DataType="vm:GeneralPageViewModel">
     <StackPanel Spacing="10">
-        <HeaderedContentControl Header="Editor Backend">
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
+        <GroupBox Header="Editor Backend" Padding="8,8">
             <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*">
                 <!-- Backend -->
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Backend"
@@ -20,7 +19,7 @@
                 <!-- Neovim Path -->
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Neovim Path"
                            IsVisible="{Binding !IsVimSelected}"
-                           VerticalAlignment="Center" Margin="0,8,10,0" Width="64" />
+                           VerticalAlignment="Center" Margin="0,8,10,0" Width="80" />
                 <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NeovimPath, Mode=TwoWay}"
                          IsVisible="{Binding !IsVimSelected}" Margin="0,8,0,0" />
                 <StackPanel Grid.Row="2" Grid.Column="1"
@@ -33,7 +32,7 @@
                 <!-- Vim Path -->
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Vim Path"
                            IsVisible="{Binding IsVimSelected}"
-                           VerticalAlignment="Center" Margin="0,8,10,0" Width="64" />
+                           VerticalAlignment="Center" Margin="0,8,10,0" Width="80" />
                 <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding VimPath, Mode=TwoWay}"
                          IsVisible="{Binding IsVimSelected}" Margin="0,8,0,0" />
                 <StackPanel Grid.Row="4" Grid.Column="1"
@@ -43,7 +42,15 @@
                     <Button Width="76" Content="Detect" Margin="5,0,0,0" Command="{Binding DetectVimCommand}" />
                 </StackPanel>
             </Grid>
-            </Border>
-        </HeaderedContentControl>
+        </GroupBox>
+
+        <GroupBox Header="Command Line" Padding="8,8" IsVisible="{Binding !IsVimSelected}">
+            <StackPanel>
+                <CheckBox IsChecked="{Binding EnableExternalUI, Mode=TwoWay}"
+                          Content="Enable external command line and completion menu" Margin="0,0,0,5" />
+                <TextBlock Text="Renders : / ? commands and completion menus as elegant overlays. Requires restart to take effect."
+                           FontSize="11" Foreground="Gray" Margin="20,0,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </GroupBox>
     </StackPanel>
 </UserControl>

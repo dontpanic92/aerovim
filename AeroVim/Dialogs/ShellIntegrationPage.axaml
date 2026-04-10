@@ -6,19 +6,16 @@
              x:CompileBindings="True"
              x:DataType="vm:ShellIntegrationPageViewModel">
     <StackPanel Spacing="10">
-        <HeaderedContentControl Header="Drag &amp; Drop">
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
+        <GroupBox Header="Drag &amp; Drop" Padding="8,8">
             <StackPanel>
                 <CheckBox IsChecked="{Binding EnableDragDrop, Mode=TwoWay}" Content="Enable drag-and-drop file opening" Margin="0,0,0,5" />
                 <TextBlock Text="Drop files onto the AeroVim window to open them in the editor."
                            FontSize="11" Foreground="Gray" Margin="20,0,0,0" TextWrapping="Wrap" />
             </StackPanel>
-            </Border>
-        </HeaderedContentControl>
+        </GroupBox>
 
-        <HeaderedContentControl Header="Windows Shell"
-                                IsVisible="{Binding IsShellIntegrationSupported}">
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
+        <GroupBox Header="Windows Shell" Padding="8,8"
+                  IsVisible="{Binding IsShellIntegrationSupported}">
             <StackPanel Spacing="10">
                 <TextBlock Text="Per-user registry entries (no admin required). Changes take effect immediately."
                            FontSize="11" Foreground="Gray" Margin="0,0,0,4" TextWrapping="Wrap" />
@@ -83,7 +80,6 @@
                     </StackPanel>
                 </Grid>
             </StackPanel>
-            </Border>
-        </HeaderedContentControl>
+        </GroupBox>
     </StackPanel>
 </UserControl>
