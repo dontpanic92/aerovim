@@ -40,6 +40,18 @@
             </Border>
         </HeaderedContentControl>
 
+        <!-- Command Line -->
+        <HeaderedContentControl Header="Command Line">
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">
+            <StackPanel>
+                <CheckBox IsChecked="{Binding EnableExternalUI, Mode=TwoWay}"
+                          Content="Enable external command line and completion menu (Neovim only)" Margin="0,0,0,5" />
+                <TextBlock Text="Renders : / ? commands and completion menus as elegant overlays. Requires restart to take effect."
+                           FontSize="11" Foreground="Gray" Margin="20,0,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+            </Border>
+        </HeaderedContentControl>
+
         <!-- Font Priority -->
         <HeaderedContentControl Header="Font Priority">
             <Border BorderBrush="Gray" BorderThickness="1" Padding="8, 16" CornerRadius="4">

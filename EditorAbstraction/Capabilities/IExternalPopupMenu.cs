@@ -28,4 +28,11 @@ public interface IExternalPopupMenu
     /// <c>null</c> if the popup menu is not visible.
     /// </summary>
     (int Row, int Col)? PopupAnchor { get; }
+
+    /// <summary>
+    /// Gets the grid ID that the popup is anchored to. A value of <c>-1</c>
+    /// indicates the popup is anchored to the external command line
+    /// (<c>ext_cmdline</c>) rather than the editor grid.
+    /// </summary>
+    int PopupGrid { get; }
 }

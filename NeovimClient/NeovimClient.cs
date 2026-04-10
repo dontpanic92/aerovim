@@ -42,7 +42,10 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     private PopupMenuItem[]? popupItems;
     private int? popupSelected;
     private (int Row, int Col)? popupAnchor;
+    private int popupGrid;
     private CmdlineState? cmdlineState;
+    private bool enableExternalCmdline;
+    private bool enableExternalPopupmenu;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NeovimClient"/> class.
@@ -51,8 +54,18 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     /// <param name="logger">Application logger.</param>
     /// <param name="workingDirectory">Optional working directory for Neovim.</param>
     /// <param name="fileArgs">Optional file paths to open on startup.</param>
-    public NeovimClient(string neovimPath, AeroVim.Editor.Diagnostics.IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null)
+    /// <param name="enableExternalCmdline">
+    /// When <c>true</c>, requests <c>ext_cmdline</c> from Neovim so the
+    /// command line is rendered by the GUI instead of in the terminal grid.
+    /// </param>
+    /// <param name="enableExternalPopupmenu">
+    /// When <c>true</c>, requests <c>ext_popupmenu</c> from Neovim so the
+    /// completion menu is rendered by the GUI instead of in the terminal grid.
+    /// </param>
+    public NeovimClient(string neovimPath, AeroVim.Editor.Diagnostics.IAppLogger logger, string? workingDirectory = null, IReadOnlyList<string>? fileArgs = null, bool enableExternalCmdline = false, bool enableExternalPopupmenu = false)
     {
+        this.enableExternalCmdline = enableExternalCmdline;
+        this.enableExternalPopupmenu = enableExternalPopupmenu;
         this.neovim = new DefaultNeovimRpcClient(neovimPath, logger, workingDirectory, fileArgs);
         this.neovim.Redraw += this.OnNeovimRedraw;
         this.neovim.NeovimExited += (int exitCode) =>
@@ -129,6 +142,9 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     public (int Row, int Col)? PopupAnchor => this.popupAnchor;
 
     /// <inheritdoc />
+    public int PopupGrid => this.popupGrid;
+
+    /// <inheritdoc />
     public CmdlineState? Cmdline => this.cmdlineState;
 
     private int Height => this.cells!.GetLength(0);
@@ -153,7 +169,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
         }
         else
         {
-            this.neovim.UI.Attach(width, height);
+            this.neovim.UI.Attach(width, height, extCmdline: this.enableExternalCmdline, extPopupmenu: this.enableExternalPopupmenu);
             this.neovim.Global.Command("set title");
             this.initialized = true;
         }
@@ -420,6 +436,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                         this.popupItems = e.Items;
                         this.popupSelected = e.Selected;
                         this.popupAnchor = (e.Row, e.Col);
+                        this.popupGrid = e.Grid;
                         break;
                     case PopupmenuSelectEvent e:
                         this.popupSelected = e.Selected;

@@ -26,13 +26,31 @@ public class UI
     /// </summary>
     /// <param name="width">The column count.</param>
     /// <param name="height">The row count.</param>
-    public void Attach(uint width, uint height)
+    /// <param name="extCmdline">
+    /// When <c>true</c>, requests the <c>ext_cmdline</c> extension so Neovim
+    /// sends command-line events instead of rendering in the grid.
+    /// </param>
+    /// <param name="extPopupmenu">
+    /// When <c>true</c>, requests the <c>ext_popupmenu</c> extension so Neovim
+    /// sends popup menu events instead of rendering in the grid.
+    /// </param>
+    public void Attach(uint width, uint height, bool extCmdline = false, bool extPopupmenu = false)
     {
         var options = new Dictionary<string, bool>()
         {
             ["rgb"] = true,
             ["ext_linegrid"] = true,
         };
+
+        if (extCmdline)
+        {
+            options["ext_cmdline"] = true;
+        }
+
+        if (extPopupmenu)
+        {
+            options["ext_popupmenu"] = true;
+        }
 
         // UI connection is critical — observe the response so failures are visible.
         this.msgPackRpc.SendRequestFireAndForget("nvim_ui_attach", new List<object>() { width, height, options });

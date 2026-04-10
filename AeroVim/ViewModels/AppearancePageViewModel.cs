@@ -36,6 +36,9 @@ internal sealed partial class AppearancePageViewModel : SettingsPageViewModel
     private double backgroundOpacity;
 
     [ObservableProperty]
+    private bool enableExternalUI;
+
+    [ObservableProperty]
     private int selectedFontIndex = -1;
 
     /// <summary>
@@ -55,6 +58,7 @@ internal sealed partial class AppearancePageViewModel : SettingsPageViewModel
         this.enableBlurBehind = settings.EnableBlurBehind;
         this.blurType = settings.BlurType;
         this.backgroundOpacity = settings.BackgroundOpacity;
+        this.enableExternalUI = settings.EnableExternalUI;
 
         foreach (var entry in settings.FallbackFonts)
         {
@@ -144,6 +148,7 @@ internal sealed partial class AppearancePageViewModel : SettingsPageViewModel
         this.settings.EnableBlurBehind = this.EnableBlurBehind;
         this.settings.BlurType = this.BlurType;
         this.settings.BackgroundOpacity = this.BackgroundOpacity;
+        this.settings.EnableExternalUI = this.EnableExternalUI;
         this.settings.FallbackFonts = this.GetRawFontList();
     }
 
@@ -190,6 +195,12 @@ internal sealed partial class AppearancePageViewModel : SettingsPageViewModel
     partial void OnEnableLigatureChanged(bool value)
     {
         this.settings.EnableLigature = value;
+    }
+
+    /// <inheritdoc/>
+    partial void OnEnableExternalUIChanged(bool value)
+    {
+        this.settings.EnableExternalUI = value;
     }
 
     /// <inheritdoc/>

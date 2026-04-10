@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AeroVim.Controls.CmdlinePopup"
+             x:CompileBindings="True"
+             Focusable="False"
+             IsHitTestVisible="False">
+
+    <UserControl.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut" />
+        </Transitions>
+    </UserControl.Transitions>
+
+    <Border Name="OuterBorder" CornerRadius="8"
+            MaxWidth="900" MinWidth="400"
+            BoxShadow="0 4 16 #40000000">
+        <ExperimentalAcrylicBorder Name="AcrylicBorder" CornerRadius="8">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="#1E1E1E"
+                    TintOpacity="0.85"
+                    MaterialOpacity="0.75" />
+            </ExperimentalAcrylicBorder.Material>
+
+            <Border CornerRadius="8" Name="ContentBorder"
+                    BorderThickness="1" Padding="16,10">
+                <Grid ColumnDefinitions="Auto,*">
+                    <!-- Prefix character (:, /, ?) -->
+                    <TextBlock Grid.Column="0" Name="PrefixText"
+                               VerticalAlignment="Center"
+                               FontWeight="Bold"
+                               Margin="0,0,4,0" />
+
+                    <!-- Content with cursor -->
+                    <Panel Grid.Column="1">
+                        <TextBlock Name="ContentText"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Left" />
+
+                        <!-- Blinking cursor caret -->
+                        <Border Name="CursorCaret"
+                                Width="2" Height="18" IsVisible="False"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                CornerRadius="1">
+                            <Border.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.08" />
+                                </Transitions>
+                            </Border.Transitions>
+                        </Border>
+                    </Panel>
+                </Grid>
+            </Border>
+        </ExperimentalAcrylicBorder>
+    </Border>
+</UserControl>

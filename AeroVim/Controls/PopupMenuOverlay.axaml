@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AeroVim.Controls.PopupMenuOverlay"
+             x:CompileBindings="True"
+             Focusable="False"
+             IsHitTestVisible="False">
+
+    <UserControl.Transitions>
+        <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.1" Easing="CubicEaseOut" />
+        </Transitions>
+    </UserControl.Transitions>
+
+    <Border Name="OuterBorder" CornerRadius="6"
+            BoxShadow="0 4 12 #40000000">
+        <ExperimentalAcrylicBorder Name="AcrylicBorder" CornerRadius="6">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="#1E1E1E"
+                    TintOpacity="0.85"
+                    MaterialOpacity="0.75" />
+            </ExperimentalAcrylicBorder.Material>
+
+            <Border CornerRadius="6" Name="ContentBorder"
+                    BorderThickness="1" Padding="2">
+                <StackPanel Name="ItemsPanel" />
+            </Border>
+        </ExperimentalAcrylicBorder>
+    </Border>
+</UserControl>

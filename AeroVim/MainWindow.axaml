@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="using:AeroVim.Controls"
         x:Class="AeroVim.MainWindow"
         Title="AeroVim"
         RequestedThemeVariant="Light"
@@ -146,8 +147,18 @@
                     Click="CloseButton_Click" />
         </Grid>
 
-        <!-- Neovim Control -->
-        <Border Name="NeovimBorder" Background="Transparent">
-        </Border>
+        <!-- Neovim Control with External UI Overlays -->
+        <Panel>
+            <Border Name="NeovimBorder" Background="Transparent" />
+            <Controls:PopupMenuOverlay Name="PopupMenuOverlay"
+                                       VerticalAlignment="Top"
+                                       HorizontalAlignment="Left"
+                                       IsVisible="False" />
+            <Controls:CmdlinePopup Name="CmdlinePopup"
+                                   VerticalAlignment="Bottom"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,48"
+                                   IsVisible="False" />
+        </Panel>
     </DockPanel>
 </Window>

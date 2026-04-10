@@ -6,6 +6,7 @@
 namespace AeroVim;
 
 using System.Runtime.InteropServices;
+using AeroVim.Editor;
 using AeroVim.Editor.Capabilities;
 using AeroVim.Services;
 using AeroVim.Utilities;
@@ -30,7 +31,12 @@ public partial class MainWindow : Window
     private readonly Grid titleBar;
     private readonly TextBlock titleText;
     private readonly Border neovimBorder;
+    private readonly Controls.CmdlinePopup cmdlinePopup;
+    private readonly Controls.PopupMenuOverlay popupMenuOverlay;
     private bool isSettingsDialogOpen;
+    private IExternalCmdline? externalCmdline;
+    private IExternalPopupMenu? externalPopupMenu;
+    private int currentForegroundColor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
@@ -55,6 +61,8 @@ public partial class MainWindow : Window
         this.titleBar = this.FindControl<Grid>("TitleBar")!;
         this.titleText = this.FindControl<TextBlock>("TitleText")!;
         this.neovimBorder = this.FindControl<Border>("NeovimBorder")!;
+        this.cmdlinePopup = this.FindControl<Controls.CmdlinePopup>("CmdlinePopup")!;
+        this.popupMenuOverlay = this.FindControl<Controls.PopupMenuOverlay>("PopupMenuOverlay")!;
 
         this.effectsService = new WindowEffectsService(this, this.settings);
         this.effectsService.CurrentBackgroundColor = this.settings.BackgroundColor;
@@ -281,6 +289,12 @@ public partial class MainWindow : Window
         base.OnClosing(e);
         WindowSettingsPersistence.Capture(this, this.settings);
         this.settings.Save();
+
+        if (this.coordinator.EditorClient is not null)
+        {
+            this.coordinator.EditorClient.Redraw -= this.OnRedrawForExternalUI;
+        }
+
         this.coordinator.Shutdown();
     }
 
@@ -363,6 +377,18 @@ public partial class MainWindow : Window
         this.effectsService.EditorControl = editorControl;
         this.neovimBorder.Child = editorControl;
         this.effectsService.UpdateBackgroundOpacity();
+
+        // Wire up external UI overlays when enabled
+        if (this.settings.EnableExternalUI)
+        {
+            this.externalCmdline = this.coordinator.EditorClient as IExternalCmdline;
+            this.externalPopupMenu = this.coordinator.EditorClient as IExternalPopupMenu;
+            if (this.externalCmdline is not null || this.externalPopupMenu is not null)
+            {
+                editorControl.UseExternalUI = true;
+                this.coordinator.EditorClient!.Redraw += this.OnRedrawForExternalUI;
+            }
+        }
     }
 
     private void OnTitleChanged(string title)
@@ -373,6 +399,7 @@ public partial class MainWindow : Window
 
     private void OnForegroundColorChanged(int intColor)
     {
+        this.currentForegroundColor = intColor;
         var color = Helpers.GetAvaloniaColor(intColor);
 
         this.Resources["TitleBarForegroundBrush"] = new SolidColorBrush(color);
@@ -394,6 +421,125 @@ public partial class MainWindow : Window
     {
         this.titleBar.Background = brush;
         this.neovimBorder.Background = brush;
+    }
+
+    private void OnRedrawForExternalUI()
+    {
+        int fg = this.currentForegroundColor;
+        int bg = this.effectsService.CurrentBackgroundColor;
+        var editorControl = this.coordinator.EditorControl;
+        string? fontName = editorControl?.FontName;
+        double fontSize = editorControl?.FontSize ?? 14;
+        double charWidth = editorControl?.CharWidth ?? 8;
+        double lineHeight = editorControl?.LineHeight ?? 18;
+        double editorWidth = editorControl?.Bounds.Width ?? 800;
+        double editorHeight = editorControl?.Bounds.Height ?? 600;
+
+        // --- Cmdline ---
+        var cmdline = this.externalCmdline;
+        var cmdState = cmdline?.Cmdline;
+        IList<(int HlId, string Text)>? cmdContent = null;
+        int cmdCursorPos = 0;
+        string cmdFirstChar = string.Empty;
+        string cmdPrompt = string.Empty;
+        int cmdIndent = 0;
+        int cmdLevel = 0;
+        bool cmdVisible = false;
+
+        if (cmdState is not null)
+        {
+            cmdContent = cmdState.Content;
+            cmdCursorPos = cmdState.CursorPos;
+            cmdFirstChar = cmdState.FirstChar;
+            cmdPrompt = cmdState.Prompt;
+            cmdIndent = cmdState.Indent;
+            cmdLevel = cmdState.Level;
+            cmdVisible = true;
+        }
+
+        // --- Popup menu ---
+        var popup = this.externalPopupMenu;
+        PopupMenuItem[]? popupItems = popup?.PopupItems;
+        int popupSelected = popup?.PopupSelected ?? -1;
+        (int Row, int Col)? popupAnchor = popup?.PopupAnchor;
+        int popupGrid = popup?.PopupGrid ?? 0;
+        bool popupVisible = popupItems is not null && popupAnchor is not null;
+
+        bool isCmdlinePopup = popupGrid == -1;
+        double gridAnchorX = popupAnchor.HasValue ? popupAnchor.Value.Col * charWidth : 0;
+        double gridAnchorY = popupAnchor.HasValue ? (popupAnchor.Value.Row + 1) * lineHeight : 0;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (fontName is not null)
+            {
+                this.cmdlinePopup.SetFont(fontName, fontSize);
+                this.popupMenuOverlay.SetFont(fontName, fontSize);
+            }
+
+            // Cmdline
+            if (cmdVisible && cmdContent is not null)
+            {
+                var snapshot = new CmdlineState
+                {
+                    Content = cmdContent,
+                    CursorPos = cmdCursorPos,
+                    FirstChar = cmdFirstChar,
+                    Prompt = cmdPrompt,
+                    Indent = cmdIndent,
+                    Level = cmdLevel,
+                };
+                this.cmdlinePopup.UpdateCmdline(snapshot, fg, bg);
+            }
+            else
+            {
+                this.cmdlinePopup.HideCmdline();
+            }
+
+            // Popup menu
+            if (popupVisible)
+            {
+                double popAnchorX;
+                double popAnchorY;
+                bool anchorAbove;
+
+                if (isCmdlinePopup && this.cmdlinePopup.IsVisible)
+                {
+                    // Compute the cmdline overlay's position within the shared Panel.
+                    var cmdParent = this.cmdlinePopup.Parent as Avalonia.Visual;
+                    Point? cmdPos = cmdParent is not null
+                        ? this.cmdlinePopup.TranslatePoint(new Point(0, 0), cmdParent)
+                        : null;
+                    double cmdTopY = cmdPos?.Y ?? (editorHeight - 48);
+                    double cmdLeftX = cmdPos?.X ?? 0;
+
+                    popAnchorX = cmdLeftX;
+                    popAnchorY = cmdTopY;
+                    anchorAbove = true;
+                }
+                else
+                {
+                    popAnchorX = gridAnchorX;
+                    popAnchorY = gridAnchorY;
+                    anchorAbove = false;
+                }
+
+                this.popupMenuOverlay.UpdatePopup(
+                    popupItems!,
+                    popupSelected,
+                    popAnchorX,
+                    popAnchorY,
+                    editorWidth,
+                    editorHeight,
+                    fg,
+                    bg,
+                    anchorAbove: anchorAbove);
+            }
+            else
+            {
+                this.popupMenuOverlay.HidePopup();
+            }
+        });
     }
 
     private void OnMacOSFullScreenChanged(bool isFullScreen)

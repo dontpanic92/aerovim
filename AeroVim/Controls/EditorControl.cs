@@ -93,6 +93,36 @@ public class EditorControl : Control, IDisposable
     public byte BackgroundAlpha { get; set; } = byte.MaxValue;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the external UI overlays
+    /// (floating cmdline popup and completion menu) are handling display.
+    /// When <c>true</c>, <see cref="EditorRenderer"/> skips its built-in
+    /// cmdline and popup menu drawing since no external events are delivered
+    /// when the overlays are inactive, and the overlays handle all rendering
+    /// when they are active.
+    /// </summary>
+    public bool UseExternalUI { get; set; }
+
+    /// <summary>
+    /// Gets the current primary font family name.
+    /// </summary>
+    public string FontName => this.textParam.FontName;
+
+    /// <summary>
+    /// Gets the current font size in device-independent pixels (Skia units).
+    /// </summary>
+    public double FontSize => this.textParam.SkiaFontSize;
+
+    /// <summary>
+    /// Gets the current character cell width in pixels.
+    /// </summary>
+    public double CharWidth => this.textParam.CharWidth;
+
+    /// <summary>
+    /// Gets the current line height in pixels.
+    /// </summary>
+    public double LineHeight => this.textParam.LineHeight;
+
+    /// <summary>
     /// Gets the desired row count.
     /// </summary>
     public uint DesiredRowCount
@@ -490,6 +520,19 @@ public class EditorControl : Control, IDisposable
             }
         });
 
+        bool drawCursor = this.cursorState.ShouldDrawCursor(this.editorClient.ModeInfo);
+
+        // Hide the editor grid cursor while the floating cmdline popup is
+        // showing — the popup draws its own blinking caret.
+        if (drawCursor && this.UseExternalUI)
+        {
+            var extCmdline = this.editorClient as IExternalCmdline;
+            if (extCmdline?.Cmdline is not null)
+            {
+                drawCursor = false;
+            }
+        }
+
         this.renderer.Render(
             canvas,
             args,
@@ -497,9 +540,9 @@ public class EditorControl : Control, IDisposable
             this.editorClient.ModeInfo,
             this.EnableLigature,
             this.BackgroundAlpha,
-            this.cursorState.ShouldDrawCursor(this.editorClient.ModeInfo),
-            this.editorClient as IExternalPopupMenu,
-            this.editorClient as IExternalCmdline);
+            drawCursor,
+            this.UseExternalUI ? null : this.editorClient as IExternalPopupMenu,
+            this.UseExternalUI ? null : this.editorClient as IExternalCmdline);
     }
 
     private void DisposeCachedResources()

@@ -41,6 +41,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     private int windowHeight = 600;
     private int backgroundColor = 0xFFFFFF;
     private List<string> fallbackFonts = new List<string> { FontPriorityList.GuiFontSentinel, FontPriorityList.SystemMonoSentinel };
+    private bool enableExternalUI;
     private bool autoCheckForUpdates = true;
     private DateTime? lastUpdateCheckUtc;
     private string? skippedVersion;
@@ -201,6 +202,19 @@ public sealed class AppSettings : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether external UI overlays (floating
+    /// command line and completion popup) are enabled for Neovim. When enabled,
+    /// Neovim's <c>ext_cmdline</c> and <c>ext_popupmenu</c> protocols are
+    /// activated and the command line and completion menu render as elegant
+    /// overlays instead of inside the terminal grid.
+    /// </summary>
+    public bool EnableExternalUI
+    {
+        get => this.enableExternalUI;
+        set => this.SetField(ref this.enableExternalUI, value);
+    }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the application should
     /// automatically check for updates at startup.
     /// </summary>
@@ -272,6 +286,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         this.WindowHeight = fresh.WindowHeight;
         this.BackgroundColor = fresh.BackgroundColor;
         this.FallbackFonts = fresh.FallbackFonts;
+        this.EnableExternalUI = fresh.EnableExternalUI;
         this.AutoCheckForUpdates = fresh.AutoCheckForUpdates;
         this.LastUpdateCheckUtc = fresh.LastUpdateCheckUtc;
         this.SkippedVersion = fresh.SkippedVersion;
