@@ -36,6 +36,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     private int modeIndex = 0;
     private string title = string.Empty;
     private Cell[,]? cells;
+    private int[,]? hlIds;
     private bool[]? dirtyRows;
     private bool allDirty;
     private (int Row, int Col) cursorPosition = (0, 0);
@@ -320,6 +321,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     {
         var actions = new List<Action>();
         bool flush = false;
+        bool highlightsChanged = false;
 
         lock (this.screenLock)
         {
@@ -377,11 +379,13 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                     // ---- ext_linegrid events ----
                     case HlAttrDefineEvent e:
                         this.highlightTable[e.Id] = e.RgbAttrs;
+                        highlightsChanged = true;
                         break;
                     case DefaultColorsSetEvent e:
                         this.foregroundColor = e.RgbFg;
                         this.backgroundColor = e.RgbBg;
                         this.specialColor = e.RgbSp;
+                        highlightsChanged = true;
                         actions.Add(() =>
                         {
                             this.ForegroundColorChanged?.Invoke(e.RgbFg);
@@ -471,6 +475,18 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                         break;
                 }
             }
+
+            // When highlight definitions or default colors changed, re-resolve
+            // every cell so that stale resolved RGB values are replaced.  This
+            // handles the case where neovim redefines highlights (e.g. during
+            // :colorscheme) but doesn't send grid_line for every cell, as well
+            // as the race where hl_attr_define / default_colors_set arrive in
+            // a separate batch before the corresponding grid_line events.
+            if (highlightsChanged && this.cells is not null)
+            {
+                this.ReResolveAllCells();
+                this.allDirty = true;
+            }
         }
 
         foreach (var action in actions)
@@ -489,6 +505,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     private void Resize(int width, int height)
     {
         var newCells = new Cell[height, width];
+        var newHlIds = new int[height, width];
         if (this.cells is not null)
         {
             int copyRows = Math.Min(height, this.cells.GetLength(0));
@@ -499,6 +516,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 for (int col = 0; col < copyCols; col++)
                 {
                     newCells[row, col] = this.cells[row, col];
+                    newHlIds[row, col] = this.hlIds![row, col];
                 }
             }
 
@@ -514,6 +532,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
         else
         {
             this.cells = newCells;
+            this.hlIds = newHlIds;
             this.dirtyRows = new bool[height];
             this.Clear();
             this.scrollRegion = (0, 0, width - 1, height - 1);
@@ -521,6 +540,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
         }
 
         this.cells = newCells;
+        this.hlIds = newHlIds;
         this.dirtyRows = new bool[height];
         this.allDirty = true;
         this.cursorPosition = (
@@ -540,6 +560,11 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
             }
         }
 
+        if (this.hlIds is not null)
+        {
+            Array.Clear(this.hlIds);
+        }
+
         this.allDirty = true;
         this.cursorPosition = (0, 0);
     }
@@ -550,6 +575,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
         for (int j = this.cursorPosition.Col; j < this.Width; j++)
         {
             this.ClearCell(ref this.cells![row, j]);
+            this.hlIds![row, j] = 0;
         }
 
         if (this.dirtyRows is not null)
@@ -598,12 +624,14 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
             {
                 int deltaRow = i * Math.Sign(count);
                 this.cells![destBegin + deltaRow, j] = this.cells[srcBegin + deltaRow, j];
+                this.hlIds![destBegin + deltaRow, j] = this.hlIds[srcBegin + deltaRow, j];
             }
 
             for (int i = 0; i < Math.Abs(count); i++)
             {
                 int deltaRow = -i * Math.Sign(count);
                 this.ClearCell(ref this.cells![clearBegin + deltaRow, j]);
+                this.hlIds![clearBegin + deltaRow, j] = 0;
             }
         }
 
@@ -650,6 +678,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
 
                 string? text = cell.Text.Length > 0 ? cell.Text : null;
                 this.cells[row, col].Set(text, style);
+                this.hlIds![row, col] = lastHlId;
                 col++;
             }
         }
@@ -677,6 +706,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 for (int col = left; col < right; col++)
                 {
                     this.cells[row, col] = this.cells[row + count, col];
+                    this.hlIds![row, col] = this.hlIds[row + count, col];
                 }
             }
 
@@ -686,6 +716,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 for (int col = left; col < right; col++)
                 {
                     this.ClearCell(ref this.cells[row, col]);
+                    this.hlIds![row, col] = 0;
                 }
             }
         }
@@ -699,6 +730,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 for (int col = left; col < right; col++)
                 {
                     this.cells[row, col] = this.cells[row - absCount, col];
+                    this.hlIds![row, col] = this.hlIds[row - absCount, col];
                 }
             }
 
@@ -708,6 +740,7 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
                 for (int col = left; col < right; col++)
                 {
                     this.ClearCell(ref this.cells[row, col]);
+                    this.hlIds![row, col] = 0;
                 }
             }
         }
@@ -737,6 +770,24 @@ public sealed class NeovimClient : IEditorClient, IExternalPopupMenu, IExternalC
     private void ClearCell(ref Cell cell)
     {
         cell.Clear(this.foregroundColor, this.backgroundColor, this.specialColor);
+    }
+
+    /// <summary>
+    /// Walks every cell and re-resolves its colors from the current highlight
+    /// table and default colors using the parallel <see cref="hlIds"/> array.
+    /// </summary>
+    private void ReResolveAllCells()
+    {
+        int rows = this.cells!.GetLength(0);
+        int cols = this.cells.GetLength(1);
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                var style = this.ResolveHighlight(this.hlIds![i, j]);
+                this.cells[i, j].Set(this.cells[i, j].Character, style);
+            }
+        }
     }
 
     private void CopyAllCells(Cell[,] destination, Cell[,] source)
