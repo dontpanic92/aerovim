@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <!-- Version can be overridden from CI with -p:AeroVimVersion=X.Y.Z[-suffix] -->
-    <VersionPrefix>0.8.0</VersionPrefix>
+    <VersionPrefix>0.9.0</VersionPrefix>
     <VersionSuffix Condition="'$(AeroVimVersion)' == ''">dev</VersionSuffix>
     <Version Condition="'$(AeroVimVersion)' != ''">$(AeroVimVersion)</Version>
     <Copyright>Copyright © 2018</Copyright>
