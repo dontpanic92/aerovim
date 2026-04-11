@@ -47,8 +47,8 @@ Grab the latest release for your platform from **[GitHub Releases](https://githu
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
-dotnet restore aerovim.sln
-dotnet build aerovim.sln -c Release
+dotnet restore aerovim.slnx
+dotnet build aerovim.slnx -c Release
 ```
 
 ### Publish

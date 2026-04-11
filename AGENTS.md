@@ -18,19 +18,19 @@ This project requires the .NET 10 SDK. On Windows, Visual Studio 2022 can also b
 ### Restore packages
 
 ```powershell
-dotnet restore aerovim.sln
+dotnet restore aerovim.slnx
 ```
 
 ### Build the solution
 
 ```powershell
-dotnet build aerovim.sln --configuration Debug
+dotnet build aerovim.slnx --configuration Debug
 ```
 
 For a release build:
 
 ```powershell
-dotnet build aerovim.sln --configuration Release
+dotnet build aerovim.slnx --configuration Release
 ```
 
 Build output locations:

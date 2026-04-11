@@ -77,10 +77,10 @@ jobs:
         echo "Nightly version: ${VERSION}"
 
     - name: Restore NuGet packages
-      run: dotnet restore aerovim.sln
+      run: dotnet restore aerovim.slnx
 
     - name: Build
-      run: dotnet build aerovim.sln --configuration Debug --no-restore --nologo
+      run: dotnet build aerovim.slnx --configuration Debug --no-restore --nologo
 
     - name: Run tests
       run: dotnet test Tests/Tests.csproj --configuration Debug --no-build --nologo
