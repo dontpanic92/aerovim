@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:chrome="using:Avalonia.Controls.Chrome"
              x:Class="AeroVim.App"
              Name="AeroVim"
              RequestedThemeVariant="Default">
@@ -10,6 +11,25 @@
                             Click="OnPreferencesClicked" />
         </NativeMenu>
     </NativeMenu.Menu>
+    <Application.Resources>
+        <!--
+            Suppress the default WindowDrawnDecorations overlay that Avalonia 12
+            renders when WindowDecorations="Full" + ExtendClientAreaToDecorationsHint.
+            AeroVim draws its own titlebar in MainWindow.axaml, so the built-in
+            overlay (caption buttons, titlebar) must be empty.
+        -->
+        <ControlTheme x:Key="{x:Type chrome:WindowDrawnDecorations}"
+                       TargetType="chrome:WindowDrawnDecorations">
+            <Setter Property="DefaultTitleBarHeight" Value="0" />
+            <Setter Property="DefaultFrameThickness" Value="0" />
+            <Setter Property="DefaultShadowThickness" Value="0" />
+            <Setter Property="Template">
+                <WindowDrawnDecorationsTemplate>
+                    <WindowDrawnDecorationsContent />
+                </WindowDrawnDecorationsTemplate>
+            </Setter>
+        </ControlTheme>
+    </Application.Resources>
     <Application.Styles>
         <SimpleTheme />
     </Application.Styles>
